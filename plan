@@ -16,6 +16,7 @@ i. Formulat the dimensionless equation
     stright forward!
         X Make stright capilar 
         - Make the barbell capilar
+        X Make mesh load function 
         - Make unit test 
 
 3. Timedependet Stokes 
