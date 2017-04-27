@@ -3,7 +3,7 @@ i. Formulat the dimensionless equation
         - Do it for Nerst-Plack
         - Do it for Poisson
         - Do it for Stokes
-        - Do it for the phase feild
+        - Do it for the phase field 
 
 1. Phase Field (Gaute)
     There is proberly a way to do this!
@@ -14,7 +14,7 @@ i. Formulat the dimensionless equation
 
 2. Mesh genration (Asger)
     stright forward!
-        - Make stright capilar 
+        X Make stright capilar 
         - Make the barbell capilar
         - Make unit test 
 
