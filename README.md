@@ -13,13 +13,23 @@
 
 
 
-            |--- problems
-BERNAISE ---|
-            |
-            |
-            |
-            |
-            |
+         
+* BERNAISE 
+ * problems
+  * ...
+ * solvers
+  * ...
+ * tests
+  * ...
+ * meshes
+  * ...
+ * utilities 
+  * ...
+ * README.md
+ * sauce.py
+
+
+
 
 ### Master Minds: 
 * **Gaute** er en ***nordmand***.
