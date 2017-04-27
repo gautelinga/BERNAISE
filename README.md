@@ -1,0 +1,1 @@
+Gaute er en Nordmand 
