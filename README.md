@@ -10,26 +10,20 @@
 * **Nobel Prize!!!** ***(only non-optional)***
 
 ### Folder Plan
-
-
-
          
 * BERNAISE 
- * problems
-  * ...
- * solvers
-  * ...
- * tests
-  * ...
- * meshes
-  * ...
- * utilities 
-  * ...
- * README.md
- * sauce.py
-
-
-
+  * problems
+    * ...
+  * solvers
+    * ...
+  * tests
+    * ...
+  * meshes
+    * ...
+  * utilities 
+    * ...
+  * README.md
+  * sauce.py
 
 ### Master Minds: 
 * **Gaute** er en ***nordmand***.
