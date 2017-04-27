@@ -9,6 +9,18 @@
 * More complicated geometri
 * **Nobel Prize!!!** ***(only non-optional)***
 
+### Folder Plan
+
+
+
+            |--- problems
+BERNAISE ---|
+            |
+            |
+            |
+            |
+            |
+
 ### Master Minds: 
 * **Gaute** er en ***nordmand***.
 * **Asger** er ***dansk***.
