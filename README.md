@@ -1,4 +1,6 @@
-== BERNAISE ==
-= Binary ElectRohydrodyNAmIc Simulation Environment =
+# BERNAISE
+## Binary ElectRohydrodyNAmIc Simulation Environment =
 
-Gaute er en Nordmand 
+* **Gaute** er en nordmand.
+* **Asger** er ***dansk***
+* **Joachim** er *også* dansk
