@@ -7,6 +7,10 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 def StoreMeshHDF5(mesh,meshpath):
+    '''
+    Function that stores generated mesh in both "HDMF5" 
+    (.h5) format and in "XDMF" (.XMDF) format.
+    '''
     meshpathhdf5 = meshpath + ".h5"    
     hdf5 = df.HDF5File(mesh.mpi_comm(), meshpathhdf5, "w")
     if rank == 0:
@@ -21,6 +25,12 @@ def StoreMeshHDF5(mesh,meshpath):
 
 
 def StraightCapilar(res=10,height=1,length=5,usemshr=False): 
+    '''
+    Function That Generates a mesh for a straight capilar, 
+    defualt meshing method is dolfin's "RectangleMesh" but have option for mshr.
+    Note: Should be run form "BERNAISE/utilies/" in order to work.
+    Note: The generarted mesh is storred in "BERNAISE/meshes/".
+    '''
     if usemshr: # use mshr for the generation 
         if rank == 0:
             print "Genrating mesh using the mshr-tool" 

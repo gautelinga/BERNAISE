@@ -7,6 +7,12 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 def LoadMesh(filename = "meshes/StraightCapilarDolfin_h1_l5_res10.h5"):
+    ''' 
+    Function that loads in the mesh specified in the "filename".
+    The defulat mesh loaded is the defulat generated mesh from 
+    "meshgeneration.StraightCapilar()".
+    Note: The "LoadMesh" should be done at the folder "BERNAISE/". 
+    '''
     if rank == 0:
         print "load mesh from" + filename 
     mesh = df.Mesh()
