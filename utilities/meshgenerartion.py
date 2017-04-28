@@ -1,3 +1,13 @@
+__author__ = "Asger J. S Bolet <asgerbolet@gmail.com>"
+__date__ = "2017-04-28"
+__copyright__ = "Copyright (C) 2017 " + __author__
+__license__ = "MIT"
+
+'''
+"StoreMeshHDF5(mesh,meshpath)" and 
+"StraightCapilar(res,height,length,usemshr)
+'''
+
 import dolfin as df
 import mshr as mshr
 from mpi4py import MPI

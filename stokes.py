@@ -1,3 +1,12 @@
+__author__ = "Asger J. S Bolet <asgerbolet@gmail.com>"
+__date__ = "2017-04-28"
+__copyright__ = "Copyright (C) 2017 " + __author__
+__license__ = "MIT"
+
+"""
+Prototype of the timedependet stokes solver and a basic problem.
+"""
+
 import dolfin as df
 import mshr as mshr
 from mpi4py import MPI
@@ -18,6 +27,8 @@ def problem(meshname='defulat'):
         mesh = LoadMesh(meshname)
     
     tetha = 0.5 # time-stepping family  
+    dt = 0.1
+    eta = 1
 
     V = df.VectorFunctionSpace(mesh, "CG", 2)
     P = df.FiniteElement("Lagrange", mesh.ufl_cell(), 1)
