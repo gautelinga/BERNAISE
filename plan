@@ -15,7 +15,7 @@ i. Formulat the dimensionless equation
 2. Mesh genration (Asger)
     stright forward!
         X Make stright capilar 
-        - Make the barbell capilar
+        X Make the barbell capilar
         X Make mesh load function 
         - Make unit test 
 

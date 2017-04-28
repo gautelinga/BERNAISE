@@ -71,8 +71,43 @@ def StraightCapilar(res=10,height=1,length=5,usemshr=False):
             print "Done."
     StoreMeshHDF5(mesh,meshpath)
 
+def BarbellCapilar(res=50,diameter=1.,length=5.):
+    '''
+    Function That Generates a mesh for a barbell capilar, 
+    Meshing method is mshr.
+    Note: Should be run form "BERNAISE/utilies/" in order to work.
+    Note: The generarted mesh is storred in "BERNAISE/meshes/".
+    '''
+    if rank == 0:
+        print "Genrating mesh using the mshr-tool" 
+    
+    inletdiameter = diameter*5.
+    inletlength = diameter*4.
+
+    # Define coners of "capilar""
+    a = df.Point(-diameter/2.,-length/2-inletlength/2.)
+    b = df.Point(diameter/2.,length/2+inletlength/2.)
+    capilar = mshr.Rectangle(a,b)
+    # Define coners of "leftbell"" 
+    c =df.Point(-inletdiameter/2.,-length/2-inletlength)
+    d =df.Point(inletdiameter/2.,-length/2)
+    leftbell = mshr.Rectangle(c,d)
+    # Define coners of "rightbell" 
+    e =df.Point(-inletdiameter/2.,length/2)
+    f =df.Point(inletdiameter/2.,length/2+inletlength)
+    rightbell = mshr.Rectangle(e,f)
+
+    domain = capilar +leftbell +rightbell
+    mesh = mshr.generate_mesh(domain,res)
+    meshpath ="../meshes/BarbellCapilarDolfin_d" + str(diameter) + "_l" + str(length) + "_res" + str(res)
+    if rank == 0:
+        print "Done."
+    StoreMeshHDF5(mesh,meshpath)
+    
 def main():
      StraightCapilar() 
+     BarbellCapilar()
+
 
 if __name__ == "__main__":
     main()
