@@ -1,0 +1,73 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage{cite}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{amsmath, amssymb}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{multirow}
+\numberwithin{equation}{section}
+\numberwithin{figure}{section}
+\usepackage{caption}
+\usepackage{subcaption} %Not actually used. You can put multiple includegraphics commands right after each other without spaces without problems. This is only useful for separated captions.
+%Prevent indentation of first line in paragraphs.
+\setlength{\parindent}{0pt}
+
+\begin{document}
+\section{Equations}
+Stokes equation:
+\begin{align}
+\rho(\psi) \partial_t \mathbf{u}  &=  \nabla P +\eta(\psi) \nabla^2 \mathbf{u} -  \rho_e  \nabla \phi + \mathbf{f}_{if}(\psi),  \\  
+\nabla \cdot\mathbf{u} &= 0.
+\end{align}
+$f_{if}$ is the interface force and the rest should be self explained for now. \newline
+Poissons equation: 
+\begin{align}
+\nabla^2 \phi &= \frac{\rho_e}{\epsilon_0(\psi) \epsilon_r}.
+\end{align}
+Nernst-Planck equation:
+\begin{align}
+\partial_t c_i  &=  \nabla  \cdot  \left( - \mathbf{u} c_i  + D_i \nabla c_i  +   \frac{D_i z_i q_e}{k_B T} c_i \nabla(\psi) \phi \right), \\
+\rho_e &= \sum_i q_e z_i c_i. 
+\end{align}
+The Phase field equation?? 
+\begin{align}
+\partial_t \psi + \mathbf{u}\cdot\nabla\psi &= M\nabla^2\left(\frac{3 \sigma }{W} \psi \left(\psi^2 -1\right) - \frac{3 \sigma W}{8}\nabla^2 \psi\right).
+\end{align}
+\section{Dimensionless Equations} 
+The Normalization constants:
+\begin{align}
+c_i &\propto c_0, ~~~~ \phi \propto V_T = \frac{k_B T}{z_i q_e}, ~~~~\mathbf{u} \propto U_0 = \frac{\epsilon_D V_T^2}{\eta L}, ~~~~p \propto \frac{\eta U_0}{l},\\
+x &\propto l, ~~~~ t \propto \frac{l^2}{2 D}, ~~~~ \rho \propto \rho_e.
+\end{align}
+The factor off two in the time $t$ might be changed. \newline
+Stokes dimensionless:
+\begin{align}
+\frac{2}{Sc}\tilde{\rho}(\psi) \partial_{\tilde{t}} \tilde{\mathbf{u}}  &=  \tilde{\nabla} \tilde{P} + \eta_0(\psi)\tilde{\nabla}^2 \tilde{\mathbf{u}} - \frac{1}{2\tilde{\lambda}^2_D} \tilde{\rho}_e  \tilde{\nabla} \tilde{\phi} + \mathbf{f}_{if_0} \tilde{\mathbf{f}}_{if}(\psi), \\
+\tilde{\nabla }\cdot\tilde{\mathbf{u}} &= 0, \\
+Sc &= \frac{\eta}{\rho_0,D}, \\
+\lambda_D &= \sqrt{\frac{k_B T \epsilon_r \epsilon_D}{2 q_e^2 c_0 z^2}}.  
+\end{align}
+Poissons dimensionless: 
+\begin{align}
+\tilde{\nabla}^2\tilde{\phi}&= \frac{1}{2\tilde{\lambda}_D^2 }\frac{\tilde{\rho}_e}{\tilde{\epsilon}(\psi)}.
+\end{align}
+Nernst-Planck dimensionless
+\begin{align}
+\tilde{\rho}_e &= \sum_i \tilde{c}_i, \\
+\tilde{\partial}_t\tilde{c}_i &= \tilde{\nabla}\cdot\left(\frac{Pe}{2}\tilde{\mathbf{u}}\tilde{c_i}+\frac{1}{2}\tilde{\nabla}\tilde{c_i}+\frac{1}{2}\tilde{c}_i\tilde{\nabla}\tilde{\phi}\right).
+\end{align}
+The Phase field dimensionless??
+\section{Weak Forms}
+The Stokes equation: 
+\begin{align}
+\int_\Omega \frac{2\tilde{\rho}}{Sc\Delta\tilde{t}} \mathbf{v}\cdot\left(\tilde{\mathbf{u}}-\tilde{\mathbf{u}}_0\right) - \mathbf{v}\cdot \nabla \tilde{p} + \tilde{\eta}(\psi)\mathbf{v}\cdot\tilde{\nabla}^2\tilde{u}_{cn} &- \frac{1}{2\tilde{\lambda}_D}\tilde{\rho}_e\mathbf{v}\cdot\tilde{\nabla}\tilde{\phi}\\\nonumber
+ &+\frac{l U_0 f_{it_0}}{\eta}\mathbf{v}\cdot\tilde{f}+q\nabla\cdot\tilde{\mathbf{u}}_{cn} dx
+\end{align}
+\begin{align}
+\Rightarrow \int_\Omega \frac{2\tilde{\rho}}{Sc\Delta\tilde{t}} \mathbf{v}\cdot\left(\tilde{\mathbf{u}}-\tilde{\mathbf{u}}_0\right) &- \mathbf{v}\cdot \nabla \tilde{p} -\tilde{\nabla}\left(\tilde{\eta}(\psi)\mathbf{v}\right)\cdot\tilde{\nabla}\tilde{u}_{cn}  -\frac{1}{2\tilde{\lambda}_D}\tilde{\rho}_e\mathbf{v}\cdot\tilde{\nabla}\tilde{\phi}\\\nonumber
+&+\frac{l U_0 f_{it_0}}{\eta}\mathbf{v}\cdot\tilde{f}+q\nabla\cdot\tilde{\mathbf{u}}_{cn} dx  +\int_{\partial\Omega}\left(\mathbf{v}\tilde{\eta}(\psi)\tilde{\nabla}\tilde{\mathbf{u}}_{cn}\right)\cdot\mathbf{n}ds
+\end{align}
+ 
+\end{document}
