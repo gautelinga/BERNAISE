@@ -12,47 +12,52 @@
 \usepackage{caption}
 \usepackage{subcaption} %Not actually used. You can put multiple includegraphics commands right after each other without spaces without problems. This is only useful for separated captions.
 %Prevent indentation of first line in paragraphs.
-\setlength{\parindent}{0pt}
+%\setlength{\parindent}{0pt}
 
+\renewcommand{\v}[1]{\mathbf{#1}}
+\newcommand{\intf}{\textrm{if}}
 
 \begin{document}
-\section{Project Description: Two Phase Electrohydrodynamics}
-\textbf{Participants:} Gaute Linga\footnote{Copenhagen University, Niels Bohr Institutet, Norwegian}, Asger J. S. Bolet\footnote{Copenhagen University, Niels Bohr Institutet, Dane} plus possible one more if there is one interested.
+\section*{Project Description:\\Two-Phase Electrohydrodynamics in Porous Media}
+\textbf{Participants:} Gaute Linga\footnote{Copenhagen University, Niels Bohr Institutet, Norwegian}, Asger J. S. Bolet\footnote{Copenhagen University, Niels Bohr Institutet, Danish}, plus possible one more if there is one interested.
 
-\subsection{Description}
-Our idea for a project in FEniCS is to implement a multi-physics solver for binary fluid flow with dissolved ions in them and surface charge interactions. The plan is to model this with the following set of equations:\newline 
-The incompressible time dependent Stokes equation for the fluid flow:
-\begin{align}
-\rho(\psi) \partial_t \mathbf{u}  &=  \nabla p +\eta(\psi) \nabla^2 \mathbf{u} -  \rho_e  \nabla \phi + \mathbf{f}_{if}(\psi),  \\  
-\nabla \cdot\mathbf{u} &= 0,
-\end{align}
-where $\rho$ is the fluid density, $\psi$ is the phase field that tracks the two phases,$u$ is the fluid velocity, $p$ is the pressure, $\eta$ is the dynamic viscosity,$\rho_e$ is the charge density, $\phi$ is the electric potential and  
-$f_{if}$ is the interface force. \newline
-Poissons equation for the electric potential: 
-\begin{align}
-\nabla\cdot\left(\epsilon_r(\psi)\nabla\phi\right) &= \frac{\rho_e}{\epsilon_0 },
-\end{align}
-where $\epsilon_0$ is the vacuum permittivity and $\epsilon_r$ the relative permittivity. \newline 
-Nernst-Planck equation is to model the ion diffusion-convection-migration, one for each species of ion we will properly restrict our self to two:
-\begin{align}
-\partial_t c_i  &=  \nabla  \cdot  \left( - \mathbf{u} c_i  + D_i(\psi) \nabla c_i  +   \frac{D_i(\psi) z_i q_e}{k_B T} c_i \nabla \phi \right), \\
+\subsection*{Description}
+We will implement a multi-physics solver for binary fluid flow with dissolved ions in them and surface charge interactions.
+The full model consists in the following set of equations:
+\begin{itemize} 
+\item The incompressible time-dependent Stokes equations for the fluid flow:
+  \begin{align}
+    \rho(\psi) \partial_t \mathbf{u}  &= \nabla p +\eta(\psi) \nabla^2 \mathbf{u} -  \rho_e  \nabla \phi + \mathbf{f}_{if}(\psi),  \\  
+    \nabla \cdot\mathbf{u} &= 0,
+  \end{align}
+  where $\rho$ is the phase-dependent fluid density, $\psi$ is the phase field that tracks the interface between the two phases, $\v u$ is the fluid velocity, $p$ is the pressure, $\eta$ is the dynamic viscosity, $\rho_e$ is the charge density, $\phi$ is the electric potential and $\v f_{\intf}$ is the interface force.
+\item Poisson's equation for the electric potential: 
+  \begin{align}
+    \nabla\cdot\left(\epsilon_r(\psi)\nabla\phi\right) &= \frac{\rho_e}{\epsilon_0 },
+  \end{align}
+  where $\epsilon_0$ is the vacuum permittivity and $\epsilon_r$ the relative permittivity.
+\item The phenomenological Nernst--Planck equation to model the ion diffusion-convection-migration, one for each species $i$ of ion (we will probably restrict ourselves to two):
+  \begin{align}
+    \partial_t c_i  &=  \nabla  \cdot  \left( - \mathbf{u} c_i  + D_i(\psi) \nabla c_i  +   \frac{D_i(\psi) z_i q_e}{k_B T} c_i \nabla \phi \right), \\
 \rho_e &= \sum_i q_e z_i c_i, 
-\end{align}
-Where $c_i$ is the ion concentration, $D_i$ is the ion diffusivity, $z_i$ is the ion valency, $q_e$ is the electron charge, $k_B$ is Boltzmann's constant and $T$ is the temperature.\newline     
-The Phase field equation for the tracking the interface and give the surface tension and possibly the contact angel however only for moderate angels: 
-\begin{align}
-\partial_t \psi + \mathbf{u}\cdot\nabla\psi &= M\nabla^2\left(\frac{3 \sigma }{W} \psi \left(\psi^2 -1\right) - \frac{3 \sigma W}{8}\nabla^2 \psi\right),
-\end{align}
-where $M$ is ???, $\sigma$ is ??? and $W$ is ???\newline 
-What we would like to study with this system of equation is electric "static" intrusion in a capillary due surface charge effects and different Debye lengths in the two fluids.       
-\subsection{Implementation in FEniCS}
-In Order to simulate the above equations we will need to implement them in fenics. However there is some complications as system of equations is highly none-linear and have a lot off different time scales. On top of the a time integration schema we will have also have to slove the steady sated Poisson-Nernst-Planck-problem in order to give more realistic initial conditions. 
-The simulation environment proposed for the above text have the name : BERNAISE an acronym for Binary ElectRohydrodyNAmIc Simulation Environment, the git repository can be found at https://github.com/gautelinga/BERNAISE along implementation plan called plan. 
- 
-   
+  \end{align}
+  where $c_i$, $D_i$, $z_i$ are the ion concentration, diffusivity, and valency of species $i$, $q_e$ is the electron charge, $k_B$ is Boltzmann's constant and $T$ is the temperature.
+\item The conservation equation for the phase field tracking the interface (which consequantly gives the surface energy):
+  \begin{align}
+    \partial_t \psi + \mathbf{u}\cdot\nabla\psi &= M\nabla^2\left(\frac{3 \sigma }{W} \psi \left(\psi^2 -1\right) - \frac{3 \sigma W}{8}\nabla^2 \psi\right),
+  \end{align}
+  where $M$ is the mobility, $\sigma$ is the interface tension and $W$ is the interface width (which should approach 0 with grid refinement).
+  The contact angle with the solid wall is implemented through the boundary conditions, and we will most likely implement a simple expression which is sufficient for moderate angles.
+\end{itemize}
+With this system of equations we will first study electric ``static'' intrusion in a capillary due surface charge effects and different Debye lengths in the two fluids, in particular in two dimensions.
+Furthermore, we will study the effect of surface charge and a voltage bias upon drainage and imbibition in larger systems of synthetic porous media.
 
+\subsection*{Implementation in FEniCS}
+In order to simulate the above equations we will need to write down the variational forms and implement them in FEniCS.
+However, there are some complications as the system of equations is highly non-linear and contains many different time scales.
+On top of implementing a time integration scheme, we will have to solve the steady state Poisson--Nernst--Planck problem in order to provide realistic initial conditions.
 
-
-
+The simulation environment proposed for the above text has the name BERNAISE---an acronym for Binary ElectRohydrodyNAmIc Simulation Environment.
+The git repository can be found at \url{https://github.com/gautelinga/BERNAISE} along with an implementation plan called plan.
 
 \end{document} 
