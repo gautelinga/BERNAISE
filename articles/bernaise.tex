@@ -1,0 +1,84 @@
+\documentclass[reprint,prl,superscriptaddress]{revtex4-1}
+\usepackage{graphicx}
+\usepackage{epstopdf}
+\usepackage{epsfig}
+\usepackage{amssymb,amsmath,stmaryrd,tabularx}
+\usepackage{wrapfig}
+\usepackage{bm}
+\usepackage[center]{subfigure}
+\usepackage{enumerate}
+\usepackage{cleveref}
+\usepackage{hyperref}
+
+% Physics header, modified from dfdc.net %
+\let\vaccent=\v % rename builtin command \v{} to \vaccent{}
+\renewcommand{\v}[1]{\ensuremath{\mathbf{#1}}} % for vectors
+\renewcommand{\times}{\cdot} % times symbol
+\renewcommand{\vec}[1]{\v{#1}} % also for vectors
+\newcommand{\gv}[1]{\ensuremath{\mbox{\boldmath$ #1 $}}} 
+% for vectors of Greek letters
+\newcommand{\uv}[1]{\ensuremath{\mathbf{\hat{#1}}}} % for unit vector
+\newcommand{\abs}[1]{\left| #1 \right|} % for absolute value
+\newcommand{\avg}[1]{\left< #1 \right>} % for average
+\let\underdot=\d % rename builtin command \d{} to \underdot{}
+\newcommand{\diff}{\mathrm{d}}
+\renewcommand{\d}[2]{\frac{\diff #1}{\diff #2}} % for derivatives
+\newcommand{\dd}[2]{\frac{\diff^2 #1}{\diff #2^2}} % for double derivatives
+%\newcommand{\pd}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\pd}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\pdinl}[2]{\partial #1 / \partial #2 }
+% for partial derivatives
+\newcommand{\pdd}[2]{\frac{\partial^2 #1}{\partial #2^2}}
+% for double partial derivatives
+\newcommand{\pdc}[3]{\left( \frac{\partial #1}{\partial #2}
+ \right)_{#3}} % for thermodynamic partial derivatives
+\newcommand{\pdcinl}[3]{\left(\partial #1 / \partial #2 \right)_{#3}}
+\newcommand{\ket}[1]{\left| #1 \right>} % for Dirac bras
+\newcommand{\bra}[1]{\left< #1 \right|} % for Dirac kets
+\newcommand{\braket}[2]{\left< #1 \vphantom{#2} \right|
+ \left. #2 \vphantom{#1} \right>} % for Dirac brackets
+\newcommand{\matrixel}[3]{\left< #1 \vphantom{#2#3} \right|
+ #2 \left| #3 \vphantom{#1#2} \right>} % for Dirac matrix elements
+\newcommand{\grad}[1]{\gv{\nabla} #1} % for gradient
+\let\divsymb=\div % rename builtin command \div to \divsymb
+\renewcommand{\div}[1]{\gv{\nabla} \cdot #1} % for divergence
+\newcommand{\curl}[1]{\gv{\nabla} \times #1} % for curl
+\newcommand{\mean}[1]{\left< #1 \right>}
+\newcommand{\laplacian}[1]{\grad^2 #1}
+\newcommand{\emphy}[1]{\textsc{#1}}
+
+\begin{document}
+\title{Bernice: High-level/high-performance simulation of two-phase electrohydrodynamics in complex domains}
+
+\newcommand{\NBI}{Niels Bohr Institute, University of Copenhagen, Blegdamsvej 17, DK-2200 Copenhagen, Denmark.}
+\author{Asger J.~S.~Bolet}
+\email{asger.bolet@nbi.dk}
+\affiliation{\NBI}
+\author{Gaute Linga}
+\email{linga@nbi.dk}
+\affiliation{\NBI}
+\author{Joachim Mathiesen}
+\email{mathies@nbi.dk}
+\affiliation{\NBI}
+
+% NOTE:
+% Preferably, all sentences should be kept at one line only.
+% This way it is easier to track changes in git.
+
+\begin{abstract}
+  \emph{Bernice} (\emphy{B}inary
+  \emphy{E}lect\emphy{r}ohydrody\emphy{n}am\emphy{ic} Solv\emphy{e}r) is a high-level/high-performance finite element solver of two-phase electrohydrodynamic flow in complex geometries.
+  The solver is implemented in Python via the FEniCS framework, which effectively utilizes the linear algebra backend PETSc, MPI and domain decomposition.
+  The solver is validated by comparison to limiting cases where analytical solutions are available, and by the method of manifactured solution.
+\end{abstract}
+
+\maketitle
+
+\section{Introduction}
+Electric force.
+This solver is inspired by the \emph{Oasis} solver for fluid flow \cite{mortensen2015}.
+
+\bibliographystyle{apsrev4-1}
+\bibliography{references}
+
+\end{document}
