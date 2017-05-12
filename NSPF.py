@@ -1,10 +1,13 @@
 import dolfin as df
 import math
-from mpi4py import MPI
 
 
 df.parameters["form_compiler"]["cpp_optimize"] = True
 df.parameters["form_compiler"]["optimize"] = True
+df.parameters["form_compiler"]["representation"] = "quadrature"
+df.parameters["linear_algebra_backend"] = "PETSc"
+df.parameters["std_out_all_processes"] = False
+df.parameters["krylov_solver"]["nonzero_initial_guess"] = True
 
 
 def get_mesh(Lx, Ly, h):
@@ -49,6 +52,10 @@ def initial_phasefield(x0, y0, rad, eps, S, shape="circle"):
     return phi_init
 
 
+def filter_pf(phi):
+    return phi  # 0.5*phi*(3.-phi**2)
+
+
 def approx_chem_pot(phi, sigma_bar, eps):
     g_space = phi.function_space()
     h = df.TestFunction(g_space)
@@ -73,7 +80,7 @@ def problem():
     Lx, Ly = 1., 2.
     rad_init = 0.25
     t0 = 0.
-    T = 3.
+    T = 6.
 
     rho_1 = 1000.
     nu_1 = 10.
@@ -90,8 +97,8 @@ def problem():
 
     u_el = df.VectorElement("Lagrange", mesh.ufl_cell(), 2)
     p_el = df.FiniteElement("Lagrange", mesh.ufl_cell(), 1)
-    phi_el = df.FiniteElement("Lagrange", mesh.ufl_cell(), 1)
-    g_el = df.FiniteElement("Lagrange", mesh.ufl_cell(), 1)
+    phi_el = df.FiniteElement("Lagrange", mesh.ufl_cell(), 2)
+    g_el = df.FiniteElement("Lagrange", mesh.ufl_cell(), 2)
 
     W_NS = df.FunctionSpace(mesh, u_el * p_el)
     W_PF = df.FunctionSpace(mesh, phi_el * g_el)
@@ -129,24 +136,24 @@ def problem():
     psi, h = df.TestFunctions(W_PF)
 
     rho1 = density(phi1, rho_1, rho_2)
-    rho0 = density(phi0, rho_1, rho_2)
+    rho0 = density(filter_pf(phi0), rho_1, rho_2)
     nu1 = viscosity(phi1, nu_1, nu_2)
-    nu0 = viscosity(phi0, nu_1, nu_2)
+    nu0 = viscosity(filter_pf(phi0), nu_1, nu_2)
     M1 = pf_mobility(phi1, gamma)
     M0 = pf_mobility(phi0, gamma)
     
     dx = df.dx
 
     # phi, g = df.split(w1)
-    F_PF = ((phi-phi0)*psi*dx + tau*df.dot(u0, df.grad(phi))*psi*dx +
+    F_PF = ((phi-filter_pf(phi0))*psi*dx + tau*df.dot(u0, df.grad(phi))*psi*dx +
             tau*M0*df.dot(df.grad(g), df.grad(psi))*dx +
             g*h*dx - sigma_bar*eps*df.dot(df.grad(phi), df.grad(h))*dx -
-            sigma_bar/eps * diff_pf_potential_linearised(phi, phi0)*h*dx)
+            sigma_bar/eps * diff_pf_potential_linearised(phi, filter_pf(phi0))*h*dx)
     a_PF, L_PF = df.lhs(F_PF), df.rhs(F_PF)
     # A_PF = df.assemble(a_PF)
     problem_PF = df.LinearVariationalProblem(a_PF, L_PF, w1_PF)
     solver_PF = df.LinearVariationalSolver(problem_PF)
-
+   
     F_NS = (1./tau * df.dot(rho1*u - rho0*u0, v)*dx
             + 2*nu1*df.inner(df.sym(df.grad(u)), df.grad(v))*dx
             - rho1*df.inner(df.outer(u0, u), df.grad(v))*dx
@@ -163,10 +170,15 @@ def problem():
         W_NS.sub(0), df.Constant((0., 0.)),
         "on_boundary && (x[1] < DOLFIN_EPS || x[1] > {Ly}-DOLFIN_EPS)".format(Ly=Ly))
     bcs_NS = [noslip, freeslip]
-    
+
     problem_NS = df.LinearVariationalProblem(a_NS, L_NS, w1_NS, bcs_NS)
     solver_NS = df.LinearVariationalSolver(problem_NS)
 
+    solver_PF.parameters["linear_solver"] = "gmres"
+    #solver_PF.parameters["preconditioner"] = "default"
+    #solver_NS.parameters["linear_solver"] = "gmres"
+    #solver_NS.parameters["preconditioner"] = "amg"
+    
     field_names = ["u", "p", "phi", "g"]
     tstepfiles = dict()
     for field_name in field_names:
@@ -179,11 +191,8 @@ def problem():
     tstep = 0
     dump_intv = 10
 
-    mpi_comm = mesh.mpi_comm()
-    mpi_rank = mpi_comm.rank
     while t < T:
-        if mpi_rank == 0:
-            print tstep, t
+        df.info("tstep " + str(tstep) + " | time " + str(t))
         t += dt
         tstep += 1
 
@@ -201,6 +210,8 @@ def problem():
         # Finally, update
         w0_PF.assign(w1_PF)
         w0_NS.assign(w1_NS)
+
+    df.list_timings(df.TimingClear_clear, [df.TimingType_wall])
 
     do_plot = False
     if do_plot:
