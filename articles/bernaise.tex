@@ -1,4 +1,4 @@
-\documentclass[reprint,prl,superscriptaddress]{revtex4-1}
+\documentclass[preprint,pre,superscriptaddress]{revtex4-1}
 \usepackage{graphicx}
 \usepackage{epstopdf}
 \usepackage{epsfig}
@@ -7,7 +7,6 @@
 \usepackage{bm}
 \usepackage[center]{subfigure}
 \usepackage{enumerate}
-\usepackage{cleveref}
 \usepackage{hyperref}
 
 % Physics header, modified from dfdc.net %
@@ -46,6 +45,7 @@
 \newcommand{\mean}[1]{\left< #1 \right>}
 \newcommand{\laplacian}[1]{\grad^2 #1}
 \newcommand{\emphy}[1]{\textsc{#1}}
+\newcommand{\pdt}[1]{\partial_t #1}
 
 \begin{document}
 \title{Bernice: High-level/high-performance simulation of two-phase electrohydrodynamics in complex domains}
@@ -62,21 +62,80 @@
 \affiliation{\NBI}
 
 % NOTE:
-% Preferably, all sentences should be kept at one line only.
+% All sentences should be kept at one line only.
 % This way it is easier to track changes in git.
 
 \begin{abstract}
   \emph{Bernice} (\emphy{B}inary
   \emphy{E}lect\emphy{r}ohydrody\emphy{n}am\emphy{ic} Solv\emphy{e}r) is a high-level/high-performance finite element solver of two-phase electrohydrodynamic flow in complex geometries.
   The solver is implemented in Python via the FEniCS framework, which effectively utilizes the linear algebra backend PETSc, MPI and domain decomposition.
-  The solver is validated by comparison to limiting cases where analytical solutions are available, and by the method of manifactured solution.
+  The solver is validated by comparison to limiting cases where analytical solutions are available, benchmark cases, and by the method of manifactured solution.
 \end{abstract}
 
 \maketitle
 
 \section{Introduction}
-Electric force.
 This solver is inspired by the \emph{Oasis} solver for fluid flow \cite{mortensen2015}.
+
+
+
+Reviews of wetting phenomena \cite{degennes1985,bonn2009,snoeijer2013}.
+Electrowetting \cite{mugele2005}.
+Derivation of the equations of electrohydrodynamics (EHD) \cite{saville1997}.
+
+Single-phase, steady-state EHD simulation in nanopores using FEniCS \cite{mitscha-baude2017}.
+Simulation and comparison to experiments of electrowetting with contact line pinning \cite{walker2009}.
+3D phase field modeling of electrohydrodynamic multiphase flows \cite{yang2013,yang2014}.
+Electrohydrodynamics in microfluidic devices \cite{zeng2011}.
+
+Review of diffuse interface models in fluid mechanics \cite{anderson1998}.
+``Model H'' of \citet{hohenberg1977} (two incompressible fluids with matched densities and viscosities, Navier--Stokes--Cahn--Hilliard system, describes phase transitions of binary fluids or single-phase fluid near the critical point).
+\citet{lowengrub1998} derived a thermodynamically consistent generalization of Model H where densities and viscosities were different in the two phases, however with the numerical difficulty that the velocity field was not divergency free.
+Thermodynamically consistent and frame invariant phase field model for binary flow \cite{abels2012}.
+Extension to EHD (i.e.~inclusion of electric fields and forces) by \citet{campillo-funollet2012}, where they also simulated the model using a dual mesh (see below).
+A similar model for EHD with emphasis on contact line pinning was derived by \citet{nochetto2014}, but it does not appear to be frame-invariant as the chemical potential depends quadratically on velocity.
+
+Numerical implementation of the model in \cite{abels2012} using a dual mesh formulation (FVM on the dual mesh for advection terms, FEM for the rest).
+Benchmarks of bubble dynamics using phase-field models (without electrodynamics) \cite{aland2012} (based on \cite{hysing2009}).
+Numerical schemes for the same case were presented and analyzed in \cite{guillen-gonzalez2014,grun2016}.
+Finite element approximation of two-phase EHD (with Stokes flow assumption) \cite{nurnberg2017}.
+Implementation of the full EHD model in \cite{campillo-funollet2012} by \cite{metzger2015}.
+
+Critical review of wetting boundary conditions for phase-field models \cite{huang2015}.
+
+\section{Model}
+The governing equations of two-phase EHD can be summarized as the coupled system of two-phase flow, passive chemical transport, and electrostatics \cite{campillo-funollet2012}.
+In the following, we present each equation. Down to the nanometer scale, the fluid flow is described by the incompressible Navier--Stokes equations (with some additional force terms):
+\begin{gather}
+  \rho_i \left( \pdt {\v v} + (\v v \cdot \grad ) \v v \right)  - \mu_i \laplacian \v v + \grad p = \sum_j g_{c_j} \grad c_j - \rho_e \grad V, \label{eq:sharp_NS1}\\
+  \div \v v = 0. \label{eq:sharp_NS2}
+\end{gather}
+Here, $\rho_i$ is the density of phase $i$, $\v v$ is the velocity field, $\mu_i$ is the dynamic viscosity of phase $i$, $p(\v x, t)$ is the pressure field., $c_j (\v x, t)$ is the concentration of solute species $j$, and $g_{c_j}$ is the associated chemical potential, $ \rho_e = \sum_j z_j c_j$ is the total charge density ($z_j$ is the charge if solute species $j$), and finally $V$ is the electric potential.
+
+The transport of the concentration field of species $i$ is governed by the conservative (advection--diffusion) equation
+\begin{equation}
+  \pdt c_i + \v v \cdot \grad c_i - \div (K_{j} c_i \grad (g_{c_i} + z_i V)) = 0,
+  \label{eq:sharp_conc}
+\end{equation}
+where $K_{j}$ is the mobility in phase $j$.
+With an appropriate choice of chemical potential $g_{c_i}$, the equations reduce to the phenomenological Nernst--Planck equation which has been established for the motion of charged species in solution under influence of an electric field. The Nernst--Planck equation reads
+\begin{equation}
+  \pdt c_i + \v v \cdot \grad c_i + \div \left[ D_{ij} \grad c_i + \frac{D_{ij} z_i}{k_{\rm B} T} c_i \grad V \right] = 0,
+  \label{eq:nernst-planck}
+\end{equation}
+which coincides with Eq.~\eqref{eq:sharp_conc} with the choices $g_{c_i} = k_{\rm B} T \log c_i + \textrm{const.}$, $K_{ij} = D_{ij}/(k_{\rm B} T)$.
+
+Since the dynamics of the electric field is much faster than the dynamics of charge transport, we can safely assume electrostatic conditions.
+This amounts to solving the Poisson problem (Gauss' law)
+\begin{equation}
+  \div ( \varepsilon_i \grad V ) = - \rho_e,
+\end{equation}
+where $\varepsilon_i = \varepsilon_0 \varepsilon_{\textrm{r}, i}$ is the permittivity of phase $i$, where, again, $\varepsilon_0$ is the vacuum permitivity and $\varepsilon_{\textrm{r}, i}$ is the relative permeability of phase $i$. 
+
+A thermodynamically consistent phase-field model which is
+
+
+
 
 \bibliographystyle{apsrev4-1}
 \bibliography{references}
