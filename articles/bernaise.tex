@@ -46,6 +46,7 @@
 \newcommand{\laplacian}[1]{\grad^2 #1}
 \newcommand{\emphy}[1]{\textsc{#1}}
 \newcommand{\pdt}[1]{\partial_t #1}
+\newcommand{\sym}[1]{\mathrm{sym} #1 \right)}
 
 \begin{document}
 \title{Bernice: High-level/high-performance simulation of two-phase electrohydrodynamics in complex domains}
@@ -77,7 +78,7 @@
 \section{Introduction}
 This solver is inspired by the \emph{Oasis} solver for fluid flow \cite{mortensen2015}.
 
-
+Applications of flow under the influence of electric fields: Micro-/millifluidics, MEMS, electrowetting-on-dielectric (EWOD), enhanced oil recovery using electric fields, dynamic capacitor.
 
 Reviews of wetting phenomena \cite{degennes1985,bonn2009,snoeijer2013}.
 Electrowetting \cite{mugele2005}.
@@ -105,7 +106,12 @@ Critical review of wetting boundary conditions for phase-field models \cite{huan
 
 \section{Model}
 The governing equations of two-phase EHD can be summarized as the coupled system of two-phase flow, passive chemical transport, and electrostatics \cite{campillo-funollet2012}.
-In the following, we present each equation. Down to the nanometer scale, the fluid flow is described by the incompressible Navier--Stokes equations (with some additional force terms):
+In order to track the interface between the phases, we introduce an order parameter field $\phi$ which attains the values $\pm 1$ respectively in the two phases, and interpolates between the two across the (diffuse) interface of thickness $\epsilon$.
+In the sharp-interface limit $\epsilon \to 0$, the equations should reproduce the correct physics.
+
+\subsection{Sharp-interface equations}
+In the following, we present each equation of the physical (sharp-interface) model.
+Down to the nanometer scale, the fluid flow is described by the incompressible Navier--Stokes equations (with some additional force terms):
 \begin{gather}
   \rho_i \left( \pdt {\v v} + (\v v \cdot \grad ) \v v \right)  - \mu_i \laplacian \v v + \grad p = \sum_j g_{c_j} \grad c_j - \rho_e \grad V, \label{eq:sharp_NS1}\\
   \div \v v = 0. \label{eq:sharp_NS2}
@@ -132,10 +138,27 @@ This amounts to solving the Poisson problem (Gauss' law)
 \end{equation}
 where $\varepsilon_i = \varepsilon_0 \varepsilon_{\textrm{r}, i}$ is the permittivity of phase $i$, where, again, $\varepsilon_0$ is the vacuum permitivity and $\varepsilon_{\textrm{r}, i}$ is the relative permeability of phase $i$. 
 
-A thermodynamically consistent phase-field model which is
+Don't forget the boundary conditions!
 
-
-
+\subsection{Phase-field formulation}
+A thermodynamically consistent phase-field model which reduces to this formulation was proposed by \cite{campillo-funollet2012}:
+\begin{gather}
+  \begin{split}
+    \pdt (\rho (\phi) \v v) + \div \left( \rho(\phi) \v v \otimes \v v \right) - \div \left[ \mu (\phi) (\grad \v v + \grad \v v ^T) + \v v \otimes \rho'(\phi) M(\phi) \grad g_\phi \right] \\
+    = g_\phi \grad \phi + \sum_i g_{c_i} \grad c_i - \rho_e \grad V,
+  \end{split} \\
+  \div \v v = 0, \\
+  \pdt \phi + \v v \cdot \grad \phi - \div(M(\phi) \grad g_\phi ) = 0, \\
+  \pdt c_i + \v v \cdot \grad c_i - \div ( K_i (\phi) c_i \grad (g_{c_i} + z_i V )) = 0, \\
+  \grad ( \varepsilon (\phi) \grad V ) = - \rho_e.
+\end{gather}
+Here,
+\begin{align}
+  \rho (\phi) &= \frac{\rho_1 + \rho_2}{2} + \frac{\rho_1 - \rho_2}{2} \phi, \\
+  \mu (\phi ) &= \frac{\mu_1 + \mu_2}{2} + \frac{\mu_1 - \mu_2}{2} \phi, \\
+  \varepsilon (\phi) &= \frac{\varepsilon_1 + \varepsilon_2}{2} + \frac{\varepsilon_1 - \varepsilon_2}{2} \phi, \\
+  K_i (\phi) &= \frac{K_{i,1} + K_{i,2}}{2} + \frac{K_{i,1} - K_{i,2}}{2} \phi
+\end{align}
 
 \bibliographystyle{apsrev4-1}
 \bibliography{references}

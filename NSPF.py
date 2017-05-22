@@ -97,9 +97,11 @@ def problem():
 
     u_el = df.VectorElement("Lagrange", mesh.ufl_cell(), 2)
     p_el = df.FiniteElement("Lagrange", mesh.ufl_cell(), 1)
-    phi_el = df.FiniteElement("Lagrange", mesh.ufl_cell(), 2)
-    g_el = df.FiniteElement("Lagrange", mesh.ufl_cell(), 2)
-
+    phi_el = df.FiniteElement("Lagrange", mesh.ufl_cell(), 1)
+    g_el = df.FiniteElement("Lagrange", mesh.ufl_cell(), 1)
+    c_el = df.FiniteElement("Lagrange", mesh.ufl_cell(), 1)
+    V_el = df.FiniteElement("Lagrange", mesh.ufl_cell(), 1)
+    
     W_NS = df.FunctionSpace(mesh, u_el * p_el)
     W_PF = df.FunctionSpace(mesh, phi_el * g_el)
 
@@ -174,10 +176,10 @@ def problem():
     problem_NS = df.LinearVariationalProblem(a_NS, L_NS, w1_NS, bcs_NS)
     solver_NS = df.LinearVariationalSolver(problem_NS)
 
-    solver_PF.parameters["linear_solver"] = "gmres"
-    #solver_PF.parameters["preconditioner"] = "default"
-    #solver_NS.parameters["linear_solver"] = "gmres"
-    #solver_NS.parameters["preconditioner"] = "amg"
+    # solver_PF.parameters["linear_solver"] = "gmres"
+    # solver_PF.parameters["preconditioner"] = "default"
+    # solver_NS.parameters["linear_solver"] = "gmres"
+    # solver_NS.parameters["preconditioner"] = "amg"
     
     field_names = ["u", "p", "phi", "g"]
     tstepfiles = dict()
