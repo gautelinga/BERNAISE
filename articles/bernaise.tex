@@ -1,4 +1,4 @@
-\documentclass[preprint,pre,superscriptaddress]{revtex4-1}
+\documentclass[preprint,pre,superscriptaddress,a4paper]{revtex4-1}
 \usepackage{graphicx}
 \usepackage{epstopdf}
 \usepackage{epsfig}
@@ -46,7 +46,7 @@
 \newcommand{\laplacian}[1]{\grad^2 #1}
 \newcommand{\emphy}[1]{\textsc{#1}}
 \newcommand{\pdt}[1]{\partial_t #1}
-\newcommand{\sym}[1]{\mathrm{sym} #1 \right)}
+\newcommand{\sym}[1]{\mathrm{sym} #1 }
 
 \begin{document}
 \title{Bernice: High-level/high-performance simulation of two-phase electrohydrodynamics in complex domains}
@@ -130,6 +130,7 @@ With an appropriate choice of chemical potential $g_{c_i}$, the equations reduce
   \label{eq:nernst-planck}
 \end{equation}
 which coincides with Eq.~\eqref{eq:sharp_conc} with the choices $g_{c_i} = k_{\rm B} T \log c_i + \textrm{const.}$, $K_{ij} = D_{ij}/(k_{\rm B} T)$.
+This amounts to a weak/dilute solution.
 
 Since the dynamics of the electric field is much faster than the dynamics of charge transport, we can safely assume electrostatic conditions.
 This amounts to solving the Poisson problem (Gauss' law)
@@ -144,21 +145,95 @@ Don't forget the boundary conditions!
 A thermodynamically consistent phase-field model which reduces to this formulation was proposed by \cite{campillo-funollet2012}:
 \begin{gather}
   \begin{split}
-    \pdt (\rho (\phi) \v v) + \div \left( \rho(\phi) \v v \otimes \v v \right) - \div \left[ \mu (\phi) (\grad \v v + \grad \v v ^T) + \v v \otimes \rho'(\phi) M(\phi) \grad g_\phi \right] \\
-    = g_\phi \grad \phi + \sum_i g_{c_i} \grad c_i - \rho_e \grad V,
-  \end{split} \\
+    \pdt (\rho (\phi) \v v) + \div \left( \rho(\phi) \v v \otimes \v v \right) - \div \left[ \mu (\phi) (\grad \v v + \grad \v v ^T) + \v v \otimes \rho'(\phi) M(\phi) \grad g_\phi \right] + \grad p\\
+    = g_\phi \grad \phi + \sum_i g_{c_i} \grad c_i - \rho_e \grad V + \rho(\phi) \v g,
+  \end{split} \label{eq:PF_NS1}\\
   \div \v v = 0, \\
-  \pdt \phi + \v v \cdot \grad \phi - \div(M(\phi) \grad g_\phi ) = 0, \\
+  \pdt \phi + \v v \cdot \grad \phi - \div(M(\phi) \grad g_\phi ) = 0, \label{eq:PF1}\\
   \pdt c_i + \v v \cdot \grad c_i - \div ( K_i (\phi) c_i \grad (g_{c_i} + z_i V )) = 0, \\
   \grad ( \varepsilon (\phi) \grad V ) = - \rho_e.
 \end{gather}
-Here,
+Here, $\phi$ is the phase field, and it takes the value $\phi=-1$ in phase $i=1$, and the value $\phi=1$ in phase $i=2$.
+Eq.~\eqref{eq:PF1} governs the conservative evolution of the phase field.
+Here, $\rho$, $\mu$, $\varepsilon$, $K_i$ depend on which phase they are in and are considered slave variables of the phase field $\phi$.
+At the interface they interpolate between the values in the two phases:
 \begin{align}
   \rho (\phi) &= \frac{\rho_1 + \rho_2}{2} + \frac{\rho_1 - \rho_2}{2} \phi, \\
   \mu (\phi ) &= \frac{\mu_1 + \mu_2}{2} + \frac{\mu_1 - \mu_2}{2} \phi, \\
   \varepsilon (\phi) &= \frac{\varepsilon_1 + \varepsilon_2}{2} + \frac{\varepsilon_1 - \varepsilon_2}{2} \phi, \\
-  K_i (\phi) &= \frac{K_{i,1} + K_{i,2}}{2} + \frac{K_{i,1} - K_{i,2}}{2} \phi
+  K_i (\phi) &= \frac{K_{i,1} + K_{i,2}}{2} + \frac{K_{i,1} - K_{i,2}}{2} \phi.
 \end{align}
+Moreover, the chemical potential of species $c_i$ is given by
+\begin{align}
+  g_{c_i}(c_i, \phi) = \alpha'(c_i) + \beta_i (\phi),
+  \label{eq:PF_chempot}
+\end{align}
+where, consistently with the Nernst--Planck equation, we model $\alpha(c) = k_{\mathrm{B}} T c (\log c - 1) $.
+The ``chemical potential'' of the phase field is defined as
+\begin{equation}
+  % g_\phi = \frac{3 \sigma}{2 \sqrt{2}} \left[ \epsilon^{-1} W'(\phi) - \epsilon \laplacian \phi \right] + ,
+  g_\phi = \pd f \phi - \div \pd f {\grad \phi} + \sum_i \beta_i ' (\phi) c_i - \frac 1 2 \varepsilon'(\phi) | \grad V |^2 .
+\end{equation}
+The free energy functional $f$ of the phase field is defined by
+\begin{equation}
+  f(\phi, \grad \phi) = \frac{3 \sigma}{2 \sqrt{2}} \left[ \frac{\epsilon}{2} |\grad \phi|^2 + \epsilon^{-1} W(\phi) \right] = \tilde \sigma \left[ \frac{\epsilon}{2} |\grad \phi|^2 + \epsilon^{-1} W(\phi) \right],
+\end{equation}
+where where $\sigma$ is the surface tension, $\epsilon$ is the interface thickness, and $W(\phi)$ is a double well potential.
+Here, we use, unless otherwise stated, $W(\phi) = (1-\phi^2)^2/4$.
+
+Due to the form of Eq.~\eqref{eq:PF_chempot}, we can write
+\begin{equation}
+  g_{c_i} \grad c_i = \alpha'(c_i )\grad c_i + \beta_i (\phi) \grad c_i = \grad ( \alpha(c_i) + \beta_i(\phi) c_i) - \beta_i'(\phi) c_i \grad \phi,
+\end{equation}
+and thereby,
+\begin{align}
+  g_\phi \grad \phi + \sum_i g_{c_i} \grad c_i &= \left( \pd f \phi - \div \pd f {\grad \phi} - \frac 1 2 \varepsilon'(\phi) | \grad V |^2\right) \grad \phi + \grad ( \alpha(c_i) + \beta_i(\phi) c_i) \\
+                                               \begin{split} = \grad \left( f(\phi, \grad \phi) + \sum_i ( \alpha(c_i) + \beta_i(\phi) c_i) \right) - \div \left[ \pd f {\grad \phi} \otimes \grad \phi \right] \\ - \frac 1 2 \grad \varepsilon(\phi) | \grad V |^2.
+                                                 \end{split}
+\end{align}
+The contribution from the first term can be absorbed into the pressure by the (re)definition
+\begin{equation}
+  \tilde p = p - f(\phi, \grad \phi) - \sum_i ( \alpha(c_i) + \beta_i(\phi) c_i ) .
+\end{equation}
+The second and third terms are interface forces.
+After some rewriting (assuming $\rho(\phi)$ is constant), Eq.~\eqref{eq:PF_NS1} can be expressed as
+\begin{equation}
+  \begin{split}
+    \rho(\phi) \pdt \v v + \left( \left(\rho(\phi) \v v - \rho'(\phi) M(\phi) \grad g_\phi  \right) \cdot \grad \right) \v v -
+    \div \left[ 2 \mu(\phi) \sym (\grad \v v) \right] + \grad p \\
+    = - \rho_e \grad V - \div \left[ \pd f {\grad \phi} \otimes \grad \phi \right]  - \frac 1 2 \varepsilon'(\phi) | \grad V |^2 \grad \phi + \rho(\phi) \v g
+  \end{split}
+\end{equation}
+where we have omitted the tilde over $p$. Inserting for $f$, we obtain
+\begin{equation}
+  \begin{split}
+    \rho(\phi) \pdt \v v + \left( \left(\rho(\phi) \v v - \rho'(\phi) M(\phi) \grad g_\phi  \right) \cdot \grad \right) \v v -
+    \div \left[ 2 \mu(\phi) \sym (\grad \v v) \right] + \grad p \\
+    = - \rho_e \grad V - \tilde \sigma \epsilon\div \left[ \grad \phi \otimes \grad \phi \right]  - \frac 1 2 \varepsilon'(\phi) | \grad V |^2 \grad \phi + \rho(\phi) \v g .
+  \end{split}
+\end{equation}
+
+\subsection{Nondimensionalization}
+
+\section{Discretization}
+The whole system of equations could in principle be solved simultaneously using implicit Euler discretization in time and e.g.~Newton's method to solve the nonliner system.
+However, in order to simulate larger systems faster, it is preferable to use a splitting scheme to solve for each field sequentially.
+One such splitting scheme was proposed in \cite{metzger2015}, based on the scheme without electrolytes as developed by \cite{guillen-gonzalez2014,grun2016}.
+We will here discuss various splitting strategies.
+
+\subsection{A splitting scheme}
+A general splitting scheme is outlined here.
+\begin{enumerate}
+\item Propagate the phase field $\phi$. \label{pt:splitscheme_phi}
+\item Propagate the chemical species concentrations $c_i$. \label{pt:splitscheme_ci}
+\item Update the electric potential $V$ \label{pt:splitscheme_V}
+\item Propagate the velocity $\v v$ and pressure $p$. \label{pt:splitscheme_vp}
+\end{enumerate}
+To simplify the complexity of the problem, the scheme can be reduced to describe reduced settings containing less physics.
+The simplest is \emph{pure two-phase flow} (with unmatched densities and viscosities), where points \ref{pt:splitscheme_phi} and \ref{pt:splitscheme_vp} from the list above enter.
+In the absence of electric charges and external electric potential, two-phase flow with passive transport of species can be modelled, i.e.~using the points \ref{pt:splitscheme_phi}, \ref{pt:splitscheme_ci} and \ref{pt:splitscheme_vp}.
+Finally, the full two-phase EHD includes all the above points.
+Testing the solver should therefore follow these three steps of complexity.
 
 \bibliographystyle{apsrev4-1}
 \bibliography{references}
