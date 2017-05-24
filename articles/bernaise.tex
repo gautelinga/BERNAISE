@@ -47,6 +47,7 @@
 \newcommand{\emphy}[1]{\textsc{#1}}
 \newcommand{\pdt}[1]{\partial_t #1}
 \newcommand{\sym}[1]{\mathrm{sym} #1 }
+\newcommand{\inpr}[2]{\left< #1, #2 \right>}
 
 \begin{document}
 \title{Bernice: High-level/high-performance simulation of two-phase electrohydrodynamics in complex domains}
@@ -151,7 +152,7 @@ A thermodynamically consistent phase-field model which reduces to this formulati
   \div \v v = 0, \\
   \pdt \phi + \v v \cdot \grad \phi - \div(M(\phi) \grad g_\phi ) = 0, \label{eq:PF1}\\
   \pdt c_i + \v v \cdot \grad c_i - \div ( K_i (\phi) c_i \grad (g_{c_i} + z_i V )) = 0, \\
-  \grad ( \varepsilon (\phi) \grad V ) = - \rho_e.
+  \div ( \varepsilon (\phi) \grad V ) = - \rho_e.
 \end{gather}
 Here, $\phi$ is the phase field, and it takes the value $\phi=-1$ in phase $i=1$, and the value $\phi=1$ in phase $i=2$.
 Eq.~\eqref{eq:PF1} governs the conservative evolution of the phase field.
@@ -180,6 +181,10 @@ The free energy functional $f$ of the phase field is defined by
 \end{equation}
 where where $\sigma$ is the surface tension, $\epsilon$ is the interface thickness, and $W(\phi)$ is a double well potential.
 Here, we use, unless otherwise stated, $W(\phi) = (1-\phi^2)^2/4$.
+With this free energy, we obtain
+\begin{equation}
+  g_\phi = \tilde\sigma\epsilon^{-1}W'(\phi) - \tilde\sigma\epsilon\laplacian\phi + \sum_i \beta_i ' (\phi) c_i - \frac 1 2 \varepsilon'(\phi) | \grad V |^2 .
+\end{equation}
 
 Due to the form of Eq.~\eqref{eq:PF_chempot}, we can write
 \begin{equation}
@@ -196,7 +201,7 @@ The contribution from the first term can be absorbed into the pressure by the (r
   \tilde p = p - f(\phi, \grad \phi) - \sum_i ( \alpha(c_i) + \beta_i(\phi) c_i ) .
 \end{equation}
 The second and third terms are interface forces.
-After some rewriting (assuming $\rho(\phi)$ is constant), Eq.~\eqref{eq:PF_NS1} can be expressed as
+After some rewriting (assuming $\rho'(\phi)$ is constant), Eq.~\eqref{eq:PF_NS1} can be expressed as
 \begin{equation}
   \begin{split}
     \rho(\phi) \pdt \v v + \left( \left(\rho(\phi) \v v - \rho'(\phi) M(\phi) \grad g_\phi  \right) \cdot \grad \right) \v v -
@@ -214,6 +219,7 @@ where we have omitted the tilde over $p$. Inserting for $f$, we obtain
 \end{equation}
 
 \subsection{Nondimensionalization}
+Binary ElectRohydrydyNAmIc SolvEr
 
 \section{Discretization}
 The whole system of equations could in principle be solved simultaneously using implicit Euler discretization in time and e.g.~Newton's method to solve the nonliner system.
@@ -223,17 +229,64 @@ We will here discuss various splitting strategies.
 
 \subsection{A splitting scheme}
 A general splitting scheme is outlined here.
+For two-phase EHD, there are four steps to be performed (either simultaneously or in arbitrary order):
 \begin{enumerate}
 \item Propagate the phase field $\phi$. \label{pt:splitscheme_phi}
 \item Propagate the chemical species concentrations $c_i$. \label{pt:splitscheme_ci}
 \item Update the electric potential $V$ \label{pt:splitscheme_V}
 \item Propagate the velocity $\v v$ and pressure $p$. \label{pt:splitscheme_vp}
 \end{enumerate}
-To simplify the complexity of the problem, the scheme can be reduced to describe reduced settings containing less physics.
-The simplest is \emph{pure two-phase flow} (with unmatched densities and viscosities), where points \ref{pt:splitscheme_phi} and \ref{pt:splitscheme_vp} from the list above enter.
-In the absence of electric charges and external electric potential, two-phase flow with passive transport of species can be modelled, i.e.~using the points \ref{pt:splitscheme_phi}, \ref{pt:splitscheme_ci} and \ref{pt:splitscheme_vp}.
-Finally, the full two-phase EHD includes all the above points.
-Testing the solver should therefore follow these three steps of complexity.
+To simplify the complexity of the problem, the scheme can be reduced to describe settings where fewer physical mechanisms are present simultaneously.
+\begin{itemize}
+\item The very simplest is \emph{pure single-phase flow}, containing only point \ref{pt:splitscheme_vp} from the list above.
+\item Slightly more demanding is \emph{single-phase flow with transport of a tracer dye} (in the absence of electric charges and fields), using points \ref{pt:splitscheme_ci} and \ref{pt:splitscheme_vp}.
+\item More demanding, \emph{pure two-phase flow} (with unmatched densities and viscosities), where only points \ref{pt:splitscheme_phi} and \ref{pt:splitscheme_vp} from the list above enter.
+\item In the absence of electric charges and external electric potential, two-phase flow with passive transport of a tracer dye can be modelled, i.e.~using the points \ref{pt:splitscheme_phi}, \ref{pt:splitscheme_ci} and \ref{pt:splitscheme_vp}.
+\item Time-dependent single-phase EHD can be modelled using points \ref{pt:splitscheme_ci}, \ref{pt:splitscheme_V} and \ref{pt:splitscheme_vp}.
+\item There is also a subtle case where all concentrations $c_i = 0$, but the electric field acts as a force on the interface of the two-phase flow only due to the jump in permittivity $\varepsilon$.
+  This includes points \ref{pt:splitscheme_phi}, \ref{pt:splitscheme_V} and \ref{pt:splitscheme_vp}.
+\item Finally, the full two-phase EHD includes all the above points.
+\end{itemize}
+Testing the solver should therefore follow these steps of increasing complexity.
+
+\subsubsection{Phase field}
+\begin{equation}
+  \int_\Omega \frac{\phi^{k+1}-\phi^k}{\Delta t} \psi \, \diff V + \int_\Omega \v v^k \cdot \grad \phi^{k+1} \psi \, \diff V + \int_\Omega M(\phi^k) \grad g_\phi^{k+1} \cdot \grad \psi \, \diff V %- \int_{\partial\Omega} M(\phi^k) \grad g_\phi^{k+1} \psi  \cdot \, \diff \v S
+  = 0
+\end{equation}
+\begin{multline}
+  \int_\Omega g_\phi^{k+1} h \, \diff V = \tilde\sigma\epsilon^{-1} \int_\Omega \overline{W'}(\phi^{k+1}, \phi^{k}) h \, \diff V + \tilde\sigma\epsilon \int_\Omega \grad \phi^{k+1} \cdot \grad h \, \diff V \\ - \tilde\sigma\epsilon \int_{\partial \Omega} \v n \cdot \grad \phi^{k+1} h \, \diff A + \sum_i \beta_i \int_\Omega  ' c_i^k h \, \diff V - \frac 1 2 \varepsilon'  \int_\Omega | \grad V^k |^2 h \, \diff V
+\end{multline}
+Here, $\overline{W'}(\phi^{k+1}, \phi^{k})$ is a linearization of $W'(\phi^{k+1})$ around $\phi^k$:
+\begin{equation}
+  \overline{W'}(\phi^{k+1}, \phi^{k}) = W'(\phi^k) + W''(\phi^k) (\phi^{k+1}-\phi^k).
+\end{equation}
+
+\subsubsection{Chemical species/charges}
+\begin{multline}
+  \int_\Omega \frac{c_i^{k+1}-c_i^k}{\Delta t} \omega_i \, \diff V + \int_\Omega \v v^k \cdot \grad c_i^{k+1} \omega_i \, \diff V 
+  + \int_\Omega  K_i(\phi^{k+1}) (\grad c_i^{k+1} + z_i c_i^{k} \grad V^{k+1} ) \cdot \grad \omega_i \, \diff V \\
+  - \int_{\partial\Omega} K_i(\phi^{k+1}) c_i^{k+1} \v n \cdot (\grad c_i^{k+1} + z_i c_i^{k} \grad V^{k+1} ) \omega_i  \, \diff A = 0
+\end{multline}
+\begin{equation}
+  \int_\Omega \varepsilon(\phi^{k+1}) \grad V^{k+1} \cdot \grad U \, \diff V - \int_{\partial\Omega} \varepsilon(\phi^{k+1}) \v n \cdot \grad V^{k+1}  U \, \diff A = - \int_\Omega  \rho_e(\{c_i^{k+1}\}) U \, \diff V
+\end{equation}
+
+\subsubsection{Fluid flow}
+
+\begin{multline}
+  \int_\Omega \rho(\phi^{k+1}) \frac{\v v^{k+1} - \v v^k}{\Delta t} \cdot \v u \, \diff V
+  + \int_\Omega \left[ \left( \rho(\phi^{k+1}) \v v^k - \rho' M(\phi^{k+1}) \grad g_\phi^{k+1} \right) \cdot \grad \right] \v v^{k+1}\cdot \v u \, \diff V \\
+  + \int_\Omega 2\mu(\phi^{k+1}) \sym(\grad \v v^{k+1}) : \grad \v u \, \diff V
+  + \int_\Omega p^{k+1} \div \v u \, \diff V \\
+  = - \int_\Omega \rho_e (\{ c_i^{k+1} \}) \grad V^{k+1} \cdot \v u \, \diff V
+  + \tilde\sigma\epsilon \int_\Omega ( \grad \phi^{k+1} \otimes \grad \phi^{k+1} ) : \grad \v u \, \diff V \\
+  - \frac{1}{2} \varepsilon' \int_\Omega |\grad V^{k+1}|^2 \grad\phi^{k+1} \cdot \v u \, \diff V
+  + \int_\Omega \rho(\phi^{k+1})\v g \cdot \v u \, \diff V
+\end{multline}
+\begin{equation}
+  \int_\Omega q \div \v v^{k+1} \, \diff V = 0
+\end{equation}
 
 \bibliographystyle{apsrev4-1}
 \bibliography{references}
