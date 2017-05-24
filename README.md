@@ -1,12 +1,11 @@
-# BERNAISE
-## Binary ElectRohydrodyNAmIc Simulation Environment
-
+# BERNICE
+## Binary ElectRohydrodyNamIC solvEr
 ### Work Plan 
 
-* Timedependet EHD 
-* Timedependet PF for the two phases Flow  
-* Add the two above togetter
-* More complicated geometri
+* Time dependent EHD
+* Time dependent PF for the two-phase flow  
+* Add the two above together
+* More complicated geometries
 * **Nobel Prize!!!** ***(only non-optional)***
 
 ### Folder Plan
