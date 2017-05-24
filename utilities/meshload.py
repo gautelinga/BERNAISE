@@ -14,8 +14,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-def LoadMesh(filename=\
-    "meshes/StraightCapilarDolfin_h1_l5_res10.h5"):
+def LoadMesh(filename="meshes/StraightCapilarDolfin_h1_l5_res10.h5"):
     '''Function that loads in the mesh specified in the "filename".
     The defulat mesh loaded is the defulat generated mesh from
     "meshgeneration.StraightCapilar()".
@@ -35,8 +34,8 @@ def main():
     '''The main
     '''
     mesh = LoadMesh()
-    df.plot(mesh)
-    df.interactive()
+    #df.plot(mesh)
+    #df.interactive()
 
 if __name__ == "__main__":
     main()

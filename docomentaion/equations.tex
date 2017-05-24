@@ -24,11 +24,11 @@ Stokes equation:
 $f_{if}$ is the interface force and the rest should be self explained for now. \newline
 Poissons equation: 
 \begin{align}
-\nabla^2 \phi &= \frac{\rho_e}{\epsilon_0(\psi) \epsilon_r}.
+\nabla\cdot\left(\epsilon_r(\psi)\nabla\phi\right) &= \frac{\rho_e}{\epsilon_0 },
 \end{align}
 Nernst-Planck equation:
 \begin{align}
-\partial_t c_i  &=  \nabla  \cdot  \left( - \mathbf{u} c_i  + D_i \nabla c_i  +   \frac{D_i z_i q_e}{k_B T} c_i \nabla(\psi) \phi \right), \\
+\partial_t c_i  &=  \nabla  \cdot  \left( - \mathbf{u} c_i  + D_i(\psi) \nabla c_i  +   \frac{D_i(\psi) z_i q_e}{k_B T} c_i \nabla( \phi \right), \\
 \rho_e &= \sum_i q_e z_i c_i. 
 \end{align}
 The Phase field equation?? 
