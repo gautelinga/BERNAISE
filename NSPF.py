@@ -4,7 +4,7 @@ import math
 
 df.parameters["form_compiler"]["cpp_optimize"] = True
 df.parameters["form_compiler"]["optimize"] = True
-df.parameters["form_compiler"]["representation"] = "quadrature"
+# df.parameters["form_compiler"]["representation"] = "quadrature"
 df.parameters["linear_algebra_backend"] = "PETSc"
 df.parameters["std_out_all_processes"] = False
 df.parameters["krylov_solver"]["nonzero_initial_guess"] = True

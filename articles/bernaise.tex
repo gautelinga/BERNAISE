@@ -49,6 +49,10 @@
 \newcommand{\sym}[1]{\mathrm{sym} #1 }
 \newcommand{\inpr}[2]{\left< #1, #2 \right>}
 
+\newcommand{\wall}{\mathrm{wall}}
+\newcommand{\inlet}{\mathrm{in}}
+\newcommand{\outlet}{\mathrm{out}}
+
 \begin{document}
 \title{Bernice: High-level/high-performance simulation of two-phase electrohydrodynamics in complex domains}
 
@@ -218,6 +222,42 @@ where we have omitted the tilde over $p$. Inserting for $f$, we obtain
   \end{split}
 \end{equation}
 
+\subsection{Boundary conditions}
+We assume that the boundary of the domain $\Omega$, $\partial\Omega$, can be divided into an inlet part $\partial\Omega_\inlet$, an outlet part $\partial\Omega_\outlet$, and a wall part $\partial\Omega_\wall$.
+We shall primarily discuss the latter here.
+
+For the velocity field, we assume the no-slip condition
+\begin{equation}
+  \v v (\v x, t) = \v 0 \quad \textrm{for} \quad \v x \in \partial\Omega_\wall.
+\end{equation}
+Alternatively, a no-flux condition and a slip law could have been used.
+However, the needed slip length is typically the same order of magnitude as the mean free path of a molecule in the fluid, and hence only relevant in nanofluidics.
+This is orders of magnitude smaller than the settings we consider.
+The moving contact line paradox will be overcome by interface diffusion rather than full resolution of the corner flow.
+
+The pressure $p$ needs to be fixed in order to remove the pressure gauge.
+
+For the concentrations $c_i$, we use the no-flux condition
+\begin{equation}
+  \v n \cdot \grad c_i = 0 \quad \textrm{on} \quad \partial\Omega_\wall.
+\end{equation}
+For the electric potential, we use either the Dirichlet condition $V=\bar V$ (reasonable at either inlet or outlet), or in the presence of charged (or neutral) boundaries, the condition
+\begin{equation}
+  \v n \cdot \grad V = -\frac{\sigma_e}{\varepsilon(\phi)} \quad \textrm{on} \quad \partial\Omega_\wall,
+\end{equation}
+where $\sigma_e$ is the free surface charge per area. Note that $\sigma_e(\v x)$ is prescribed and can vary over the bondary.
+
+We assume that the no-flux conditons hold on the phase field chemical potential,
+\begin{equation}
+  \v n \cdot \grad g_\phi = 0 \quad \textrm{on} \quad \partial\Omega_\wall.
+\end{equation}
+For the phase field itself, a general dynamic wetting boundary condition can be expressed as \cite{carlson2012}:
+\begin{equation}
+  \epsilon \tau_w \pdt \phi = - \tilde\sigma \epsilon \v n \cdot \grad \phi + \tilde\sigma \cos(\theta_e) f_w' (\phi),
+  \label{eq:BC_phi_dynamic}
+\end{equation}
+where $\theta_e$ is the equilibrium contact angle, $\tau_w$ is a relaxation parameter, and $f_w(\phi) = (2+3\phi-\phi^3)/4$ interpolates smoothly between 0 (at $\phi=-1$) and 1 (at $\phi=1$).
+
 \subsection{Nondimensionalization}
 Binary ElectRohydrydyNAmIc SolvEr
 
@@ -226,6 +266,7 @@ The whole system of equations could in principle be solved simultaneously using 
 However, in order to simulate larger systems faster, it is preferable to use a splitting scheme to solve for each field sequentially.
 One such splitting scheme was proposed in \cite{metzger2015}, based on the scheme without electrolytes as developed by \cite{guillen-gonzalez2014,grun2016}.
 We will here discuss various splitting strategies.
+As we are not aware of any second-order in time splitting schemes for the case of unmatched densities, we will constrict our discussion to first-order in time schemes.
 
 \subsection{A splitting scheme}
 A general splitting scheme is outlined here.
@@ -255,21 +296,37 @@ Testing the solver should therefore follow these steps of increasing complexity.
   = 0
 \end{equation}
 \begin{multline}
-  \int_\Omega g_\phi^{k+1} h \, \diff V = \tilde\sigma\epsilon^{-1} \int_\Omega \overline{W'}(\phi^{k+1}, \phi^{k}) h \, \diff V + \tilde\sigma\epsilon \int_\Omega \grad \phi^{k+1} \cdot \grad h \, \diff V \\ - \tilde\sigma\epsilon \int_{\partial \Omega} \v n \cdot \grad \phi^{k+1} h \, \diff A + \sum_i \beta_i \int_\Omega  ' c_i^k h \, \diff V - \frac 1 2 \varepsilon'  \int_\Omega | \grad V^k |^2 h \, \diff V
+  \int_\Omega g_\phi^{k+1} h \, \diff V = \tilde\sigma\epsilon^{-1} \int_\Omega \overline{W'}(\phi^{k+1}, \phi^{k}) h \, \diff V + \tilde\sigma\epsilon \int_\Omega \grad \phi^{k+1} \cdot \grad h \, \diff V \\
+  % - \tilde\sigma\epsilon \int_{\partial \Omega} \v n \cdot \grad \phi^{k+1} h \, \diff A
+  + \int_{\partial \Omega}  \left( \epsilon \tau_w \frac{\phi^{k+1}-\phi^k}{\Delta t}  - \tilde\sigma\cos(\theta_e) \overline{f_w'}(\phi^{k+1}, \phi^{k}) \right) h \, \diff A \\
+  + \sum_i \beta_i \int_\Omega  ' c_i^k h \, \diff V - \frac 1 2 \varepsilon'  \int_\Omega | \grad V^k |^2 h \, \diff V
 \end{multline}
 Here, $\overline{W'}(\phi^{k+1}, \phi^{k})$ is a linearization of $W'(\phi^{k+1})$ around $\phi^k$:
 \begin{equation}
   \overline{W'}(\phi^{k+1}, \phi^{k}) = W'(\phi^k) + W''(\phi^k) (\phi^{k+1}-\phi^k).
 \end{equation}
+We have also used the discretization of Eq.~\ref{eq:BC_phi_dynamic}
+\begin{equation}
+  \tilde\sigma\epsilon \v n \cdot \grad \phi^{k+1} = - \epsilon \tau_w \frac{\phi^{k+1}-\phi^k}{\Delta t}  + \tilde\sigma\cos(\theta_e) \overline{f_w'}(\phi^{k+1}, \phi^{k}),
+\end{equation}
+where
+\begin{equation}
+  \overline{f_w'}(\phi^{k+1}, \phi^{k}) = f_w'(\phi^k) + f_w''(\phi^k)(\phi^{k+1}-\phi^k)
+\end{equation}
+
 
 \subsubsection{Chemical species/charges}
 \begin{multline}
   \int_\Omega \frac{c_i^{k+1}-c_i^k}{\Delta t} \omega_i \, \diff V + \int_\Omega \v v^k \cdot \grad c_i^{k+1} \omega_i \, \diff V 
   + \int_\Omega  K_i(\phi^{k+1}) (\grad c_i^{k+1} + z_i c_i^{k} \grad V^{k+1} ) \cdot \grad \omega_i \, \diff V \\
-  - \int_{\partial\Omega} K_i(\phi^{k+1}) c_i^{k+1} \v n \cdot (\grad c_i^{k+1} + z_i c_i^{k} \grad V^{k+1} ) \omega_i  \, \diff A = 0
+  % - \int_{\partial\Omega} K_i(\phi^{k+1}) c_i^{k+1} \v n \cdot (\grad c_i^{k+1} + z_i c_i^{k} \grad V^{k+1} ) \omega_i  \, \diff A = 0
+  + \int_{\partial\Omega} K_i(\phi^{k+1}) z_i c_i^{k+1} \frac{\sigma_e}{\varepsilon(\phi^{k+1})} \omega_i  \, \diff A = 0
 \end{multline}
 \begin{equation}
-  \int_\Omega \varepsilon(\phi^{k+1}) \grad V^{k+1} \cdot \grad U \, \diff V - \int_{\partial\Omega} \varepsilon(\phi^{k+1}) \v n \cdot \grad V^{k+1}  U \, \diff A = - \int_\Omega  \rho_e(\{c_i^{k+1}\}) U \, \diff V
+  \int_\Omega \varepsilon(\phi^{k+1}) \grad V^{k+1} \cdot \grad U \, \diff V
+  % - \int_{\partial\Omega} \varepsilon(\phi^{k+1}) \v n \cdot \grad V^{k+1}  U \, \diff A
+  + \int_{\partial\Omega} \sigma_e  U \, \diff A
+  + \int_\Omega  \rho_e(\{c_i^{k+1}\}) U \, \diff V = 0
 \end{equation}
 
 \subsubsection{Fluid flow}
@@ -278,7 +335,9 @@ Here, $\overline{W'}(\phi^{k+1}, \phi^{k})$ is a linearization of $W'(\phi^{k+1}
   \int_\Omega \rho(\phi^{k+1}) \frac{\v v^{k+1} - \v v^k}{\Delta t} \cdot \v u \, \diff V
   + \int_\Omega \left[ \left( \rho(\phi^{k+1}) \v v^k - \rho' M(\phi^{k+1}) \grad g_\phi^{k+1} \right) \cdot \grad \right] \v v^{k+1}\cdot \v u \, \diff V \\
   + \int_\Omega 2\mu(\phi^{k+1}) \sym(\grad \v v^{k+1}) : \grad \v u \, \diff V
-  + \int_\Omega p^{k+1} \div \v u \, \diff V \\
+  - \int_\Omega p^{k+1} \div \v u \, \diff V \\
+  + \int_{\partial\Omega_\inlet} p_\inlet \v n \cdot \v u \, \diff A \\
+%  + \int_{\partial\Omega_\outlet} p_\outlet \v n \cdot \v u \, \diff A \\
   = - \int_\Omega \rho_e (\{ c_i^{k+1} \}) \grad V^{k+1} \cdot \v u \, \diff V
   + \tilde\sigma\epsilon \int_\Omega ( \grad \phi^{k+1} \otimes \grad \phi^{k+1} ) : \grad \v u \, \diff V \\
   - \frac{1}{2} \varepsilon' \int_\Omega |\grad V^{k+1}|^2 \grad\phi^{k+1} \cdot \v u \, \diff V
