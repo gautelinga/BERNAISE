@@ -8,7 +8,8 @@ __date__ = "2017-05-26"
 __copyright__ = "Copyright (C) 2017 " + __author__
 __license__ = "MIT"
 
-__all__ = ["create_initial_folders"]
+__all__ = ["mpi_is_root", "makedirs_safe", "dump_parameters", "create_initial_folders",
+           "save_solution", "save_checkpoint", "load_checkpoint"]
 
 
 def mpi_is_root():
@@ -28,7 +29,7 @@ def dump_parameters(parameters, settingsfilename):
     with file(settingsfilename, "w") as settingsfile:
         cPickle.dump(parameters, settingsfile)
 
-            
+
 def create_initial_folders(folder, restart_folder, fields, tstep,
                            parameters):
     """ Create initial folders """
@@ -150,7 +151,7 @@ def save_checkpoint(tstep, w_, w_1, newfolder, parameters):
         os.system("rm {}".format(parametersfile_old))
 
 
-def load_checkpoint(checkpointfolder, fields, w_, w_1):
+def load_checkpoint(checkpointfolder, w_, w_1):
     if checkpointfolder:
         h5filename = os.path.join(checkpointfolder, "fields.h5")
         h5file = HDF5File(mpi_comm_world(), h5filename, "r")

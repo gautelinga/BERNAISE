@@ -21,6 +21,9 @@ parameters = dict(
 )
 
 
+constrained_domain = None
+
+
 def initialize(**namespace):
     """ Initialize solution """
     pass

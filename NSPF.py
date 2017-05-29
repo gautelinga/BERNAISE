@@ -17,6 +17,7 @@ def get_mesh(Lx, Ly, h):
                             df.Point(Lx, Ly),
                             int(Lx/h), int(Ly/h))
 
+
 def pf_mobility(phi, gamma):
     return gamma * (phi**2-1.)**2
 
