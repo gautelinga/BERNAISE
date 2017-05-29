@@ -1,63 +1,101 @@
 \documentclass[a4paper,10pt]{article}
-\usepackage{cite}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
 \usepackage{graphicx}
-\usepackage{amsmath, amssymb}
-\usepackage{url}
-\usepackage{hyperref}
-\usepackage{multirow}
-\numberwithin{equation}{section}
-\numberwithin{figure}{section}
-\usepackage{caption}
-\usepackage{subcaption} %Not actually used. You can put multiple includegraphics commands right after each other without spaces without problems. This is only useful for separated captions.
+\usepackage{epstopdf}
+\usepackage{epsfig}
+\usepackage{amssymb,amsmath,stmaryrd,tabularx}
+\usepackage{wrapfig}
+\usepackage{bm}
+\usepackage[center]{subfigure}
+\usepackage{enumerate}
+\usepackage{hyperref} %Not actually used. You can put multiple includegraphics commands right after each other without spaces without problems. This is only useful for separated captions.
 %Prevent indentation of first line in paragraphs.
 %\setlength{\parindent}{0pt}
 
 \renewcommand{\v}[1]{\mathbf{#1}}
 \newcommand{\intf}{\textrm{if}}
 
+% Physics header, modified from dfdc.net %
+\let\vaccent=\v % rename builtin command \v{} to \vaccent{}
+\renewcommand{\v}[1]{\ensuremath{\mathbf{#1}}} % for vectors
+\renewcommand{\times}{\cdot} % times symbol
+\renewcommand{\vec}[1]{\v{#1}} % also for vectors
+\newcommand{\gv}[1]{\ensuremath{\mbox{\boldmath$ #1 $}}} 
+% for vectors of Greek letters
+\newcommand{\uv}[1]{\ensuremath{\mathbf{\hat{#1}}}} % for unit vector
+\newcommand{\abs}[1]{\left| #1 \right|} % for absolute value
+\newcommand{\avg}[1]{\left< #1 \right>} % for average
+\let\underdot=\d % rename builtin command \d{} to \underdot{}
+\newcommand{\diff}{\mathrm{d}}
+\renewcommand{\d}[2]{\frac{\diff #1}{\diff #2}} % for derivatives
+\newcommand{\dd}[2]{\frac{\diff^2 #1}{\diff #2^2}} % for double derivatives
+%\newcommand{\pd}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\pd}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\pdinl}[2]{\partial #1 / \partial #2 }
+% for partial derivatives
+\newcommand{\pdd}[2]{\frac{\partial^2 #1}{\partial #2^2}}
+% for double partial derivatives
+\newcommand{\pdc}[3]{\left( \frac{\partial #1}{\partial #2}
+	\right)_{#3}} % for thermodynamic partial derivatives
+\newcommand{\pdcinl}[3]{\left(\partial #1 / \partial #2 \right)_{#3}}
+\newcommand{\ket}[1]{\left| #1 \right>} % for Dirac bras
+\newcommand{\bra}[1]{\left< #1 \right|} % for Dirac kets
+\newcommand{\braket}[2]{\left< #1 \vphantom{#2} \right|
+	\left. #2 \vphantom{#1} \right>} % for Dirac brackets
+\newcommand{\matrixel}[3]{\left< #1 \vphantom{#2#3} \right|
+	#2 \left| #3 \vphantom{#1#2} \right>} % for Dirac matrix elements
+\newcommand{\grad}[1]{\gv{\nabla} #1} % for gradient
+\let\divsymb=\div % rename builtin command \div to \divsymb
+\renewcommand{\div}[1]{\gv{\nabla} \cdot #1} % for divergence
+\newcommand{\curl}[1]{\gv{\nabla} \times #1} % for curl
+\newcommand{\mean}[1]{\left< #1 \right>}
+\newcommand{\laplacian}[1]{\grad^2 #1}
+\newcommand{\emphy}[1]{\textsc{#1}}
+\newcommand{\pdt}[1]{\partial_t #1}
+\newcommand{\sym}[1]{\mathrm{sym} #1 }
+\newcommand{\inpr}[2]{\left< #1, #2 \right>}
+
+\newcommand{\wall}{\mathrm{wall}}
+\newcommand{\inlet}{\mathrm{in}}
+\newcommand{\outlet}{\mathrm{out}}
+
+
 \begin{document}
 \section*{Project Description:\\Two-Phase Electrohydrodynamics in Porous Media}
 \textbf{Participants:} Gaute Linga\footnote{Copenhagen University, Niels Bohr Institutet, Norwegian}, Asger J. S. Bolet\footnote{Copenhagen University, Niels Bohr Institutet, Danish}, plus possible one more if there is one interested.
 
-\subsection*{Description}
-We will implement a multi-physics solver for binary fluid flow with dissolved ions in them and surface charge interactions.
-The full model consists in the following set of equations:
-\begin{itemize} 
-\item The incompressible time-dependent Stokes equations for the fluid flow:
-  \begin{align}
-    \rho(\psi) \partial_t \mathbf{u}  &= \nabla p +\eta(\psi) \nabla^2 \mathbf{u} -  \rho_e  \nabla \phi + \mathbf{f}_{if}(\psi),  \\  
-    \nabla \cdot\mathbf{u} &= 0,
-  \end{align}
-  where $\rho$ is the phase-dependent fluid density, $\psi$ is the phase field that tracks the interface between the two phases, $\v u$ is the fluid velocity, $p$ is the pressure, $\eta$ is the dynamic viscosity, $\rho_e$ is the charge density, $\phi$ is the electric potential and $\v f_{\intf}$ is the interface force.
-\item Poisson's equation for the electric potential: 
-  \begin{align}
-    \nabla\cdot\left(\epsilon_r(\psi)\nabla\phi\right) &= \frac{\rho_e}{\epsilon_0 },
-  \end{align}
-  where $\epsilon_0$ is the vacuum  and $\epsilon_r$ the relative permittivity.
-\item The phenomenological Nernst--Planck equation to model the ion diffusion-convection-migration, one for each species $i$ of ion (we will probably restrict ourselves to two):
-  \begin{align}
-    \partial_t c_i  &=  \nabla  \cdot  \left( - \mathbf{u} c_i  + D_i(\psi) \nabla c_i  +   \frac{D_i(\psi) z_i q_e}{k_B T} c_i \nabla \phi \right), \\
-\rho_e &= \sum_i q_e z_i c_i, 
-  \end{align}
-  where $c_i$, $D_i$, $z_i$ are the ion concentration, diffusivity, and valency of species $i$, $q_e$ is the electron charge, $k_B$ is Boltzmann's constant and $T$ is the temperature.
-\item The conservation equation for the phase field tracking the interface (which consequently gives the surface energy):
-  \begin{align}
-    \partial_t \psi + \mathbf{u}\cdot\nabla\psi &= M\nabla^2\left(\frac{3 \sigma }{W} \psi \left(\psi^2 -1\right) - \frac{3 \sigma W}{8}\nabla^2 \psi\right),
-  \end{align}
-  where $M$ is the mobility, $\sigma$ is the interface tension and $W$ is the interface width (which should approach 0 with grid refinement).
-  The contact angle with the solid wall is implemented through the boundary conditions, and we will most likely implement a simple expression which is sufficient for moderate angles.
-\end{itemize}
-With this system of equations we will first study electric ``static'' intrusion in a capillary due surface charge effects and different Debye lengths in the two fluids, in particular in two dimensions.
-Furthermore, we will study the effect of surface charge and a voltage bias upon drainage and imbibition in larger systems of synthetic porous media.
+\subsection*{Aim of the Project}
+To simulate binary electrolyte dynamics in porous geometries, in order to studied effects of electro wetting and interface dynamics due to electric interactions which hopefully will allow us to study electro ``static'' intrusion in a capillary due surface charge effects and different Debye lengths in the two fluids, in particular in two dimensions.
 
-\subsection*{Implementation in FEniCS}
-In order to simulate the above equations we will need to write down the variational forms and implement them in FEniCS.
-However, there are some complications as the system of equations is highly non-linear and contains many different time scales.
-On top of implementing a time integration scheme, we will have to solve the steady state Poisson--Nernst--Planck problem in order to provide realistic initial conditions.
+\subsection*{Model}
+The model we would like to solve is a binary fluid flow with dissolved ions and electric field applied via surface charges or forced potential difference, for that we have defined the following defused interface model, consisting of Navier--Stokes equation, Nernst--Planck equation, Gauss' law and a thermodynamically consistent interface tracking phase field.  
+The full model consists of following set of equations:
+The incompressible time-dependent Stokes equations for the fluid flow:
+\begin{gather}
+  \begin{split}
+  \rho(\phi) \pdt \v v + \left( \left(\rho(\phi) \v v - \rho'(\phi) M(\phi) \grad g_\phi  \right) \cdot \grad \right) \v v - \div \left[  \mu(\phi)(\grad \v v + \grad \v v ^T) \right] + \grad p \\
+  = - \rho_e \grad V - \tilde \sigma \xi\div \left[ \grad \phi \otimes \grad \phi \right] - \frac 1 2 \varepsilon'(\phi) | \grad V |^2 \grad \phi + \rho(\phi) \v g,
+  \end{split}\\
+  \div \v v = 0, \\
+  \pdt \phi + \v v \cdot \grad \phi - \div(M(\phi) \grad g_\phi ) = 0, \\
+  \pdt c_i + \v v \cdot \grad c_i - \div \left( D_{i} (\phi) \grad c_i + \frac{c_i q_e  z_i}{k_B T} \grad V +\frac{D_i(\phi)}{k_B T}\beta_i'(\phi) \grad \phi \right) = 0, \\
+  \div ( \varepsilon (\phi) \grad V ) = - \rho_e.
+\end{gather}
+Here, $\rho$ is the density , $\v v$ is the velocity field, $\mu$ is the dynamic viscosity, $p$ is the pressure, $\tilde{\sigma}$ is the surface tension, $\xi$ is the interface width, $c_i$ is the concentration of the soluted species $i$, and the associated chemical potential have been taken as, $g_{c_i} = \alpha'(c_i)+\beta(\phi)$ where $\alpha(c_i) = k_B T c_i(\log c_i -1)$ and $beta_i$ is the ???, $D_i$ is the diffusion constant for the $i$ ion. Further $phi$ is the phase field which takes the value $phi = -1$ in phase $i=1$ and $phi = 1$ in phase $i=2$, $M(\phi)= \gamma (1 - \phi^2)^2$ is the mobility of the phase field, $\rho_e = \sum_i z_i c_i$ is the total charge density ($z_i$ is the valency of solute species $i$), and finally $V$ is the electric potential. All the quantities defined with a $Q(phi)$ is defined as: $Q(\phi) = 0.5(Q_1+Q_2)+0.5(Q_1-Q_2)\phi$ and $Q'(\phi) = 0.5(Q_1-Q_2)$ except if otherwise i stated, finally $g_{\phi}$ is given as:
+\begin{align}
+ g_\phi &= \tilde\sigma\xi^{-1}W'(\phi) - \tilde\sigma\xi\laplacian\phi + \sum_i \beta_i'(\phi) c_i - \frac 1 2 \varepsilon'(\phi) | \grad V |^2 .\\
+ W(\phi) &= (1 - \phi^2)^2
+\end{align} 
+ 
 
-The simulation environment proposed for the above text has the name BERNAISE---an acronym for Binary ElectRohydrodyNAmIc Simulation Environment.
+\subsection*{Methodolgy and challenges}
+In order to simulate the above equations we will need to write down a variational from with a reasonable initialization and show it converges, especial the converges might pose a challenges as the system is far form linear. 
+Further we will need to studied the systems many time scales by none dimensionalizing the equations, in order to integral whith a fitting time step. 
+Lastly we will have to provide at good initial guess on the ionic system as the Gauss's Law and Nernst--Planck problem strongly coupled by any charged surface.
+
+\subsection*{Expected outcome} 
+The plan is to make a simulation environment for the above equations name BERNAISE---an acronym for Binary ElectRohydrodyNAmIc Simulation Environment.
 The git repository can be found at \url{https://github.com/gautelinga/BERNAISE} along with an implementation plan called plan.
+On the more physics oriented part we would like to make movies of intrusion of one of the phases in a 2-D porous sample after, some plots of reasonable converges.   
+
 
 \end{document} 
