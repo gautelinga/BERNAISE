@@ -1,12 +1,12 @@
-i. Formulat the dimensionless equation
-    Find the equations The do the following!  
-        X Do it for Nerst-Plack
+i. Formulate the dimensionless equation
+    Find the equations, then do the following:  
+        X Do it for Nernst-Planck
         X Do it for Poisson
         X Do it for Stokes
         - Do it for the phase field 
 
 1. Phase Field (Gaute)
-    There is proberly a way to do this!
+    There is properly a way to do this!
         - Make input for velosity 
         - add maybe contact angel
         - make unit test for stright capilar   
@@ -19,13 +19,13 @@ i. Formulat the dimensionless equation
         X Make mesh load function 
         - Make unit test 
 
-3. Timedependet Stokes 
-    stright forward!
+3. Time-dependent Stokes 
+    straight forward!
         - Make space for both electic force, interface force and spacedependet viscosity(the two phases)
         - make unit test for stright capilar   
         - make unit test for barbell capilar  
 
-4. Stady State Poisson Nerst-Plack (Asger)  
+4. Stady-state Poisson-Nernst-Plack (Asger)  
     a bit invold but have som legacy code!
         - Make it woke with spacedependet permativity and spacedependet defusion constats (the two phases)
         - make unit test for barbell capilar  
