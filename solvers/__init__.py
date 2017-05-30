@@ -1,7 +1,7 @@
 __author__ = "Gaute"
 
 
-__all__ = ["setup", "get_solvers"]
+__all__ = ["setup", "get_solvers", "solve"]
 
 
 def setup(**namespace):
@@ -12,4 +12,8 @@ def setup(**namespace):
 
 def get_solvers(**namespace):
     """ Return the linear solvers required in the problem. """
+    pass
+
+def solve(**namespace):
+    """ Solve at a timestep. """
     pass

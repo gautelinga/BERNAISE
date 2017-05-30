@@ -21,37 +21,38 @@ vars().update(import_problem_hook(**vars()))
 # Import solver functionality
 exec("from solvers.{} import *".format(solver))
 
-# Gather all fields
-# dim = mesh.geometry().dim()
-
-# Create initial folders for storing results
-newfolder, tstepfiles = create_initial_folders(folder, restart_folder,
-                                                fields, tstep, parameters)
-
 # Declare finite elements
 elements = dict()
-for field, (family, degree, is_vector) in base_elements.iteritems():
+for name, (family, degree, is_vector) in base_elements.iteritems():
     if is_vector:
-        elements[field] = df.VectorElement(family, mesh.ufl_cell(), degree)
+        elements[name] = df.VectorElement(family, mesh.ufl_cell(), degree)
     else:
-        elements[field] = df.FiniteElement(family, mesh.ufl_cell(), degree)
+        elements[name] = df.FiniteElement(family, mesh.ufl_cell(), degree)
 
 # Declare function spaces
 spaces = dict()
-for subproblem, base_elements in subproblems.iteritems():
-    spaces[subproblem] = df.FunctionSpace(
-        mesh, df.MixedElement([elements[el] for el in base_elements]),
+for name, subfields in subproblems.iteritems():
+    spaces[name] = df.FunctionSpace(
+        mesh, df.MixedElement([elements[s["element"]] for s in subfields]),
         constrained_domain=constrained_domain)
 
+# dim = mesh.geometry().dim()  # In case the velocity fields should be segregated at some point
+fields = sum([[s["name"] for s in subfields] for subfields in subproblems.itervalues()], [])
 
+# Create initial folders for storing results
+newfolder, tstepfiles = create_initial_folders(folder, restart_folder,
+                                               fields, tstep, parameters)
+
+# Create overarching test and trial functions
 test_functions = dict()
 trial_functions = dict()
 for subproblem in subproblems:
     test_functions[subproblem] = df.TestFunctions(spaces[subproblem])
     trial_functions[subproblem] = df.TrialFunctions(spaces[subproblem])
 
+# Create work dictionaries for all subproblems
 w_ = dict((subproblem, df.Function(space, name=subproblem))
-            for subproblem, space in spaces.iteritems())
+           for subproblem, space in spaces.iteritems())
 w_1 = dict((subproblem, df.Function(space, name=subproblem+"_1"))
             for subproblem, space in spaces.iteritems())
 
@@ -75,5 +76,10 @@ while t < T and not stop:
     t += dt
     tstep += 1
 
-    for subproblem in subproblems_order:
-        print subproblem
+    tstep_hook(**vars())
+
+    solve(**vars())
+
+    stop = save_solution(**vars())
+
+end_hook(**vars())

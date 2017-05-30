@@ -181,6 +181,10 @@ def setup_EC(w1_E, c, V, b, U, rho_e, bcs_E,
     solver_E = df.LinearVariationalSolver(problem_E)
     return solver_E
 
+def solve(solvers, **namespace):
+    solvers["PF"].solve()
+    solvers["EC"].solve()
+    solvers["NS"].solve()
 
 def diff_pf_potential_linearised(phi, phi0):
     """ Linearised phase field potential. """
