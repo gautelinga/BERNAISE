@@ -8,8 +8,8 @@ __date__ = "2017-05-26"
 __copyright__ = "Copyright (C) 2017 " + __author__
 __license__ = "MIT"
 
-__all__ = ["mpi_is_root", "makedirs_safe", "dump_parameters",
-           "create_initial_folders",
+__all__ = ["mpi_is_root", "makedirs_safe", "load_parameters",
+           "dump_parameters", "create_initial_folders",
            "save_solution", "save_checkpoint", "load_checkpoint"]
 
 
@@ -20,15 +20,19 @@ def mpi_is_root():
 
 def makedirs_safe(folder):
     """ Make directory in a safe way. """
-    if mpi_is_root():
-        if not os.path.exists(folder):
-            os.makedirs(folder)
+    if mpi_is_root() and not os.path.exists(folder):
+        os.makedirs(folder)
 
 
 def dump_parameters(parameters, settingsfilename):
     """ Dump parameters to file """
     with file(settingsfilename, "w") as settingsfile:
         cPickle.dump(parameters, settingsfile)
+
+
+def load_parameters(parameters, settingsfilename):
+    with file(settingsfilename, "r") as settingsfile:
+        parameters.update(cPickle.load(settingsfile))
 
 
 def create_initial_folders(folder, restart_folder, fields, tstep,
@@ -39,7 +43,7 @@ def create_initial_folders(folder, restart_folder, fields, tstep,
     makedirs_safe(folder)
     MPI.barrier(mpi_comm_world())
     if restart_folder:
-        newfolder = os.path.join(folder, restart_folder.split("/")[-2])
+        newfolder = restart_folder.split("Checkpoint")[0]
     else:
         previous_list = os.listdir(folder)
         if len(previous_list) == 0:
@@ -75,18 +79,18 @@ def create_initial_folders(folder, restart_folder, fields, tstep,
     return newfolder, tstepfiles
 
 
-def save_solution(tstep, w_, w_1, folder, newfolder,
+def save_solution(tstep, t, w_, w_1, folder, newfolder,
                   save_intv, checkpoint_intv,
                   parameters, tstepfiles, subproblems, **namespace):
     """ Save solution either to  """
     if tstep % save_intv == 0:
         # Save snapshot to xdmf
-        save_xdmf(tstep, w_, subproblems, tstepfiles)
+        save_xdmf(t, w_, subproblems, tstepfiles)
 
     kill = check_if_kill(folder)
-    if tstep % checkpoint_intv or kill:
+    if tstep % checkpoint_intv == 0 or kill:
         # Save checkpoint
-        save_checkpoint(tstep, w_, w_1, newfolder, parameters)
+        save_checkpoint(tstep, t, w_, w_1, newfolder, parameters)
 
     return kill
 
@@ -106,24 +110,25 @@ def check_if_kill(folder):
         return False
 
 
-def save_xdmf(tstep, w_, subproblems, tstepfiles):
+def save_xdmf(t, w_, subproblems, tstepfiles):
     """ Save snapshot of solution to xdmf file. """
     for subproblem_name, subfields in subproblems.iteritems():
-        print subproblem_name
         q_ = w_[subproblem_name].split()
         for s, q in zip(subfields, q_):
             field = s["name"]
             if field in tstepfiles:
                 q.rename(field, "tmp")
-                tstepfiles[field].write(q, float(tstep))
+                tstepfiles[field].write(q, float(t))
 
 
-def save_checkpoint(tstep, w_, w_1, newfolder, parameters):
+def save_checkpoint(tstep, t, w_, w_1, newfolder, parameters):
     """ Save checkpoint files.
 
     A part of this is taken from the Oasis code."""
     checkpointfolder = os.path.join(newfolder, "Checkpoint")
     parameters["num_processes"] = MPI.size(mpi_comm_world())
+    parameters["t_0"] = t
+    parameters["tstep"] = tstep
     if mpi_is_root():
         parametersfile = os.path.join(checkpointfolder, "parameters.dat")
         parametersfile_old = parametersfile + ".old"
@@ -136,23 +141,23 @@ def save_checkpoint(tstep, w_, w_1, newfolder, parameters):
     MPI.barrier(mpi_comm_world())
     h5filename = os.path.join(checkpointfolder, "fields.h5")
     h5filename_old = h5filename + ".old"
+    # In case of failure, keep old file.
+    if mpi_is_root() and os.path.exists(h5filename):
+        os.system("mv {0} {1}".format(h5filename, h5filename_old))
     h5file = HDF5File(mpi_comm_world(), h5filename, "w")
-    h5file.flush()  # What does this do?
+    h5file.flush()
     for field in w_:
-        # In case of failure, keep old file.
-        if mpi_is_root() and os.path.exists(h5filename):
-            os.system("mv {0} {1}".format(h5filename, h5filename_old))
+        info_red("Storing subproblem: " + field)
         MPI.barrier(mpi_comm_world())
         h5file.write(w_[field], field + "/current")
         if field in w_1:
             h5file.write(w_1[field], field + "/previous")
-        # Since program is still running, delete the old files.
-        MPI.barrier(mpi_comm_world())
-        if mpi_is_root() and os.path.exists(h5filename_old):
-            os.system("rm {}".format(h5filename_old))
         MPI.barrier(mpi_comm_world())
     h5file.close()
-
+    # Since program is still running, delete the old file.
+    if mpi_is_root() and os.path.exists(h5filename_old):
+        os.system("rm {}".format(h5filename_old))
+    MPI.barrier(mpi_comm_world())
     if mpi_is_root() and os.path.exists(parametersfile_old):
         os.system("rm {}".format(parametersfile_old))
 
@@ -162,6 +167,8 @@ def load_checkpoint(checkpointfolder, w_, w_1):
         h5filename = os.path.join(checkpointfolder, "fields.h5")
         h5file = HDF5File(mpi_comm_world(), h5filename, "r")
         for field in w_:
-            h5file.read(w_[field], field + "/current", False)
-            h5file.read(w_1[field], field + "/previous", False)
+            info_red("Loading subproblem: " + field)
+            h5file.read(w_[field], field + "/current")
+            h5file.read(w_1[field], field + "/previous")
         h5file.close()
+        

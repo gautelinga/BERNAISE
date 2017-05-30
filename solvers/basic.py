@@ -114,7 +114,8 @@ def setup_NS(w1_NS, u, p, v, q, bcs_NS,
                 df.outer(rho1*u0 - drho*M1*df.grad(g1), v))*df.dx
             + 2*nu1*df.inner(df.sym(df.grad(u)), df.grad(v))*df.dx
             - p * df.div(v)*df.dx
-            + df.div(u)*q*df.dx)
+            + df.div(u)*q*df.dx
+            - df.dot(rho1*grav, v)*df.dx)
     if enable_PF:
         F_NS += - sigma_bar*eps*df.inner(df.outer(df.grad(phi1),
                                                   df.grad(phi1)),
@@ -181,17 +182,24 @@ def setup_EC(w1_E, c, V, b, U, rho_e, bcs_E,
     return solver_E
 
 
-def solve(solvers, **namespace):
-    solvers["PF"].solve()
-    solvers["EC"].solve()
-    solvers["NS"].solve()
+def solve(solvers, enable_PF, enable_EC, enable_NS, **namespace):
+    """ Solve equations. """
+    if enable_PF:
+        solvers["PF"].solve()
+    if enable_EC:
+        solvers["EC"].solve()
+    if enable_NS:
+        solvers["NS"].solve()
 
 
-def update(w_, w_1, **namespace):
+def update(w_, w_1, enable_PF, enable_EC, enable_NS, **namespace):
     """ Update work variables at end of timestep. """
-    w_1["PF"].assign(w_["PF"])
-    w_1["EC"].assign(w_["EC"])
-    w_1["NS"].assign(w_["NS"])
+    if enable_PF:
+        w_1["PF"].assign(w_["PF"])
+    if enable_EC:
+        w_1["EC"].assign(w_["EC"])
+    if enable_NS:
+        w_1["NS"].assign(w_["NS"])
 
 
 def diff_pf_potential_linearised(phi, phi0):

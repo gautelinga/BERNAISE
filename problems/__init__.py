@@ -17,7 +17,8 @@ df.parameters["form_compiler"]["cpp_optimize_flags"] = "-O3"
 # df.set_log_active(False)
 
 parameters = dict(
-    folder="results"  # default folder to store results in
+    folder="results",  # default folder to store results in
+    info_intv=10
 )
 
 
@@ -41,6 +42,7 @@ def start_hook(**namespace):
 
 def tstep_hook(**namespace):
     """ Called in the beginning of timestep loop. """
+    pass
 
 
 def end_hook(**namespace):
@@ -48,13 +50,20 @@ def end_hook(**namespace):
     pass
 
 
-def import_problem_hook(parameters, mesh, cmd_kwargs, **namespace):
-    """ Called after importing problem. """
+def internalize_cmd_kwargs(parameters, cmd_kwargs):
+    """ Integrate command line arguments into parameters.
+    Consider moving this to common/cmd.py
+    """
     for key, val in cmd_kwargs.iteritems():
         if isinstance(val, dict):
             parameters[key].update(val)
         else:
             parameters[key] = val
+
+
+def import_problem_hook(parameters, mesh, cmd_kwargs, **namespace):
+    """ Called after importing problem. """
+    internalize_cmd_kwargs(parameters, cmd_kwargs)
 
     # Internalize the mesh
     if callable(mesh):

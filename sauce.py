@@ -9,14 +9,20 @@ from common import *
 
 cmd_kwargs = parse_command_line()
 
-# Import problem
+# Import problem and default parameters
 default_problem = "simple"
 exec("from problems.{} import *".format(cmd_kwargs.get("problem", default_problem)))
 
 # Internalize cmd arguments and mesh
 vars().update(import_problem_hook(**vars()))
 
-# print parameters
+# If loading from checkpoint, update parameters from file, and then
+# again from command line arguments.
+if restart_folder:
+    info_red("Loading parameters from checkpoint.")
+    load_parameters(parameters, os.path.join(restart_folder, "parameters.dat"))
+    internalize_cmd_kwargs(parameters, cmd_kwargs)
+    vars().update(parameters)
 
 # Import solver functionality
 exec("from solvers.{} import *".format(solver))
@@ -83,5 +89,8 @@ while t < T and not stop:
     stop = save_solution(**vars())
 
     update(**vars())
+
+    if tstep % info_intv == 0:
+        info_green("Time = {0:2.4e}, timestep = {1:6d}".format(t, tstep))
 
 end_hook(**vars())
