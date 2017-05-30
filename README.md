@@ -1,6 +1,9 @@
 # BERNICE
-## Binary ElectRohydrodyNamIC solvEr
-### Work Plan 
+### Binary ElectRohydrodyNAmIc SolvEr
+BERNAISE is a flexible, high-level solver of electrohydrodynamic flows in complex geometries currently under development.
+It is written in Python and built on the FEniCS project, which in turn effectively interfaces to optimized linear algebra backends such as PETSc.
+
+### Work plan
 
 * Time dependent EHD
 * Time dependent PF for the two-phase flow  
@@ -8,7 +11,7 @@
 * More complicated geometries
 * **Nobel Prize!!!** ***(only non-optional)***
 
-### Folder Plan
+### Folder plan
          
 * BERNAISE 
   * problems
