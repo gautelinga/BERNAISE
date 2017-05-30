@@ -65,6 +65,13 @@
 \section*{Two-Phase Electrohydrodynamics in Porous Media}
 \textbf{Participants:} Gaute Linga\footnote{Niels Bohr Institute, Copenhagen University, Norwegian}, Asger J. S. Bolet\footnote{Niels Bohr Institute, Copenhagen University, Danish}, and possibly one more.
 
+
+\subsection*{Motivation}
+Two-phase phenomenon and the related wetting proprieties are encountered in many different technological and industrial applications: from microfluidics to oil recovery\cite{bonn2009}. 
+In especial the chase of micofluidics elector wetting can be used to control fluid with high precision \cite{mugele2005}. 
+Simulation of such phenomenon is still in it infancy but have been carried out in order to understand deformation of droplets due to electric fields\cite{yang2013,yang2014} or in the chase of controlling microfluidic devices see \cite{zeng2011}. 
+However to our knowledges there have been no studies in the context of more complex geometry. 
+
 \subsection*{Aim of the project}
 The aim of this project is to simulate binary electrohydrodynamics in the presence of non-trivial boundaries in two dimensions, in order to study electrowetting and interface dynamics due to electric interactions.
 This will allow us to study intrusion into a capillary due to surface charge effects and different Debye lengths in the two fluids.
@@ -110,7 +117,7 @@ Finally, we will study imbibition or drainage fronts in a complex porous network
 Under all circumstances, physically relevant parameters should be chosen.
 As a base case, we will consider the binary water-oil system, where the water contains a weak solution\footnote{In the chemical sense, not in the mathematical one.} of two oppositely charged ions (typically dissolved KCl) which cannot be dissolved in the oil phase.
 In order to quantify our results (and simulate more general physical cases), we should identify the important dimensionless physical quantities in our problem.
-Lastly we may have to provide good initial guesses on the ionic system as Gauss's law and the Nernst--Planck problem are strongly coupled to any charged surface.
+Lastly we may have to provide good initial guesses on the ionic system as Gauss's law and the Nernst--Planck problem are strongly coupled to any charged surface\cite{mitscha-baude2017}.
 
 \subsection*{Expected outcome} 
 The plan is to program a simulation environment for the above equations named \emph{BERNAISE} (Binary ElectRohydrodyNAmIc SolvEr).\footnote{We are aware of the spelling error compared to the sauce B\'{e}arnaise. The missing A stands for ``Adaptive'', as our solver currently lacks adaptive mesh refinement/coarsening.}
