@@ -40,7 +40,6 @@ parameters.update(
     dx=1./16,
     interface_thickness=0.040,
     solutes=solutes,
-    fields=["u", "p"] + ["phi", "g"] + ["cp", "cm"] + ["V"],
     base_elements=base_elements,
     subproblems=subproblems,
     Lx=1.,
@@ -62,6 +61,20 @@ parameters.update(
 def mesh(Lx=1, Ly=5, dx=1./16, **namespace):
     return df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly),
                             int(Lx/dx), int(Ly/dx))
+
+
+def initialize(w_, w_1, subproblems, Lx, Ly, rad_init,
+               interface_thickness, **namespace):
+    """ Create the initial state. """
+    # Phase field
+    phi_init = initial_phasefield(Lx/2, Ly/2, rad_init, interface_thickness,
+                                  w_["PF"].function_space().sub(0).collapse())
+    g_init = df.interpolate(df.Constant(0.),
+                            w_["PF"].function_space().sub(1).collapse())
+    w_PF_init = df.project(df.as_vector((phi_init, g_init)),
+                           w_["PF"].function_space())
+    w_["PF"].interpolate(w_PF_init)
+    w_1["PF"].interpolate(w_PF_init)
 
 
 def create_bcs(spaces, Lx, Ly, solutes, V_top, V_btm, **namespace):
@@ -87,3 +100,17 @@ def create_bcs(spaces, Lx, Ly, solutes, V_top, V_btm, **namespace):
                               "on_boundary && x[1] < DOLFIN_EPS")
     bcs["EC"] = [bc_V_top, bc_V_btm]
     return bcs
+
+
+def initial_phasefield(x0, y0, rad, eps, function_space, shape="circle"):
+    if shape == "flat":
+        expr_str = "tanh((x[1]-y0)/(sqrt(2)*eps))"
+    elif shape == "circle":
+        expr_str = ("tanh(sqrt(2)*(sqrt(pow(x[0]-x0,2)" +
+                    "+pow(x[1]-y0,2))-rad)/eps)")
+    else:
+        exit("Unrecognized shape: " + shape)
+    phi_init_expr = df.Expression(expr_str, x0=x0, y0=y0, rad=rad,
+                                  eps=eps, degree=2)
+    phi_init = df.interpolate(phi_init_expr, function_space)
+    return phi_init

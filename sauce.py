@@ -82,4 +82,6 @@ while t < T and not stop:
 
     stop = save_solution(**vars())
 
+    update(**vars())
+
 end_hook(**vars())

@@ -8,7 +8,8 @@ __date__ = "2017-05-26"
 __copyright__ = "Copyright (C) 2017 " + __author__
 __license__ = "MIT"
 
-__all__ = ["mpi_is_root", "makedirs_safe", "dump_parameters", "create_initial_folders",
+__all__ = ["mpi_is_root", "makedirs_safe", "dump_parameters",
+           "create_initial_folders",
            "save_solution", "save_checkpoint", "load_checkpoint"]
 
 

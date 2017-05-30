@@ -82,7 +82,6 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
 
     rho_e = sum([c_e*z_e for c_e, z_e in zip(c, z)])  # Sum of trial functions
     rho_e_ = sum([c_e*z_e for c_e, z_e in zip(c_, z)])  # Sum of current sol.
-    # rho_e_1 = sum([c_e*z_e for c_e, z_e in zip(c_1, z)])  # sum of prev. sol.
 
     solvers = dict()
     if enable_PF:
@@ -181,10 +180,19 @@ def setup_EC(w1_E, c, V, b, U, rho_e, bcs_E,
     solver_E = df.LinearVariationalSolver(problem_E)
     return solver_E
 
+
 def solve(solvers, **namespace):
     solvers["PF"].solve()
     solvers["EC"].solve()
     solvers["NS"].solve()
+
+
+def update(w_, w_1, **namespace):
+    """ Update work variables at end of timestep. """
+    w_1["PF"].assign(w_["PF"])
+    w_1["EC"].assign(w_["EC"])
+    w_1["NS"].assign(w_["NS"])
+
 
 def diff_pf_potential_linearised(phi, phi0):
     """ Linearised phase field potential. """

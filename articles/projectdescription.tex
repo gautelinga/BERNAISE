@@ -1,6 +1,8 @@
 \documentclass[a4paper,10pt]{article}
 \usepackage{fullpage}
-\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage[sort&compress,numbers]{natbib}
+\usepackage{doi}
 \usepackage{graphicx}
 \usepackage{epstopdf}
 \usepackage{epsfig}
@@ -9,9 +11,18 @@
 \usepackage{bm}
 \usepackage[center]{subfigure}
 \usepackage{enumerate}
-\usepackage{hyperref} %Not actually used. You can put multiple includegraphics commands right after each other without spaces without problems. This is only useful for separated captions.
+ %Not actually used. You can put multiple includegraphics commands right after each other without spaces without problems. This is only useful for separated captions.
 %Prevent indentation of first line in paragraphs.
 %\setlength{\parindent}{0pt}
+
+\setlength{\bibsep}{1pt} % or use whatever dimension you want
+\renewcommand{\bibfont}{\small}
+
+\usepackage{titlesec}
+
+\titleformat*{\section}{\large\bfseries}
+\titleformat*{\subsection}{\large\bfseries}
+\titleformat*{\subsubsection}{\large\bfseries}
 
 \renewcommand{\v}[1]{\mathbf{#1}}
 \newcommand{\intf}{\textrm{if}}
@@ -62,15 +73,16 @@
 
 
 \begin{document}
-\section*{Two-Phase Electrohydrodynamics in Porous Media}
+\section*{\Large Two-Phase Electrohydrodynamics in Porous Media}
 \textbf{Participants:} Gaute Linga\footnote{Niels Bohr Institute, Copenhagen University, Norwegian}, Asger J. S. Bolet\footnote{Niels Bohr Institute, Copenhagen University, Danish}, and possibly one more.
 
 
 \subsection*{Motivation}
-Two-phase phenomenon and the related wetting proprieties are encountered in many different technological and industrial applications: from microfluidics to oil recovery\cite{bonn2009}. 
-In especial the chase of micofluidics elector wetting can be used to control fluid with high precision \cite{mugele2005}. 
-Simulation of such phenomenon is still in it infancy but have been carried out in order to understand deformation of droplets due to electric fields\cite{yang2013,yang2014} or in the chase of controlling microfluidic devices see \cite{zeng2011}. 
-However to our knowledges there have been no studies in the context of more complex geometry. 
+Two-phase flow and related wetting phenomena are encountered in a variety of natural, technological, and industrial applications---from microfluidics to oil recovery \cite{bonn2009}. 
+Particularly in the case of microfluidics, electrowetting can be used to control fluids with high precision \cite{mugele2005}.
+Simulation of such phenomena is still in its infancy, but has been carried out in order to understand deformation of droplets due to electric fields \cite{yang2013,yang2014}, or for the purpose of controlling microfluidic devices (see e.g.~\cite{zeng2011}). 
+However, to our knowledge, there has not been any study in the context of more complex geometries. 
+In practical applications, such as in environmental remediation or oil recovery, the complex pore geometry is essential and it is therefore of great interest to simulate and study electrowetting phenomena in such configurations.
 
 \subsection*{Aim of the project}
 The aim of this project is to simulate binary electrohydrodynamics in the presence of non-trivial boundaries in two dimensions, in order to study electrowetting and interface dynamics due to electric interactions.
@@ -78,8 +90,8 @@ This will allow us to study intrusion into a capillary due to surface charge eff
 Ultimately, the resulting framework will allow to study the effects of electric interactions on the transport properties of porous media.
 
 \subsection*{Model}
-We would like to study a binary (two-phase) fluid flow with dissolved ions and an electric field applied via surface charges or a potential difference.
-For that we have employed a thermodynamically consistent diffuse interface model \cite{abels2012}, consisting of the Navier--Stokes equations for the flow, Nernst--Planck equation for solute transport, Gauss' law for the electrostatics, and a phase field equation for tracking the interface between the two phases.
+We will study a binary (two-phase) fluid flow with dissolved ions and an electric field applied via surface charges or a potential difference.
+For that we have employed a thermodynamically consistent diffuse interface model \cite{abels2012}, consisting of the Navier--Stokes equations for the flow, the Nernst--Planck equation for solute transport, Gauss' law for the electrostatics, and a phase-field equation for tracking the interface between the two phases.
 The full model consists of the following equations:
 \begin{gather}
   \begin{split}
@@ -91,17 +103,17 @@ The full model consists of the following equations:
   \pdt c_i + \v v \cdot \grad c_i - \div \left( D_{i} (\phi) \grad c_i + \frac{c_i q_e  z_i}{k_B T} \grad V +\frac{D_i(\phi)}{k_B T}\beta_i'(\phi) \grad \phi \right) = 0, \\
   \div ( \varepsilon (\phi) \grad V ) = - \rho_e.
 \end{gather}
-Here, $\phi$ is the phase field order parameter, which takes the value $\phi = 1$ in phase $i=1$, $\phi = -1$ in phase $i=2$, and $\phi \in (-1, 1)$ across the diffuse interface of width $\xi$.
+Here, $\phi$ is the phase-field order parameter, which takes the value $\phi = 1$ in phase $i=1$, $\phi = -1$ in phase $i=2$, and $\phi \in (-1, 1)$ across the diffuse interface of width $\xi$.
 Moreover, $\rho$ is the density, $\v v$ is the velocity field, $\mu$ is the dynamic viscosity, $p$ is the pressure, and $\tilde{\sigma}$ is the (scaled) surface tension.
-Further, $c_i$ is the concentration of the solute species $i$, $\beta_i$ is related to the solubility, and $D_i$ is the diffusion constant of species $i$. $M(\phi)= \gamma (1 - \phi^2)^2$ is the mobility of the phase field ($\gamma$ is a heuristic constant), $\rho_e = \sum_i z_i c_i$ is the total charge density ($z_i$ is the valency of solute species $i$), and finally $V$ is the electric potential. All of the above quantities which are written in the form $Q(\phi)$ are defined as $Q(\phi) = (Q_1+Q_2 + (Q_1-Q_2)\phi)/2$, and $Q'(\phi) = (Q_1-Q_2)/2$ unless otherwise stated. Finally, the phase field ``chemical potential'' is given by:
+Further, $c_i$ is the concentration of the solute species $i$, $\beta_i$ is related to the solubility, and $D_i$ is the diffusion constant of species $i$. $M(\phi)= \gamma (1 - \phi^2)^2$ is the mobility of the phase field ($\gamma$ is a heuristic constant), $\rho_e = \sum_i z_i c_i$ is the total charge density ($z_i$ is the valency of solute species $i$), and $V$ is the electric potential. Finally, the phase field ``chemical potential'' is given by:
 \begin{align}
  g_\phi &= \tilde\sigma\xi^{-1}W'(\phi) - \tilde\sigma\xi\laplacian\phi + \sum_i \beta_i'(\phi) c_i - \frac 1 2 \varepsilon'(\phi) | \grad V |^2 ,
 \end{align}
 where $W$ is a double-well potential taken to be $W(\phi) = (1 - \phi^2)^2/4$.
- 
+All of the above quantities which are written in the form $Q(\phi)$ are defined as $Q(\phi) = (Q_1+Q_2 + (Q_1-Q_2)\phi)/2$, and $Q'(\phi) = (Q_1-Q_2)/2$.
 
 \subsection*{Methodology and challenges}
-In order to simulate the above equations we will first need to write down a variational form, and discretize the set of equations with suitable linearization.
+In order to simulate the above system, we will first need to write down a variational form, and discretize the set of equations with suitable linearization.
 Due to the computational difficulty associated with resolving the interface without using adaptive mesh refinement/coarsening, we will restrict ourselves to two spatial dimensions.
 At a first step, the solver must be validated, and at a second step, the solver will be used to study physically interesting scenarios.
 In order to do this conveniently and systematically, the solver should be integrated into a flexible framework where it is easy to change, e.g., numerical scheme, initial state, boundary conditions and physical parameters.
@@ -117,20 +129,20 @@ Finally, we will study imbibition or drainage fronts in a complex porous network
 Under all circumstances, physically relevant parameters should be chosen.
 As a base case, we will consider the binary water-oil system, where the water contains a weak solution\footnote{In the chemical sense, not in the mathematical one.} of two oppositely charged ions (typically dissolved KCl) which cannot be dissolved in the oil phase.
 In order to quantify our results (and simulate more general physical cases), we should identify the important dimensionless physical quantities in our problem.
-Lastly we may have to provide good initial guesses on the ionic system as Gauss's law and the Nernst--Planck problem are strongly coupled to any charged surface\cite{mitscha-baude2017}.
+Lastly we may have to provide good initial guesses on the ionic system as Gauss's law and the Nernst--Planck problem are strongly coupled to any charged surface \cite{mitscha-baude2017}.
 
 \subsection*{Expected outcome} 
 The plan is to program a simulation environment for the above equations named \emph{BERNAISE} (Binary ElectRohydrodyNAmIc SolvEr).\footnote{We are aware of the spelling error compared to the sauce B\'{e}arnaise. The missing A stands for ``Adaptive'', as our solver currently lacks adaptive mesh refinement/coarsening.}
 The \texttt{git} repository will be located at \url{https://github.com/gautelinga/BERNAISE}.
 Using the simulation framework, we expect to produce:
 \begin{itemize}
-\item Convergence studies in space and time of a first-order fractional time-stepping scheme (as described in the previous section).
+\item Convergence studies in space and time of a first-order fractional time-stepping scheme (as outlined in the previous section).
 \item Possibly a comparison between different numerical schemes, such as using a direct, fully monolithic approach as compared to the linearised fractional scheme.
 \item Study of intrusion into a capillary, including videos.
 \item Preliminary study of drainage/imbibition in a porous medium, including videos.
 \end{itemize}
 
-\bibliographystyle{abbrv}
+\bibliographystyle{apsrev4-1}
 \bibliography{references}
 
 \end{document} 
