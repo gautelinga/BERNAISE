@@ -39,6 +39,10 @@ def start_hook(**namespace):
     return dict()
 
 
+def tstep_hook(**namespace):
+    """ Called in the beginning of timestep loop. """
+
+
 def end_hook(**namespace):
     """ Called just before program ends. """
     pass

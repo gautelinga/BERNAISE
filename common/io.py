@@ -76,11 +76,11 @@ def create_initial_folders(folder, restart_folder, fields, tstep,
 
 def save_solution(tstep, w_, w_1, folder, newfolder,
                   save_intv, checkpoint_intv,
-                  parameters, tstepfiles):
+                  parameters, tstepfiles, subproblems, **namespace):
     """ Save solution either to  """
     if tstep % save_intv == 0:
         # Save snapshot to xdmf
-        save_xdmf(tstep, w_, tstepfiles)
+        save_xdmf(tstep, w_, subproblems, tstepfiles)
 
     kill = check_if_kill(folder)
     if tstep % checkpoint_intv or kill:
@@ -91,13 +91,13 @@ def save_solution(tstep, w_, w_1, folder, newfolder,
 
 
 def check_if_kill(folder):
-    """ Check if the user has order to kill the simulation """
+    """ Check if the user has ordered to kill the simulation """
     found = 0
     if "kill" in os.listdir(folder):
         found = 1
     found_all = MPI.sum(mpi_comm_world(), found)
     if found_all > 0:
-        if MPI.rank(mpi_comm_world()) == 0:
+        if mpi_is_root():
             os.remove(os.path.join(folder, "kill"))
         info_red("Stopping simulation.")
         return True
@@ -105,11 +105,16 @@ def check_if_kill(folder):
         return False
 
 
-def save_xdmf(tstep, w_, tstepfiles):
+def save_xdmf(tstep, w_, subproblems, tstepfiles):
     """ Save snapshot of solution to xdmf file. """
-    for field, tstepfile in tstepfiles:
-        if field in w_:
-            tstepfile.write(w_[field], float(tstep))
+    for subproblem_name, subfields in subproblems.iteritems():
+        print subproblem_name
+        q_ = w_[subproblem_name].split()
+        for s, q in zip(subfields, q_):
+            field = s["name"]
+            if field in tstepfiles:
+                q.rename(field, "tmp")
+                tstepfiles[field].write(q, float(tstep))
 
 
 def save_checkpoint(tstep, w_, w_1, newfolder, parameters):

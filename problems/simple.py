@@ -1,5 +1,5 @@
-from . import *
 import dolfin as df
+from . import *
 __author__ = "Gaute Linga"
 
 info_cyan("Welcome to the simple problem!")
@@ -8,34 +8,21 @@ info_cyan("Welcome to the simple problem!")
 
 # Format: name, charge, diffusivity in phase 1, diffusivity in phase
 #         2, beta in phase 1, beta in phase 2
-solutes = [("cp", 1., 1., 1., 1., 1., 1.),
-           ("cm", -1, 1., 1., 1., 1., 1.)]
+solutes = [("c_p", 1., 1., 1., 1., 1., 1.),
+           ("c_m", -1, 1., 1., 1., 1., 1.)]
 
-"""
-    factor = 1./4.
-    h_int = factor * 1./16
-    eps = factor * 0.040
-    dt = factor * 0.08
-    gamma = factor * 0.000040
-
-    Lx, Ly = 1., 2.
-    rad_init = 0.25
-    t0 = 0.
-    T = 20.
-
-    rho_1 = 1000.
-    nu_1 = 10.
-    rho_2 = 100.
-    nu_2 = 1.
-
-    sigma = 24.5
-    grav_const = 0.98
-
-    mesh = get_mesh(Lx, Ly, h_int)
-    sigma_bar = sigma*3./(2*math.sqrt(2))
-    grav = df.Constant((0., -grav_const))
-"""
-
+# Format: name : (family, degree, is_vector)
+base_elements = dict(u=("Lagrange", 2, True),
+                     p=("Lagrange", 1, False),
+                     phi=("Lagrange", 1, False),
+                     g=("Lagrange", 1, False),
+                     c=("Lagrange", 1, False),
+                     V=("Lagrange", 1, False))
+subproblems = dict(NS=[dict(name="u", element="u"),
+                       dict(name="p", element="p")],
+                   PF=[dict(name="phi", element="phi"),
+                       dict(name="g", element="g")],
+                   EC=[dict(name=solute[0], element="c") for solute in solutes] + [dict(name="V", element="V")])
 
 parameters.update(
     solver="basic",
@@ -44,25 +31,18 @@ parameters.update(
     enable_NS=True,
     enable_PF=True,
     enable_EC=True,
+    save_intv=10,
+    checkpoint_intv=100,
     tstep=0,
     dt=0.01,
     t_0=0.,
     T=20.,
-    h_int=1./16,
+    dx=1./16,
     interface_thickness=0.040,
     solutes=solutes,
     fields=["u", "p"] + ["phi", "g"] + ["cp", "cm"] + ["V"],
-    # Format: name : (family, degree, is_vector)
-    base_elements={"u": ("Lagrange", 2, True),
-                   "p": ("Lagrange", 1, False),
-                   "phi": ("Lagrange", 1, False),
-                   "g": ("Lagrange", 1, False),
-                   "c": ("Lagrange", 1, False),
-                   "V": ("Lagrange", 1, False)},
-    subproblems={"NS": ["u", "p"],
-                 "PF": ["phi", "g"],
-                 "EC": ["c"]*len(solutes) + ["V"]},
-    subproblems_order=["PF", "EC", "NS"],
+    base_elements=base_elements,
+    subproblems=subproblems,
     Lx=1.,
     Ly=5.,
     rad_init=0.25,
@@ -79,9 +59,9 @@ parameters.update(
 )
 
 
-def mesh(Lx=1, Ly=5, h=1./16, **namespace):
+def mesh(Lx=1, Ly=5, dx=1./16, **namespace):
     return df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly),
-                            int(Lx/h), int(Ly/h))
+                            int(Lx/dx), int(Ly/dx))
 
 
 def create_bcs(spaces, Lx, Ly, solutes, V_top, V_btm, **namespace):
