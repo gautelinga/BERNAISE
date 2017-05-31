@@ -78,6 +78,7 @@ vars().update(start_hook(**vars()))
 
 stop = False
 t = t_0
+df.tic()
 while t < T and not stop:
     t += dt
     tstep += 1
@@ -91,6 +92,10 @@ while t < T and not stop:
     update(**vars())
 
     if tstep % info_intv == 0:
-        info_green("Time = {0:2.4e}, timestep = {1:6d}".format(t, tstep))
+        info_green("Time = {0:f}, timestep = {1:d}".format(t, tstep))
+        info_cyan("Computing time for previous {0:d}"
+                  " timesteps: {1:f} seconds".format(info_intv, df.toc()))
+        df.list_timings(df.TimingClear_clear, [df.TimingType_wall])
+        df.tic()
 
 end_hook(**vars())
