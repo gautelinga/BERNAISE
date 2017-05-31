@@ -1,4 +1,4 @@
-# BERNICE
+# BERNAISE
 ### Binary ElectRohydrodyNAmIc SolvEr
 BERNAISE is a flexible, high-level solver of electrohydrodynamic flows in complex geometries currently under development.
 It is written in Python and built on the FEniCS project, which in turn effectively interfaces to optimized linear algebra backends such as PETSc.
@@ -13,18 +13,28 @@ It is written in Python and built on the FEniCS project, which in turn effective
 
 ### Folder plan
          
-* BERNAISE 
+* BERNAISE
+  * common
+    * __init__.py
+    * io.py
+    * cmd.py
   * problems
+    * __init__.py
+    * simple.py
     * ...
   * solvers
+    * __init__.py
+    * basic.py
     * ...
   * tests
     * ...
   * meshes
     * ...
-  * utilities 
+  * utilities
+    * meshgeneration.py
+    * meshload.py
     * ...
-  * docomentation
+  * documentation
     * ...
   * articles
     * ...
