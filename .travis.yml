@@ -1,0 +1,53 @@
+language: generic
+
+os: osx
+osx_image: xcode8.1
+
+sudo: false
+
+env:
+
+  matrix:
+    - CONDA_PY=27
+
+  global:
+    - FENICS_VERSION="2017.2.dev"
+    # travis encrypt BINSTAR_TOKEN="..." --repo mikaem/Oasis
+    - secure: "jAzA+9V5i0BTIrnWum25w9cZS5PavqROPrdzgk43+ZafXhwFEdSbYNwkCVONXk3UF/Il5FkU/IiQAXetllBqtd1ySFfM093MO9BVynzKpExN80S6CVKtRa1KW1GtwNFq7p/vDj+Wr3D7hlEbloYJeAQREOYnOSrtttfgyHIPZwejTlPp56ZrUo0fgMrFI2BgmnT6adRKBDCmYhsoKZD57Uvt4kBRGuUQmccQJ/hVedUoPbViSjL3ka14aep3Agp1yMAk1iIw1iWEdhKd5voRX3lcjiP0y7Q+EoSLCqls2de1yE5I4glKYRCtYaITq8BBY8B/aKJNn741L4Ue7TNYcWtViV92IoJuVuAXLU2bYDIPB4NX0PVVXqVj2A9rY0dWhnxckndE86QxyK1/6FuZC/pz1PtMD4Xcv8+gs3iEVRDBUPVqKYUmM+mfLj7Ts9eHfSI0wtSHbhRcN6e+HSiJecHwNK4EnKex4QJI+xbqsynlTC9GDsGhkiWInYAC4TnBXWe6Z1j1vZW/TVcFV6RWA18ATHt0aO+NYOBIVNERnMbrS0IPLTJWXgjslqRgHWXKiLNxkcjvC+H+JMpy34JKtE3JhPlz64Zl6FarJwhv3rhzFRFxBzRll/onL1wxLnyebEvbjh+vHIfS/ycw/ezrxjS1ZbW+j1gf5fQV214o9RY="
+
+before_install:
+    # Remove homebrew.
+    - |
+      echo ""
+      echo "Removing homebrew from Travis CI to avoid conflicts."
+      curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/uninstall > ~/uninstall_homebrew
+      chmod +x ~/uninstall_homebrew
+      ~/uninstall_homebrew -fq
+      rm ~/uninstall_homebrew
+install:
+    # Install Miniconda.
+    - |
+      echo ""
+      echo "Installing a fresh version of Miniconda."
+      MINICONDA_URL="https://repo.continuum.io/miniconda"
+      MINICONDA_FILE="Miniconda2-latest-MacOSX-x86_64.sh"
+      curl -L -O "${MINICONDA_URL}/${MINICONDA_FILE}"
+      bash $MINICONDA_FILE -b
+    # Configure conda
+    - |
+      echo ""
+      echo "Configuring conda."
+      source /Users/travis/miniconda2/bin/activate root
+      conda config --set always_yes yes
+      conda config --set show_channel_urls true
+      conda config --add channels conda-forge
+      conda config --add channels mikaem/label/OSX-10.11-clang
+      conda update -q conda
+      conda install --yes fenics=${FENICS_VERSION} pyvtk h5py-parallel pytest
+      #export INSTANT_CACHE_DIR="/Users/travis/miniconda2/.cache/instant"
+after_failure:
+    - find /Users/travis/miniconda2/.cache/instant/error/* -name 'compile.log' -print -exec cat '{}' \;
+
+script:
+    - export INSTANT_CACHE_DIR="${HOME}/instant"
+    - cd ${PWD}/tests; py.test
