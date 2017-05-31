@@ -1,7 +1,8 @@
 import os
 from dolfin import MPI, mpi_comm_world, XDMFFile, HDF5File
 from cmd import info_red, info_cyan
-import cPickle
+import simplejson as json
+from pprint import pprint
 
 __author__ = "Gaute Linga"
 __date__ = "2017-05-26"
@@ -27,12 +28,12 @@ def makedirs_safe(folder):
 def dump_parameters(parameters, settingsfilename):
     """ Dump parameters to file """
     with file(settingsfilename, "w") as settingsfile:
-        cPickle.dump(parameters, settingsfile)
+        json.dump(parameters, settingsfile, indent=4*' ', sort_keys=True)
 
 
 def load_parameters(parameters, settingsfilename):
     with file(settingsfilename, "r") as settingsfile:
-        parameters.update(cPickle.load(settingsfile))
+        parameters.update(json.load(settingsfile))
 
 
 def create_initial_folders(folder, restart_folder, fields, tstep,
@@ -64,10 +65,9 @@ def create_initial_folders(folder, restart_folder, fields, tstep,
     # Initialize timestep files
     tstepfiles = dict()
     for field in fields:
-        tstepfiles[field] = XDMFFile(
-            mpi_comm_world(),
-            os.path.join(tstepfolder,
-                         field + "_from_tstep_{}.xdmf".format(tstep)))
+        filename = os.path.join(tstepfolder,
+                                field + "_from_tstep_{}.xdmf".format(tstep))
+        tstepfiles[field] = XDMFFile(mpi_comm_world(), filename)
         tstepfiles[field].parameters["rewrite_function_mesh"] = False
         tstepfiles[field].parameters["flush_output"] = True
 
@@ -96,7 +96,7 @@ def save_solution(tstep, t, w_, w_1, folder, newfolder,
 
 
 def check_if_kill(folder):
-    """ Check if the user has ordered to kill the simulation """
+    """ Check if user has ordered to kill the simulation. """
     found = 0
     if "kill" in os.listdir(folder):
         found = 1
@@ -171,4 +171,3 @@ def load_checkpoint(checkpointfolder, w_, w_1):
             h5file.read(w_[field], field + "/current")
             h5file.read(w_1[field], field + "/previous")
         h5file.close()
-        

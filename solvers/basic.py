@@ -184,22 +184,22 @@ def setup_EC(w1_E, c, V, b, U, rho_e, bcs_E,
 
 def solve(solvers, enable_PF, enable_EC, enable_NS, **namespace):
     """ Solve equations. """
-    if enable_PF:
-        solvers["PF"].solve()
-    if enable_EC:
-        solvers["EC"].solve()
-    if enable_NS:
-        solvers["NS"].solve()
+    timer_outer = df.Timer("Solve system")
+    for subproblem, enable in zip(["PF", "EC", "NS"],
+                                  [enable_NS, enable_EC, enable_PF]):
+        if enable:
+            timer_inner = df.Timer("Solve subproblem " + subproblem)
+            solvers[subproblem].solve()
+            timer_inner.stop()
+    timer_outer.stop()
 
 
 def update(w_, w_1, enable_PF, enable_EC, enable_NS, **namespace):
     """ Update work variables at end of timestep. """
-    if enable_PF:
-        w_1["PF"].assign(w_["PF"])
-    if enable_EC:
-        w_1["EC"].assign(w_["EC"])
-    if enable_NS:
-        w_1["NS"].assign(w_["NS"])
+    for subproblem, enable in zip(["PF", "EC", "NS"],
+                                  [enable_NS, enable_EC, enable_PF]):
+        if enable:
+            w_1[subproblem].assign(w_[subproblem])
 
 
 def diff_pf_potential_linearised(phi, phi0):

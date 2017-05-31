@@ -19,11 +19,14 @@ base_elements = dict(u=("Lagrange", 2, True),
                      g=("Lagrange", 1, False),
                      c=("Lagrange", 1, False),
                      V=("Lagrange", 1, False))
+
+# GL: Subproblems should be defined in solver.
 subproblems = dict(NS=[dict(name="u", element="u"),
                        dict(name="p", element="p")],
                    PF=[dict(name="phi", element="phi"),
                        dict(name="g", element="g")],
-                   EC=[dict(name=solute[0], element="c") for solute in solutes] + [dict(name="V", element="V")])
+                   EC=[dict(name=solute[0], element="c")
+                       for solute in solutes] + [dict(name="V", element="V")])
 
 factor = 1./4.
 
