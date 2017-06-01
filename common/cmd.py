@@ -26,10 +26,12 @@ def convert(data):
 
 
 def parse_command_line():
-    cmd_kwargs = {}
+    cmd_kwargs = dict()
     for s in sys.argv[1:]:
         if s.count('=') == 1:
             key, value = s.split('=', 1)
+        elif s in ["-h", "--help", "help"]:
+            key, value = "help", "true"
         else:
             raise TypeError("Only kwargs separated with '=' allowed.")
         try:

@@ -2,7 +2,6 @@ import os
 from dolfin import MPI, mpi_comm_world, XDMFFile, HDF5File
 from cmd import info_red, info_cyan
 import simplejson as json
-from pprint import pprint
 
 __author__ = "Gaute Linga"
 __date__ = "2017-05-26"

@@ -87,29 +87,37 @@ def initialize(w_, w_1, subproblems, Lx, Ly, rad_init,
         w_1["EC"].interpolate(w_EC_init)
 
 
-def create_bcs(spaces, Lx, Ly, solutes, V_top, V_btm, **namespace):
+def create_bcs(field_to_subspace, Lx, Ly, solutes,
+               V_top, V_btm, **namespace):
+    """ The boundary conditions are defined in terms of field. """
     bcs = dict()
 
     # Navier-Stokes
-    freeslip = df.DirichletBC(
-        spaces["NS"].sub(0).sub(0), df.Constant(0.),
-        "on_boundary && (x[0] < DOLFIN_EPS || x[0] > {Lx}-DOLFIN_EPS)".format(Lx=Lx))
-    noslip = df.DirichletBC(
-        spaces["NS"].sub(0), df.Constant((0., 0.)),
-        "on_boundary && (x[1] < DOLFIN_EPS || x[1] > {Ly}-DOLFIN_EPS)".format(Ly=Ly))
-    bcs["NS"] = [noslip, freeslip]
-    # GL: Should we fix the pressure?
+    freeslip = df.DirichletBC(field_to_subspace["u"].sub(0),
+                              df.Constant(0.),
+                              "on_boundary && (x[0] < DOLFIN_EPS "
+                              "|| x[0] > {Lx}-DOLFIN_EPS)".format(Lx=Lx))
+    noslip = df.DirichletBC(field_to_subspace["u"],
+                            df.Constant((0., 0.)),
+                            "on_boundary && (x[1] < DOLFIN_EPS "
+                            "|| x[1] > {Ly}-DOLFIN_EPS)".format(Ly=Ly))
+    bcs["u"] = [noslip, freeslip]
+    # GL: Should we pin the pressure?
+    # bcs["p"] = []
 
     # Phase field
-    bcs["PF"] = None
+    # bcs["phi"] = []
+    # bcs["g"] = []
 
     # Electrochemistry
-    bc_V_top = df.DirichletBC(
-        spaces["EC"].sub(len(solutes)), df.Constant(V_top),
-        "on_boundary && x[1] > {Ly}-DOLFIN_EPS".format(Ly=Ly))
-    bc_V_btm = df.DirichletBC(spaces["EC"].sub(2), df.Constant(V_btm),
+    bc_V_top = df.DirichletBC(field_to_subspace["V"], df.Constant(V_top),
+                              "on_boundary && x[1] > {Ly}-DOLFIN_EPS".format(Ly=Ly))
+    bc_V_btm = df.DirichletBC(field_to_subspace["V"], df.Constant(V_btm),
                               "on_boundary && x[1] < DOLFIN_EPS")
-    bcs["EC"] = [bc_V_top, bc_V_btm]
+    # bcs["EC"] = [bc_V_top, bc_V_btm]
+    # for solute in solutes:
+    #     bcs[solute[0]] = []
+    bcs["V"] = [bc_V_top, bc_V_btm]
     return bcs
 
 

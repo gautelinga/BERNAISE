@@ -64,9 +64,9 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
     # Electrochemistry
     num_solutes = len(trial_functions["EC"])-1
     assert(num_solutes == len(solutes))
-    c = trial_functions["EC"][0:num_solutes]
+    c = trial_functions["EC"][:num_solutes]
     V = trial_functions["EC"][num_solutes]
-    b = test_functions["EC"][0:num_solutes]
+    b = test_functions["EC"][:num_solutes]
     U = test_functions["EC"][num_solutes]
 
     phi_, g_ = df.split(w_["PF"])
@@ -121,7 +121,7 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
     return dict(solvers=solvers)
 
 
-def setup_NS(q_, u, p, v, q, bcs,
+def setup_NS(w_NS, u, p, v, q, bcs,
              u_1, phi_, rho_, g_, M_, nu_, rho_e_, V_,
              per_tau, drho, sigma_bar, eps, dveps, grav,
              enable_PF, enable_EC):
@@ -147,12 +147,12 @@ def setup_NS(q_, u, p, v, q, bcs,
 
     a, L = df.lhs(F), df.rhs(F)
 
-    problem = df.LinearVariationalProblem(a, L, q_, bcs)
+    problem = df.LinearVariationalProblem(a, L, w_NS, bcs)
     solver = df.LinearVariationalSolver(problem)
     return solver
 
 
-def setup_PF(q_, phi, g, psi, h, bcs,
+def setup_PF(w_PF, phi, g, psi, h, bcs,
              phi_1, u_1, M_1, c_1, V_1,
              per_tau, sigma_bar, eps,
              dbeta, dveps,
@@ -173,12 +173,12 @@ def setup_PF(q_, phi, g, psi, h, bcs,
     F = F_phi + F_g
     a, L = df.lhs(F), df.rhs(F)
 
-    problem = df.LinearVariationalProblem(a, L, q_)
+    problem = df.LinearVariationalProblem(a, L, w_PF)
     solver = df.LinearVariationalSolver(problem)
     return solver
 
 
-def setup_EC(q_, c, V, b, U, rho_e, bcs,
+def setup_EC(w_EC, c, V, b, U, rho_e, bcs,
              c_1, u_1, K_, veps_,
              per_tau, z,
              enable_NS):
@@ -195,7 +195,7 @@ def setup_EC(q_, c, V, b, U, rho_e, bcs,
     F = sum(F_c) + F_V
     a, L = df.lhs(F), df.rhs(F)
 
-    problem = df.LinearVariationalProblem(a, L, q_, bcs)
+    problem = df.LinearVariationalProblem(a, L, w_EC, bcs)
     solver = df.LinearVariationalSolver(problem)
     return solver
 

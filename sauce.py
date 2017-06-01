@@ -9,9 +9,16 @@ from common import *
 
 cmd_kwargs = parse_command_line()
 
+# Check if user has called for help
+if cmd_kwargs.get("help", False):
+    info_yellow("BERNAISE (Binary ElectRohydrodyNAmIc SolvEr)")
+    info_red("You called for help.")
+    exit()
+
 # Import problem and default parameters
 default_problem = "simple"
-exec("from problems.{} import *".format(cmd_kwargs.get("problem", default_problem)))
+exec("from problems.{} import *".format(
+    cmd_kwargs.get("problem", default_problem)))
 
 # Internalize cmd arguments and mesh
 vars().update(import_problem_hook(**vars()))
@@ -20,7 +27,8 @@ vars().update(import_problem_hook(**vars()))
 # again from command line arguments.
 if restart_folder:
     info_red("Loading parameters from checkpoint.")
-    load_parameters(parameters, os.path.join(restart_folder, "parameters.dat"))
+    load_parameters(parameters, os.path.join(
+        restart_folder, "parameters.dat"))
     internalize_cmd_kwargs(parameters, cmd_kwargs)
     vars().update(parameters)
 
@@ -40,14 +48,20 @@ for name, (family, degree, is_vector) in base_elements.iteritems():
 
 # Declare function spaces
 spaces = dict()
-for name, subfields in subproblems.iteritems():
+for name, subproblem in subproblems.iteritems():
     spaces[name] = df.FunctionSpace(
-        mesh, df.MixedElement([elements[s["element"]] for s in subfields]),
+        mesh, df.MixedElement([elements[s["element"]] for s in subproblem]),
         constrained_domain=constrained_domain)
 
 # dim = mesh.geometry().dim()  # In case the velocity fields should be
 #                              # segregated at some point
-fields = sum([[s["name"] for s in subfields] for subfields in subproblems.itervalues()], [])
+fields = []
+field_to_subspace = dict()
+for name, subproblem in subproblems.iteritems():
+    for i, s in enumerate(subproblem):
+        field = s["name"]
+        fields.append(field)
+        field_to_subspace[field] = spaces[name].sub(i)
 
 # Create initial folders for storing results
 newfolder, tstepfiles = create_initial_folders(folder, restart_folder,
@@ -55,11 +69,10 @@ newfolder, tstepfiles = create_initial_folders(folder, restart_folder,
 
 # Create overarching test and trial functions
 # GL: A nonlinear solver doesn't require trial function?
-test_functions = dict()
-trial_functions = dict()
-for subproblem in subproblems:
-    test_functions[subproblem] = df.TestFunctions(spaces[subproblem])
-    trial_functions[subproblem] = df.TrialFunctions(spaces[subproblem])
+test_functions = dict((subproblem, df.TestFunctions(spaces[subproblem]))
+                      for subproblem in subproblems)
+trial_functions = dict((subproblem, df.TrialFunctions(spaces[subproblem]))
+                       for subproblem in subproblems)
 
 # Create work dictionaries for all subproblems
 w_ = dict((subproblem, df.Function(space, name=subproblem))
@@ -70,7 +83,14 @@ w_1 = dict((subproblem, df.Function(space, name=subproblem+"_1"))
 # If continuing from previously, restart from checkpoint
 load_checkpoint(restart_folder, w_, w_1)
 
-bcs = create_bcs(**vars())
+# Get boundary conditions, from fields to subproblems
+bcs_in = create_bcs(**vars())
+bcs = dict()
+for name, subproblem in subproblems.iteritems():
+    bcs[name] = []
+    for s in subproblem:
+        field = s["name"]
+        bcs[name] += bcs_in.get(field, [])
 
 # Initialize solutions
 initialize(**vars())
