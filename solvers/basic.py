@@ -16,6 +16,7 @@ GL, 2017-05-29
 """
 import dolfin as df
 import math
+from common.functions import ramp, dramp, diff_pf_potential_linearised
 from . import *
 from . import __all__
 
@@ -42,7 +43,7 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
           density, viscosity,
           solutes, enable_PF, enable_EC, enable_NS,
           surface_tension, dt, interface_thickness,
-          grav_const, pf_mobility_coeff,
+          grav_const, pf_mobility, pf_mobility_coeff,
           **namespace):
     """ Set up problem. """
     # Constant
@@ -120,84 +121,83 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
     return dict(solvers=solvers)
 
 
-def setup_NS(w1_NS, u, p, v, q, bcs_NS,
-             u0, phi1, rho1, g1, M1, nu1, rho_e_, V1,
+def setup_NS(q_, u, p, v, q, bcs,
+             u_1, phi_, rho_, g_, M_, nu_, rho_e_, V_,
              per_tau, drho, sigma_bar, eps, dveps, grav,
              enable_PF, enable_EC):
     """ Set up the Navier-Stokes subproblem. """
 
-    F_NS = (per_tau * rho1 * df.dot(u - u0, v)*df.dx
-            + df.inner(
-                df.grad(u),
-                df.outer(rho1*u0 - drho*M1*df.grad(g1), v))*df.dx
-            + 2*nu1*df.inner(df.sym(df.grad(u)), df.grad(v))*df.dx
-            - p * df.div(v)*df.dx
-            + df.div(u)*q*df.dx
-            - df.dot(rho1*grav, v)*df.dx)
+    F = (per_tau * rho_ * df.dot(u - u_1, v)*df.dx
+         + df.inner(
+             df.grad(u),
+             df.outer(rho_*u_1 - drho*M_*df.grad(g_), v))*df.dx
+         + 2*nu_*df.inner(df.sym(df.grad(u)), df.grad(v))*df.dx
+         - p * df.div(v)*df.dx
+         + df.div(u)*q*df.dx
+         - df.dot(rho_*grav, v)*df.dx)
     if enable_PF:
-        F_NS += - sigma_bar*eps*df.inner(df.outer(df.grad(phi1),
-                                                  df.grad(phi1)),
-                                         df.grad(v))*df.dx
+        F += - sigma_bar*eps*df.inner(df.outer(df.grad(phi_),
+                                               df.grad(phi_)),
+                                      df.grad(v))*df.dx
     if enable_EC:
-        F_NS += rho_e_*df.dot(df.grad(V1), v)*df.dx
+        F += rho_e_*df.dot(df.grad(V_), v)*df.dx
     if enable_PF and enable_EC:
-        F_NS += dveps * df.dot(df.grad(phi1), v)*df.dot(df.grad(V1),
-                                                        df.grad(V1))*df.dx
+        F += dveps * df.dot(df.grad(phi_), v)*df.dot(df.grad(V_),
+                                                     df.grad(V_))*df.dx
 
-    a_NS, L_NS = df.lhs(F_NS), df.rhs(F_NS)
+    a, L = df.lhs(F), df.rhs(F)
 
-    problem_NS = df.LinearVariationalProblem(a_NS, L_NS, w1_NS, bcs_NS)
-    solver_NS = df.LinearVariationalSolver(problem_NS)
-    return solver_NS
+    problem = df.LinearVariationalProblem(a, L, q_, bcs)
+    solver = df.LinearVariationalSolver(problem)
+    return solver
 
 
-def setup_PF(w1_PF, phi, g, psi, h, bcs_PF,
-             phi0, u0, M0, c0, V0,
+def setup_PF(q_, phi, g, psi, h, bcs,
+             phi_1, u_1, M_1, c_1, V_1,
              per_tau, sigma_bar, eps,
              dbeta, dveps,
              enable_NS, enable_EC):
     """ Set up phase field subproblem. """
 
-    F_PF_phi = (per_tau*(phi-phi0)*psi*df.dx +
-                M0*df.dot(df.grad(g), df.grad(psi))*df.dx)
+    F_phi = (per_tau*(phi-phi_1)*psi*df.dx +
+             M_1*df.dot(df.grad(g), df.grad(psi))*df.dx)
     if enable_NS:
-        F_PF_phi += df.dot(u0, df.grad(phi))*psi*df.dx
-    F_PF_g = (g*h*df.dx
-              - sigma_bar*eps*df.dot(df.grad(phi), df.grad(h))*df.dx
-              - sigma_bar/eps*diff_pf_potential_linearised(phi, phi0)*h*df.dx)
+        F_phi += df.dot(u_1, df.grad(phi))*psi*df.dx
+    F_g = (g*h*df.dx
+           - sigma_bar*eps*df.dot(df.grad(phi), df.grad(h))*df.dx
+           - sigma_bar/eps*diff_pf_potential_linearised(phi, phi_1)*h*df.dx)
     if enable_EC:
-        F_PF_g += (-sum([dbeta_i*c0_i*h*df.dx
-                         for dbeta_i, c0_i in zip(dbeta, c0)])
-                   + dveps*df.dot(df.grad(V0), df.grad(V0))*h*df.dx)
-    F_PF = F_PF_phi + F_PF_g
-    a_PF, L_PF = df.lhs(F_PF), df.rhs(F_PF)
+        F_g += (-sum([dbeta_i*c_i_1*h*df.dx
+                      for dbeta_i, c_i_1 in zip(dbeta, c_1)])
+                + dveps*df.dot(df.grad(V_1), df.grad(V_1))*h*df.dx)
+    F = F_phi + F_g
+    a, L = df.lhs(F), df.rhs(F)
 
-    problem_PF = df.LinearVariationalProblem(a_PF, L_PF, w1_PF)
-    solver_PF = df.LinearVariationalSolver(problem_PF)
-    return solver_PF
+    problem = df.LinearVariationalProblem(a, L, q_)
+    solver = df.LinearVariationalSolver(problem)
+    return solver
 
 
-def setup_EC(w1_E, c, V, b, U, rho_e, bcs_E,
-             c0, u0, K1, veps1,
+def setup_EC(q_, c, V, b, U, rho_e, bcs,
+             c_1, u_1, K_, veps_,
              per_tau, z,
              enable_NS):
     """ Set up electrochemistry subproblem. """
-    F_E_c = []
-    for c_i, c0_i, b_i, K1_i, z_i in zip(c, c0, b, K1, z):
-        F_E_c_i = (per_tau*(c_i-c0_i)*b_i*df.dx
-                   + K1_i*df.dot(df.grad(c_i), df.grad(b_i))*df.dx
-                   + z_i*c0_i*df.dot(df.grad(V), df.grad(b_i))*df.dx)
+    F_c = []
+    for ci, ci_1, bi, Ki_, zi in zip(c, c_1, b, K_, z):
+        F_ci = (per_tau*(ci-ci_1)*bi*df.dx
+                + Ki_*df.dot(df.grad(ci), df.grad(bi))*df.dx
+                + zi*ci_1*df.dot(df.grad(V), df.grad(bi))*df.dx)
         if enable_NS:
-            F_E_c_i += df.dot(u0, df.grad(c_i))*b_i*df.dx
-        F_E_c.append(F_E_c_i)
-    F_E_V = (veps1*df.dot(df.grad(V), df.grad(U))*df.dx
-             + rho_e*U*df.dx)
-    F_E = sum(F_E_c) + F_E_V
-    a_E, L_E = df.lhs(F_E), df.rhs(F_E)
+            F_ci += df.dot(u_1, df.grad(ci))*bi*df.dx
+        F_c.append(F_ci)
+    F_V = (veps_*df.dot(df.grad(V), df.grad(U))*df.dx + rho_e*U*df.dx)
+    F = sum(F_c) + F_V
+    a, L = df.lhs(F), df.rhs(F)
 
-    problem_E = df.LinearVariationalProblem(a_E, L_E, w1_E, bcs_E)
-    solver_E = df.LinearVariationalSolver(problem_E)
-    return solver_E
+    problem = df.LinearVariationalProblem(a, L, q_, bcs)
+    solver = df.LinearVariationalSolver(problem)
+    return solver
 
 
 def solve(solvers, enable_PF, enable_EC, enable_NS, **namespace):
@@ -218,23 +218,3 @@ def update(w_, w_1, enable_PF, enable_EC, enable_NS, **namespace):
                                   [enable_NS, enable_EC, enable_PF]):
         if enable:
             w_1[subproblem].assign(w_[subproblem])
-
-
-def diff_pf_potential_linearised(phi, phi0):
-    """ Linearised phase field potential. """
-    return phi0**3-phi0+(3*phi0**2-1.)*(phi-phi0)
-
-
-def ramp(phi, A):
-    """ Ramps between A[0] and A[1] according to phi. """
-    return A[0]*0.5*(1.+phi) + A[1]*0.5*(1.-phi)
-
-
-def dramp(A):
-    """ Derivative of ramping function. Returns df.Constant."""
-    return df.Constant(0.5*(A[0]-A[1]))
-
-
-def pf_mobility(phi, gamma):
-    """ Phase field mobility function. Should be moved to problem. """
-    return gamma * (phi**2-1.)**2

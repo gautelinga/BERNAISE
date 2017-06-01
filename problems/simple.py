@@ -130,3 +130,8 @@ def initial_phasefield(x0, y0, rad, eps, function_space, shape="circle"):
 
 def tstep_hook(tstep, **namespace):
     info_blue("Timestep = {}".format(tstep))
+
+
+def pf_mobility(phi, gamma):
+    """ Phase field mobility function. """
+    return gamma * (phi**2-1.)**2
