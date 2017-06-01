@@ -1,6 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[cod]
+*.py[cod~]
 *$py.class
 
 # C extensions
@@ -87,3 +87,39 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# Latex files
+*.pdf
+*.aux
+*.glo
+*.idx
+*.toc
+*.ist
+*.acn
+*.acr
+*.alg
+*.bbl
+*.blg
+*.dvi
+*.glg
+*.gls
+*.ilg
+*.ind
+*.lof
+*.lot
+*.maf
+*.mtc
+*.mtc1
+*.out
+*.synctex.gz
+*.fdb_latexmk
+*.brf
+*.fls
+*.bib
+
+# Other types that are too large
+*.hdf
+*.hdf5
+*.h5
+*.xdmf
+results_*
