@@ -5,28 +5,19 @@ __author__ = "Gaute Linga"
 
 info_cyan("Welcome to the simple problem!")
 
-# Define solutes.
-
+# Define solutes
 # Format: name, valency, diffusivity in phase 1, diffusivity in phase
 #         2, beta in phase 1, beta in phase 2
-solutes = [("c_p",  1, 1., 1., 1., 1.),
-           ("c_m", -1, 1., 1., 1., 1.)]
+solutes = [["c_p",  1, 1., 1., 1., 1.],
+           ["c_m", -1, 1., 1., 1., 1.]]
 
 # Format: name : (family, degree, is_vector)
-base_elements = dict(u=("Lagrange", 2, True),
-                     p=("Lagrange", 1, False),
-                     phi=("Lagrange", 1, False),
-                     g=("Lagrange", 1, False),
-                     c=("Lagrange", 1, False),
-                     V=("Lagrange", 1, False))
-
-# GL: Subproblems should be defined in solver.
-subproblems = dict(NS=[dict(name="u", element="u"),
-                       dict(name="p", element="p")],
-                   PF=[dict(name="phi", element="phi"),
-                       dict(name="g", element="g")],
-                   EC=[dict(name=solute[0], element="c")
-                       for solute in solutes] + [dict(name="V", element="V")])
+base_elements = dict(u=["Lagrange", 2, True],
+                     p=["Lagrange", 1, False],
+                     phi=["Lagrange", 1, False],
+                     g=["Lagrange", 1, False],
+                     c=["Lagrange", 1, False],
+                     V=["Lagrange", 1, False])
 
 factor = 1./4.
 
@@ -48,7 +39,6 @@ parameters.update(
     interface_thickness=factor*0.040,
     solutes=solutes,
     base_elements=base_elements,
-    subproblems=subproblems,
     Lx=1.,
     Ly=2.,
     rad_init=0.25,
@@ -59,9 +49,9 @@ parameters.update(
     grav_const=0.98,
     #
     pf_mobility_coeff=factor*0.000040,
-    density=(1000., 100.),
-    viscosity=(10., 1.),
-    permittivity=(1., 5.)
+    density=[1000., 100.],
+    viscosity=[10., 1.],
+    permittivity=[1., 5.]
 )
 
 
@@ -108,6 +98,7 @@ def create_bcs(spaces, Lx, Ly, solutes, V_top, V_btm, **namespace):
         spaces["NS"].sub(0), df.Constant((0., 0.)),
         "on_boundary && (x[1] < DOLFIN_EPS || x[1] > {Ly}-DOLFIN_EPS)".format(Ly=Ly))
     bcs["NS"] = [noslip, freeslip]
+    # GL: Should we fix the pressure?
 
     # Phase field
     bcs["PF"] = None

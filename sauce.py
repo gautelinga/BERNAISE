@@ -27,6 +27,9 @@ if restart_folder:
 # Import solver functionality
 exec("from solvers.{} import *".format(solver))
 
+# Get subproblems
+subproblems = get_subproblems(**vars())
+
 # Declare finite elements
 elements = dict()
 for name, (family, degree, is_vector) in base_elements.iteritems():
@@ -42,7 +45,8 @@ for name, subfields in subproblems.iteritems():
         mesh, df.MixedElement([elements[s["element"]] for s in subfields]),
         constrained_domain=constrained_domain)
 
-# dim = mesh.geometry().dim()  # In case the velocity fields should be segregated at some point
+# dim = mesh.geometry().dim()  # In case the velocity fields should be
+#                              # segregated at some point
 fields = sum([[s["name"] for s in subfields] for subfields in subproblems.itervalues()], [])
 
 # Create initial folders for storing results
@@ -50,6 +54,7 @@ newfolder, tstepfiles = create_initial_folders(folder, restart_folder,
                                                fields, tstep, parameters)
 
 # Create overarching test and trial functions
+# GL: A nonlinear solver doesn't require trial function?
 test_functions = dict()
 trial_functions = dict()
 for subproblem in subproblems:

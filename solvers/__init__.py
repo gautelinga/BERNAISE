@@ -1,18 +1,18 @@
-__author__ = "Gaute"
+__author__ = "Gaute Linga"
 
 
-__all__ = ["setup", "get_solvers", "solve", "update"]
+__all__ = ["get_subproblems", "setup", "solve", "update"]
+
+
+def get_subproblems(**namespace):
+    """ Return dict of subproblems as defined by the solver. """
+    return dict()
 
 
 def setup(**namespace):
     """ Set up all equations that should be solved.
-    Returns dict of ..."""
-    return {}
-
-
-def get_solvers(**namespace):
-    """ Return the linear solvers required in the problem. """
-    pass
+    Returns dict of solvers."""
+    return dict()
 
 
 def solve(**namespace):

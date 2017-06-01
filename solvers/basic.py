@@ -20,6 +20,24 @@ from . import *
 from . import __all__
 
 
+def get_subproblems(base_elements, solutes,
+                    enable_NS, enable_PF, enable_EC,
+                    **namespace):
+    """ Returns dict of subproblems the solver splits the problem into. """
+    subproblems = dict()
+    if enable_NS:
+        subproblems["NS"] = [dict(name="u", element="u"),
+                             dict(name="p", element="p")]
+    if enable_PF:
+        subproblems["PF"] = [dict(name="phi", element="phi"),
+                             dict(name="g", element="g")]
+    if enable_EC:
+        subproblems["EC"] = ([dict(name=solute[0], element="c")
+                              for solute in solutes]
+                             + [dict(name="V", element="V")])
+    return subproblems
+
+
 def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
           density, viscosity,
           solutes, enable_PF, enable_EC, enable_NS,
