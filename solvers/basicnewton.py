@@ -25,19 +25,30 @@ def get_subproblems(base_elements, solutes,
                                  [dict(name=solute[0], element="c")
                                         for solute in solutes] +
                                  [dict(name="V", element="V")])
-    else if (enable_PF and enable_EC):
-        subproblems["NSPFEC"]
-    else if (enable_NS and enable_PF):
-        subproblems["NSPFEC"]
-    else if (enable_NS and enable_EC):
-        subproblems["NSPFEC"]                    
-    else if enable_NS:
+    elif (enable_PF and enable_EC):
+        subproblems["NSPFEC"] = ([dict(name="phi", element="phi"),
+                                  dict(name="g", element="g")] +
+                                 [dict(name=solute[0], element="c")
+                                        for solute in solutes] +
+                                 [dict(name="V", element="V")])
+    elif (enable_NS and enable_PF):
+        subproblems["NSPFEC"] = [dict(name="u", element="u"),
+                                 dict(name="p", element="p"),
+                                 dict(name="phi", element="phi"),
+                                 dict(name="g", element="g")]
+    elif (enable_NS and enable_EC):
+        subproblems["NSPFEC"] = ([dict(name="u", element="u"),
+                                  dict(name="p", element="p")] +
+                                 [dict(name=solute[0], element="c")
+                                        for solute in solutes] +
+                                 [dict(name="V", element="V")])
+    elif enable_NS:
         subproblems["NSPFEC"] = [dict(name="u", element="u"),
                              dict(name="p", element="p")]
-    else if enable_PF:
+    elif enable_PF:
         subproblems["NSPFEC"] = [dict(name="phi", element="phi"),
                              dict(name="g", element="g")]
-    else if enable_EC:
+    elif enable_EC:
         subproblems["NSPFEC"] = ([dict(name=solute[0], element="c")
                               for solute in solutes]
                              + [dict(name="V", element="V")])
@@ -58,26 +69,128 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
     gamma = pf_mobility_coeff
     eps = interface_thickness
 
-    # Navier-Stokes ([u,v],[p,q]) and Phase field ([phi,psi],[g,h])
-    v, q, psi, h = test_functions["NSPF"]
+    v = None
+    q = None
+    psi = None
+    h = None
+    b = None
+    U = None
+    u_ = None
+    p_ = None
+    phi_ = None
+    g_ = None
+    c_ = None
+    V_ = None
+    u_1 = None
+    p_1 = None
+    phi_1 = None
+    g_1 = None
+    c_1 = None
+    V_1 = None
+    # Set up the feilds
+    if (enable_NS and enable_PF and enable_EC):
+        num_solutes = len(test_functions["NSPFEC"])-5
+        v = test_functions["NSPFEC"][0]
+        q = test_functions["NSPFEC"][1]
+        psi = test_functions["NSPFEC"][2]
+        h = test_functions["NSPFEC"][3]
+        b = test_functions["NSPFEC"][4:(num_solutes+4)]
+        U = test_functions["NSPFEC"][num_solutes+4]
+        funs_ = df.split(w_["NSPFEC"])
+        u_ = funs_[0]
+        p_ = funs_[1]
+        phi_ = funs_[2]
+        g_ = funs_[3]
+        c_ = funs_[4:(num_solutes+4)]
+        V_ = funs_[num_solutes+4]
+        funs_1 = df.split(w_1["NSPFEC"])
+        u_1 = funs_1[0]
+        p_1 = funs_1[1]
+        phi_1 = funs_1[2]
+        g_1 = funs_1[3]
+        c_1 = funs_1[4:(num_solutes+4)]
+        V_1 = funs_1[num_solutes+4]
+    elif (enable_PF and enable_EC):
+        num_solutes = len(test_functions["NSPFEC"])-3
+        psi = test_functions["NSPFEC"][0]
+        h = test_functions["NSPFEC"][1]
+        b = test_functions["NSPFEC"][2:(num_solutes+2)]
+        U = test_functions["NSPFEC"][num_solutes+2]
+        funs_ = df.split(w_["NSPFEC"])
+        phi_ = funs_[0]
+        g_ = funs_[1]
+        c_ = funs_[2:(num_solutes+2)]
+        V_ = funs_[num_solutes+2]
+        funs_1 = df.split(w_1["NSPFEC"])
+        phi_1 = funs_1[0]
+        g_1 = funs_1[1]
+        c_1 = funs_1[2:(num_solutes+2)]
+        V_1 = funs_1[num_solutes+2]
+    elif (enable_NS and enable_PF):
+        v = test_functions["NSPFEC"][0]
+        q = test_functions["NSPFEC"][1]
+        psi = test_functions["NSPFEC"][2]
+        h = test_functions["NSPFEC"][3]
+        funs_ = df.split(w_["NSPFEC"])
+        u_ = funs_[0]
+        p_ = funs_[1]
+        phi_ = funs_[2]
+        g_ = funs_[3]
+        funs_1 = df.split(w_1["NSPFEC"])
+        u_1 = funs_1[0]
+        p_1 = funs_1[1]
+        phi_1 = funs_1[2]
+        g_1 = funs_1[3]
+    elif (enable_NS and enable_EC):
+        num_solutes = len(test_functions["NSPFEC"])-3
+        v = test_functions["NSPFEC"][0]
+        q = test_functions["NSPFEC"][1]
+        b = test_functions["NSPFEC"][2:(num_solutes+2)]
+        U = test_functions["NSPFEC"][num_solutes+2]
+        funs_ = df.split(w_["NSPFEC"])
+        u_ = funs_[0]
+        p_ = funs_[1]
+        c_ = funs_[2:(num_solutes+2)]
+        V_ = funs_[num_solutes+2]
+        funs_1 = df.split(w_1["NSPFEC"])
+        u_1 = funs_1[0]
+        p_1 = funs_1[1]
+        c_1 = funs_1[2:(num_solutes+2)]
+        V_1 = funs_1[num_solutes+2]
+    elif (enable_NS):
+        v = test_functions["NSPFEC"][0]
+        q = test_functions["NSPFEC"][1]
+        funs_ = df.split(w_["NSPFEC"])
+        u_ = funs_[0]
+        p_ = funs_[1]
+        funs_1 = df.split(w_1["NSPFEC"])
+        u_1 = funs_1[0]
+        p_1 = funs_1[1]
+    elif (enable_PF):
+        psi = test_functions["NSPFEC"][0]
+        h = test_functions["NSPFEC"][1]
+        funs_ = df.split(w_["NSPFEC"])
+        phi_ = funs_[0]
+        g_ = funs_[1]
+        funs_1 = df.split(w_1["NSPFEC"])
+        phi_1 = funs_1[0]
+        g_1 = funs_1[1]
+    elif (enable_EC):
+        num_solutes = len(test_functions["NSPFEC"])-1
+        b = test_functions["NSPFEC"][0:(num_solutes)]
+        U = test_functions["NSPFEC"][num_solutes]
+        funs_ = df.split(w_["NSPFEC"])
+        c_ = funs_[0:num_solutes]
+        V_ = funs_[num_solutes]
+        funs_1 = df.split(w_1["NSPFEC"])
+        c_1 = funs_1[0:num_solutes]
+        V_1 = funs_1[num_solutes]
 
-    
-    # Electrochemistry (At the moment only auxillary feilds)
-    num_solutes = len(trial_functions["EC"])-1
-    assert(num_solutes == len(solutes))
-    c = trial_functions["EC"][0:num_solutes]
-    V = trial_functions["EC"][num_solutes]
-    b = test_functions["EC"][0:num_solutes]
-    U = test_functions["EC"][num_solutes]
-
-    # Solution feilds and old-feilds follows the same concentions as the trial/test-functions
-    u_, p_, phi_, g_ = df.split(w_["NSPF"])
-    u_1, p_1, phi_1, g_1 = df.split(w_1["NSPF"])
-
-    cV_ = df.split(w_["EC"])
-    cV_1 = df.split(w_1["EC"])
-    c_, V_ = cV_[:num_solutes], cV_[num_solutes]
-    c_1, V_1 = cV_1[:num_solutes], cV_1[num_solutes]
+    # Define the charge density 
+    if (enable_EC):
+        rho_e = sum([c_e*z_e for c_e, z_e in zip(c, z)])  # Sum of trial functions
+        rho_e_ = sum([c_e*z_e for c_e, z_e in zip(c_, z)])  # Sum of current sol.
+        rho_e_1 = sum([c_e*z_e for c_e, z_e in zip(c_1, z)])  # Sum of current sol.
 
     M_ = pf_mobility(phi, gamma)
     nu_ = ramp(phi, viscosity)
@@ -97,27 +210,21 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
         beta_.append(ramp(phi_, [solute[4], solute[5]]))
         dbeta.append(dramp([solute[4], solute[5]]))
 
-    rho_e = sum([c_e*z_e for c_e, z_e in zip(c, z)])  # Sum of trial functions
-    rho_e_ = sum([c_e*z_e for c_e, z_e in zip(c_, z)])  # Sum of current sol.
-    rho_e_1 = sum([c_e*z_e for c_e, z_e in zip(c_1, z)])  # Sum of current sol.
-
     solver = dict()
-    solver["NSPFEC"] = setup_NSPFEC(w_["NSPFEC"],
-                                    u, p, v, q,
-                                    phi, g, psi, h,
-                                    c, V, b, U, rho_e,
-                                    bcs["NSPFEC"],
-                                    M_,nu_,veps_,rho_,
-                                    per_tau, sigma_bar, eps, dbeta, dveps, drho, grav,
+    solver["NSPFEC"] = setup_NSPFEC(w_["NSPFEC"],w_1["NSPFEC"],bcs"NSPFEC",
+                                    v, q, psi, h, b, U,
+                                    M_, nu_, veps_, rho_, K_, beta_, rho_e_,
+                                    dbeta, dveps, drho,
+                                    per_tau, sigma_bar, eps, grav, z,
                                     enable_NS, enable_PF, enable_EC)
     return dict(solvers=solver)
 
 
-def setup_NSPFEC(w_NSPFEC,w_1NSPFEC,
-                 v, q, psi, h, b, U, rho_e,
-                 bcs_NSPFEC,
-                 M_,nu_,veps_,rho_,
-                 per_tau, sigma_bar, eps, dbeta, dveps, drho, grav,
+def setup_NSPFEC(w_NSPFEC,w_1NSPFEC,bcs,
+                 v, q, psi, h, b, U,
+                 M_, nu_, veps_, rho_, K_, beta_, rho_e_,
+                 dbeta, dveps, drho,
+                 per_tau, sigma_bar, eps, grav, z,
                  enable_NS, enable_PF, enable_EC):
     """ The Full problem of electrohydrodynamics in two pahase.
     Note that it is possioble to trun off the dirffent parts at will.
