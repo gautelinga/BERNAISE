@@ -1,18 +1,22 @@
-"""
-This module defines the basic solver.
+"""This module defines the basic solver.
 
 Binary electrohydrodynamics solved using a partial splitting approach and
 linearisation. The problem is split between the following subproblems.
-* The phase-field equation is solved simultaneously with the phase-field
+
+* PF: The phase-field equation is solved simultaneously with the phase-field
   chemical potential (considered as a separate field), with a linearised
   double-well potential to make the problem linear.
-* Solute concentrations are solved simultaneously as the electric potential,
-  with a linearization of the c \grad V term, to make the problem linear.
-* The Navier-Stokes equations are solved simultaneously for the velocity and
-  pressure fields, where the intertial term is linearised to make the whole
-  subproblem linear.
+
+* EC: Solute concentrations are solved simultaneously as the electric
+  potential, with a linearization of the c \grad V term, to make the
+  problem linear.
+
+* NS: The Navier-Stokes equations are solved simultaneously for the
+  velocity and pressure fields, where the intertial term is linearised
+  to make the whole subproblem linear.
 
 GL, 2017-05-29
+
 """
 import dolfin as df
 import math
@@ -54,37 +58,44 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
     eps = interface_thickness
 
     # Navier-Stokes
-    u, p = trial_functions["NS"]
-    v, q = test_functions["NS"]
+    if enable_NS:
+        u, p = trial_functions["NS"]
+        v, q = test_functions["NS"]
+
+        u_, p_ = df.split(w_["NS"])
+        u_1, p_1 = df.split(w_1["NS"])
 
     # Phase field
-    phi, g = trial_functions["PF"]
-    psi, h = test_functions["PF"]
+    if enable_PF:
+        phi, g = trial_functions["PF"]
+        psi, h = test_functions["PF"]
+
+        phi_, g_ = df.split(w_["PF"])
+        phi_1, g_1 = df.split(w_1["PF"])
+    else:
+        # Defaults to phase 1 if phase field is disabled
+        phi_ = phi_1 = 1.
 
     # Electrochemistry
-    num_solutes = len(trial_functions["EC"])-1
-    assert(num_solutes == len(solutes))
-    c = trial_functions["EC"][:num_solutes]
-    V = trial_functions["EC"][num_solutes]
-    b = test_functions["EC"][:num_solutes]
-    U = test_functions["EC"][num_solutes]
+    if enable_EC:
+        num_solutes = len(trial_functions["EC"])-1
+        assert(num_solutes == len(solutes))
+        c = trial_functions["EC"][:num_solutes]
+        V = trial_functions["EC"][num_solutes]
+        b = test_functions["EC"][:num_solutes]
+        U = test_functions["EC"][num_solutes]
 
-    phi_, g_ = df.split(w_["PF"])
-    phi_1, g_1 = df.split(w_1["PF"])
-
-    u_, p_ = df.split(w_["NS"])
-    u_1, p_1 = df.split(w_1["NS"])
-
-    cV_ = df.split(w_["EC"])
-    cV_1 = df.split(w_1["EC"])
-    c_, V_ = cV_[:num_solutes], cV_[num_solutes]
-    c_1, V_1 = cV_1[:num_solutes], cV_1[num_solutes]
+        cV_ = df.split(w_["EC"])
+        cV_1 = df.split(w_1["EC"])
+        c_, V_ = cV_[:num_solutes], cV_[num_solutes]
+        c_1, V_1 = cV_1[:num_solutes], cV_1[num_solutes]
 
     M_ = pf_mobility(phi_, gamma)
     M_1 = pf_mobility(phi_1, gamma)
     nu_ = ramp(phi_, viscosity)
-    veps_ = ramp(phi_, permittivity)
     rho_ = ramp(phi_, density)
+    veps_ = ramp(phi_, permittivity)
+
     dveps = dramp(permittivity)
     drho = dramp(density)
 
@@ -128,14 +139,13 @@ def setup_NS(w_NS, u, p, v, q, bcs,
     """ Set up the Navier-Stokes subproblem. """
 
     F = (per_tau * rho_ * df.dot(u - u_1, v)*df.dx
-         + df.inner(
-             df.grad(u),
-             df.outer(rho_*u_1 - drho*M_*df.grad(g_), v))*df.dx
+         + rho_*df.inner(df.grad(u), df.outer(u_1, v))*df.dx
          + 2*nu_*df.inner(df.sym(df.grad(u)), df.grad(v))*df.dx
          - p * df.div(v)*df.dx
          + df.div(u)*q*df.dx
          - df.dot(rho_*grav, v)*df.dx)
     if enable_PF:
+        F += - drho*M_*df.inner(df.grad(u), df.outer(df.grad(g_), v))*df.dx
         F += - sigma_bar*eps*df.inner(df.outer(df.grad(phi_),
                                                df.grad(phi_)),
                                       df.grad(v))*df.dx
@@ -167,8 +177,8 @@ def setup_PF(w_PF, phi, g, psi, h, bcs,
            - sigma_bar*eps*df.dot(df.grad(phi), df.grad(h))*df.dx
            - sigma_bar/eps*diff_pf_potential_linearised(phi, phi_1)*h*df.dx)
     if enable_EC:
-        F_g += (-sum([dbeta_i*c_i_1*h*df.dx
-                      for dbeta_i, c_i_1 in zip(dbeta, c_1)])
+        F_g += (-sum([dbeta_i*ci_1*h*df.dx
+                      for dbeta_i, ci_1 in zip(dbeta, c_1)])
                 + dveps*df.dot(df.grad(V_1), df.grad(V_1))*h*df.dx)
     F = F_phi + F_g
     a, L = df.lhs(F), df.rhs(F)
