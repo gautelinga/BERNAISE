@@ -84,13 +84,13 @@ w_1 = dict((subproblem, df.Function(space, name=subproblem+"_1"))
 load_checkpoint(restart_folder, w_, w_1)
 
 # Get boundary conditions, from fields to subproblems
-bcs_in = create_bcs(**vars())
+bcs_fields = create_bcs(**vars())
 bcs = dict()
 for name, subproblem in subproblems.iteritems():
     bcs[name] = []
     for s in subproblem:
         field = s["name"]
-        bcs[name] += bcs_in.get(field, [])
+        bcs[name] += bcs_fields.get(field, [])
 
 # Initialize solutions
 initialize(**vars())
