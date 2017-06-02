@@ -186,14 +186,7 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
         c_1 = funs_1[0:num_solutes]
         V_1 = funs_1[num_solutes]
 
-    # Define the charge density
-    rho_e = None
-    rho_e_ = None
-    rho_e_1 = None
-    if (enable_EC):
-        rho_e = sum([c_e*z_e for c_e, z_e in zip(c, z)])  # Sum of trial functions
-        rho_e_ = sum([c_e*z_e for c_e, z_e in zip(c_, z)])  # Sum of current sol.
-        rho_e_1 = sum([c_e*z_e for c_e, z_e in zip(c_1, z)])  # Sum of current sol.
+    
 
     M_ = pf_mobility(phi_, gamma)
     nu_ = ramp(phi_, viscosity)
@@ -212,6 +205,15 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
         K_.append(ramp(phi_, [solute[2], solute[3]]))
         beta_.append(ramp(phi_, [solute[4], solute[5]]))
         dbeta.append(dramp([solute[4], solute[5]]))
+    
+    # Define the charge density
+    rho_e = None
+    rho_e_ = None
+    rho_e_1 = None
+    if (enable_EC):
+        #rho_e = sum([c_e*z_e for c_e, z_e in zip(c, z)])  # Sum of trial functions
+        rho_e_ = sum([c_e*z_e for c_e, z_e in zip(c_, z)])  # Sum of current sol.
+        rho_e_1 = sum([c_e*z_e for c_e, z_e in zip(c_1, z)])  # Sum of current sol.
 
     solver = dict()
     solver["NSPFEC"] = setup_NSPFEC(w_["NSPFEC"],w_1["NSPFEC"],bcs["NSPFEC"],
@@ -268,20 +270,20 @@ def setup_NSPFEC(w_NSPFEC,w_1NSPFEC,bcs_NSPFEC,
                - sigma_bar/eps*diff_pf_potential(phi_)*h*df.dx)
         if enable_EC:
             F_PF_g += (-sum([dbeta_i*ci_*h*df.dx
-                         for dbeta_i, ci_ in zip(dbetai, ci_)])
+                         for dbeta_i, ci_ in zip(dbeta, c_)])
                             + dveps*df.dot(df.grad(V_), df.grad(V_))*h*df.dx)
         F_PF = F_PF_phi + F_PF_g
         F.append(F_PF)
     # The setup of the Electrochemistry
     if enable_EC:
         F_E_c = []
-        for ci_, ci_1, bi, Ki_, zi in zip(ci_, ci_1, bi, Ki_, zi):
+        for ci_, ci_1, bi, Ki_, zi in zip(c_, c_1, b, K_, z):
             F_E_c_i = (per_tau*(ci_-ci_1)*bi*df.dx
                        + Ki_*df.dot(df.grad(ci_), df.grad(bi))*df.dx
                        + zi*ci_*df.dot(df.grad(V_), df.grad(bi))*df.dx)
-        if enable_NS:
-            F_E_c_i += df.dot(u0, df.grad(ci_))*bi*df.dx
-        F_E_c.append(F_E_c_i)
+            if enable_NS:
+                F_E_c_i += df.dot(u_, df.grad(ci_))*bi*df.dx
+            F_E_c.append(F_E_c_i)
         F_E_V = (veps_*df.dot(df.grad(V_), df.grad(U))*df.dx
                  + rho_e_*U*df.dx)
         F_E = sum(F_E_c) + F_E_V
