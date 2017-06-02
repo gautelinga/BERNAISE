@@ -1,11 +1,11 @@
-__author__ = "Gaute Linga"
-
 """
 This is the main module for running the BERNAISE code.
 More specific info will follow in a later commit.
 """
-
+import dolfin as df
 from common import *
+
+__author__ = "Gaute Linga"
 
 cmd_kwargs = parse_command_line()
 
@@ -93,7 +93,30 @@ for name, subproblem in subproblems.iteritems():
         bcs[name] += bcs_fields.get(field, [])
 
 # Initialize solutions
-initialize(**vars())
+w_init_fields = initialize(**vars())
+if w_init_fields:
+    for name, subproblem in subproblems.iteritems():
+        w_init_vector = []
+        for i, s in enumerate(subproblem):
+            field = s["name"]
+            # Only change initial state if it is given in w_init_fields.
+            if field in w_init_fields:
+                w_init_field = w_init_fields[field]
+            else:
+                # Otherwise take the default value of that field.
+                w_init_field = w_[name].sub(i)
+            # Use df.project(df.as_vector(...)) with care...
+            num_subspaces = w_init_field.function_space().num_sub_spaces()
+            if num_subspaces == 0:
+                w_init_vector.append(w_init_field)
+            else:
+                for j in xrange(num_subspaces):
+                    w_init_vector.append(w_init_field.sub(j))
+        assert len(w_init_vector) == w_[name].value_size()
+        w_init = df.project(
+            df.as_vector(tuple(w_init_vector)), w_[name].function_space())
+        w_[name].interpolate(w_init)
+        w_1[name].interpolate(w_init)
 
 # Setup problem
 vars().update(setup(**vars()))

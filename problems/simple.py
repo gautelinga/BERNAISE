@@ -60,31 +60,38 @@ def mesh(Lx=1, Ly=5, dx=1./16, **namespace):
                             int(Lx/dx), int(Ly/dx))
 
 
-def initialize(w_, w_1, subproblems, Lx, Ly, rad_init,
-               interface_thickness, solutes, restart_folder, **namespace):
+def initialize(Lx, Ly, rad_init,
+               interface_thickness, solutes, restart_folder,
+               field_to_subspace,
+               enable_NS, enable_PF, enable_EC, **namespace):
+    """ Create the initial state.
+    The initial states are specified in a dict indexed by field. The format
+    should be
+                w_init_field[field] = 'df.Function(...)'.
+    The work dicts w_ and w_1 are automatically initialized from these
+    functions elsewhere in the code.
+
+    Note: You only need to specify the initial states that are nonzero.
+    """
+    w_init_field = dict()
     if not restart_folder:
-        """ Create the initial state. """
         # Phase field
-        phi_init = initial_phasefield(
-            Lx/2, Lx/2, rad_init, interface_thickness,
-            w_["PF"].function_space().sub(0).collapse())
-        g_init = df.interpolate(df.Constant(0.),
-                                w_["PF"].function_space().sub(1).collapse())
-        w_PF_init = df.project(df.as_vector((phi_init, g_init)),
-                               w_["PF"].function_space())
-        w_["PF"].interpolate(w_PF_init)
-        w_1["PF"].interpolate(w_PF_init)
+        if enable_PF:
+            w_init_field["phi"] = initial_phasefield(
+                Lx/2, Lx/2, rad_init, interface_thickness,
+                field_to_subspace["phi"].collapse())
 
         # Electrochemistry
-        W_EC = w_["EC"].function_space()
-        c_init = df.Function(W_EC.sub(0).collapse())
-        V_init_expr = df.Expression("x[1]/Ly", Ly=Ly, degree=1)
-        V_init = df.interpolate(V_init_expr, W_EC.sub(len(solutes)).collapse())
-        c_init.vector()[:] = 0.
-        w_EC_init = df.project(df.as_vector(
-            tuple([c_init]*len(solutes) + [V_init])), W_EC)
-        w_["EC"].interpolate(w_EC_init)
-        w_1["EC"].interpolate(w_EC_init)
+        if enable_EC:
+            # c_init = df.Function(field_to_subspace[solutes[0][0]].collapse())
+            # c_init.vector()[:] = 0.
+            # for solute in solutes:
+            #     w_init_field[solute[0]] = c_init
+            V_init_expr = df.Expression("x[1]/Ly", Ly=Ly, degree=1)
+            w_init_field["V"] = df.interpolate(
+                V_init_expr, field_to_subspace["V"].collapse())
+
+    return w_init_field
 
 
 def create_bcs(field_to_subspace, Lx, Ly, solutes,
