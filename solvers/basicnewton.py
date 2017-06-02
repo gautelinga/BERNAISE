@@ -8,7 +8,7 @@ AB, 2017-06-1(based on basic.py)
 """
 import dolfin as df
 import math
-from common.functions import ramp, dramp, diff_pf_potential_linearised
+from common.functions import ramp, dramp, diff_pf_potential
 from . import *
 from . import __all__
 
@@ -59,7 +59,7 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
           density, viscosity,
           solutes, enable_PF, enable_EC, enable_NS,
           surface_tension, dt, interface_thickness,
-          grav_const, pf_mobility_coeff,
+          grav_const, pf_mobility_coeff,pf_mobility, 
           **namespace):
     """ Set up problem. """
     # Constant
@@ -186,16 +186,19 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
         c_1 = funs_1[0:num_solutes]
         V_1 = funs_1[num_solutes]
 
-    # Define the charge density 
+    # Define the charge density
+    rho_e = None
+    rho_e_ = None
+    rho_e_1 = None
     if (enable_EC):
         rho_e = sum([c_e*z_e for c_e, z_e in zip(c, z)])  # Sum of trial functions
         rho_e_ = sum([c_e*z_e for c_e, z_e in zip(c_, z)])  # Sum of current sol.
         rho_e_1 = sum([c_e*z_e for c_e, z_e in zip(c_1, z)])  # Sum of current sol.
 
-    M_ = pf_mobility(phi, gamma)
-    nu_ = ramp(phi, viscosity)
-    veps_ = ramp(phi, permittivity)
-    rho_ = ramp(phi, density)
+    M_ = pf_mobility(phi_, gamma)
+    nu_ = ramp(phi_, viscosity)
+    veps_ = ramp(phi_, permittivity)
+    rho_ = ramp(phi_, density)
     dveps = dramp(permittivity)
     drho = dramp(density)
 
@@ -211,8 +214,10 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
         dbeta.append(dramp([solute[4], solute[5]]))
 
     solver = dict()
-    solver["NSPFEC"] = setup_NSPFEC(w_["NSPFEC"],w_1["NSPFEC"],bcs"NSPFEC",
+    solver["NSPFEC"] = setup_NSPFEC(w_["NSPFEC"],w_1["NSPFEC"],bcs["NSPFEC"],
                                     v, q, psi, h, b, U,
+                                    u_, p_, phi_, g_, c_, V_,
+                                    u_1, p_1, phi_1, g_1, c_1, V_1, 
                                     M_, nu_, veps_, rho_, K_, beta_, rho_e_,
                                     dbeta, dveps, drho,
                                     per_tau, sigma_bar, eps, grav, z,
@@ -220,8 +225,10 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
     return dict(solvers=solver)
 
 
-def setup_NSPFEC(w_NSPFEC,w_1NSPFEC,bcs,
+def setup_NSPFEC(w_NSPFEC,w_1NSPFEC,bcs_NSPFEC,
                  v, q, psi, h, b, U,
+                 u_, p_, phi_, g_, c_, V_,
+                 u_1, p_1, phi_1, g_1, c_1, V_1,
                  M_, nu_, veps_, rho_, K_, beta_, rho_e_,
                  dbeta, dveps, drho,
                  per_tau, sigma_bar, eps, grav, z,
