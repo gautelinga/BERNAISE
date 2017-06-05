@@ -11,8 +11,7 @@ cmd_kwargs = parse_command_line()
 
 # Check if user has called for help
 if cmd_kwargs.get("help", False):
-    info_yellow("BERNAISE (Binary ElectRohydrodyNAmIc SolvEr)")
-    info_red("You called for help.")
+    help_menu()
     exit()
 
 # Import problem and default parameters

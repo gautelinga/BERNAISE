@@ -81,3 +81,48 @@ def info(message, check=True):
 
 def info_on_red(message, check=True):
     info_style(message, check, ON_RED)
+
+def help_menu():
+    info_yellow("BERNAISE (Binary ElectRohydrodyNAmIc SolvEr)")
+    info_red("You called for help! And here are your options:")
+    info("")
+    info("  Bearnaise Sauce") 
+    info("  (Sauce bearnaise a la Paul Bocuse)")
+    info("")
+    info("  Serves 4 to 6")
+    info("")
+    info("  Preparation time: 10 minutes")
+    info("  Cooking time: 15 minutes")
+    info("")
+    info("  3 medium shallots")
+    info("  3 tablespoons white wine vinegar")
+    info("  2 tablespoons chopped tarragon")
+    info("  1 pinch chopped chervil ")
+    info("  4 egg yolks") 
+    info("  250 g unsalted butter") 
+    info("  Salt and freshly crushed pepper")  
+    info("")
+    info("  This sauce must be made over very low heat, just before serving.\n\
+    Making it in a double boiler will ensure good results:\n\
+    Use the top of the double boiler as an ordinary pot for the first stage of making the sauce.")
+    info("")
+    info("  Peel and finely chop the shallots.\n\
+    Place the vinegar, shallots, chopped tarragon and chervil (setting aside a little of both for the end),\n\
+    a little salt and a pinch of freshly crushed pepper in the top part of  the double boiler.\n\
+    Place over high heat and reduce until you have the equivalent of 2 teaspoons left in the pan.\n\
+    Remove from the heat and leave to cool completely before finishing the sauce \n\
+    (you can speed cooling by holding the pot in a bowl of ice water).")
+    info("")
+    info("  Whisk the egg yolks, one by one, and 2 tablespoons of cold water into the vinegar mixture.\n\
+    Heat a little water in the bottom of the double boiler and set the top part in place.")
+    info("")
+    info("  Break the butter into small pieces.\n\
+    Whisk in a piece of the butter, the continue adding the rest of the butter little by little, whisking constantly.\n\
+    The sauce should become foamy at first, then thicken as the butter is added. Keep warm over warm hot-water bath.")
+    info("")
+    info("  Just before serving, add salt and pepper, if needed and the remaining tarragon and chervil. Serve in a sauceboat.")
+    info("")
+    info("  Note: this sauce should be much thicker than a Hollandaise sauce; it has more egg yolks.\n\
+    It should have the consistency as Dijon mustard.")
+    info("")
+    info("  Serving suggestions: This is the perfect sauce for any grilled meat.")
