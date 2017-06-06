@@ -48,6 +48,7 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
           solutes, enable_PF, enable_EC, enable_NS,
           surface_tension, dt, interface_thickness,
           grav_const, pf_mobility, pf_mobility_coeff,
+          use_iterative_solvers,
           **namespace):
     """ Set up problem. """
     # Constant
@@ -118,24 +119,27 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
         solvers["PF"] = setup_PF(w_["PF"], phi, g, psi, h, bcs["PF"],
                                  phi_1, u_1, M_1, c_1, V_1,
                                  per_tau, sigma_bar, eps, dbeta, dveps,
-                                 enable_NS, enable_EC)
+                                 enable_NS, enable_EC,
+                                 use_iterative_solvers)
 
     if enable_EC:
         solvers["EC"] = setup_EC(w_["EC"], c, V, b, U, rho_e, bcs["EC"], c_1,
-                                 u_1, K_, veps_, per_tau, z, enable_NS)
+                                 u_1, K_, veps_, per_tau, z, enable_NS,
+                                 use_iterative_solvers)
 
     if enable_NS:
         solvers["NS"] = setup_NS(w_["NS"], u, p, v, q, bcs["NS"], u_1, phi_,
                                  rho_, g_, M_, nu_, rho_e_, V_,
                                  per_tau, drho, sigma_bar, eps, dveps, grav,
-                                 enable_PF, enable_EC)
+                                 enable_PF, enable_EC,
+                                 use_iterative_solvers)
     return dict(solvers=solvers)
 
 
 def setup_NS(w_NS, u, p, v, q, bcs,
              u_1, phi_, rho_, g_, M_, nu_, rho_e_, V_,
              per_tau, drho, sigma_bar, eps, dveps, grav,
-             enable_PF, enable_EC):
+             enable_PF, enable_EC, use_iterative_solvers):
     """ Set up the Navier-Stokes subproblem. """
 
     F = (per_tau * rho_ * df.dot(u - u_1, v)*df.dx
@@ -159,6 +163,7 @@ def setup_NS(w_NS, u, p, v, q, bcs,
 
     problem = df.LinearVariationalProblem(a, L, w_NS, bcs)
     solver = df.LinearVariationalSolver(problem)
+    solver
     return solver
 
 
@@ -166,7 +171,8 @@ def setup_PF(w_PF, phi, g, psi, h, bcs,
              phi_1, u_1, M_1, c_1, V_1,
              per_tau, sigma_bar, eps,
              dbeta, dveps,
-             enable_NS, enable_EC):
+             enable_NS, enable_EC,
+             use_iterative_solvers):
     """ Set up phase field subproblem. """
 
     F_phi = (per_tau*(phi-phi_1)*psi*df.dx +
@@ -191,7 +197,8 @@ def setup_PF(w_PF, phi, g, psi, h, bcs,
 def setup_EC(w_EC, c, V, b, U, rho_e, bcs,
              c_1, u_1, K_, veps_,
              per_tau, z,
-             enable_NS):
+             enable_NS,
+             use_iterative_solvers):
     """ Set up electrochemistry subproblem. """
     F_c = []
     for ci, ci_1, bi, Ki_, zi in zip(c, c_1, b, K_, z):

@@ -51,7 +51,9 @@ parameters.update(
     pf_mobility_coeff=factor*0.000040,
     density=[1000., 100.],
     viscosity=[10., 1.],
-    permittivity=[1., 5.]
+    permittivity=[1., 5.],
+    #
+    use_iterative_solvers=True
 )
 
 
