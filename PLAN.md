@@ -1,3 +1,24 @@
+a. Things that have to work in order to continue.
+    - do riesing charged bobubel by electric force!
+    - taylor-hood -> grave(or iterative solver). replace with 1 order elemets  
+    - Find the equations, dimensionless. And define parameter range!
+    - establish convergence
+    
+b. tests
+    - Raylay-Taylor PF and NS
+    - advective front stable/ustable PF and NS 
+    - Debye layer EC (and NS)
+    - Coulomb law EC (and PF)
+
+c. benchmarks
+    - riesing charged bobubel 
+    - collinding opposid charged bobubels
+    - capilar introsion
+    - diaelctric breakdown  
+
+
+
+
 i. Formulate the dimensionless equation
     Find the equations, then do the following:  
         X Do it for Nernst-Planck
