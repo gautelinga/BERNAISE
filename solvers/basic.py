@@ -48,7 +48,7 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
           solutes, enable_PF, enable_EC, enable_NS,
           surface_tension, dt, interface_thickness,
           grav_const, pf_mobility, pf_mobility_coeff,
-          use_iterative_solvers,
+          use_iterative_solvers, use_pressure_stabilization,
           **namespace):
     """ Set up problem. """
     # Constant
@@ -132,22 +132,59 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
                                  rho_, g_, M_, nu_, rho_e_, V_,
                                  per_tau, drho, sigma_bar, eps, dveps, grav,
                                  enable_PF, enable_EC,
-                                 use_iterative_solvers)
+                                 use_iterative_solvers, use_pressure_stabilization)
     return dict(solvers=solvers)
+
+
+class BernaiseKrylovSolver:
+    """ Define class to make it more easy...
+    Doesn't work now.
+    """
+    def __init__(self, a, L, bcs, b):
+        self.a = a
+        self.L = L
+        self.bcs = bcs
+        self.b = b
+        self.solver = df.KrylovSolver("gmres", "amg")
+        self.A = df.Matrix()
+        self.bb = df.Vector()
+        self.P = df.Matrix()
+        self.btmp = df.Vector()
+
+    def solve(self, w_spec):
+        df.assemble_system(self.a, self.L, self.bcs,
+                           A_tensor=self.A, b_tensor=self.bb)
+        df.assemble_system(self.b, self.L, self.bcs,
+                           A_tensor=self.P, b_tensor=self.btmp)
+        self.solver.set_operators(self.A, self.P)
+        self.solver.solve(w_spec.vector(), self.bb)
 
 
 def setup_NS(w_NS, u, p, v, q, bcs,
              u_1, phi_, rho_, g_, M_, nu_, rho_e_, V_,
              per_tau, drho, sigma_bar, eps, dveps, grav,
-             enable_PF, enable_EC, use_iterative_solvers):
+             enable_PF, enable_EC,
+             use_iterative_solvers, use_pressure_stabilization):
     """ Set up the Navier-Stokes subproblem. """
+    F = (
+        per_tau * rho_ * df.dot(u - u_1, v)*df.dx
+        + rho_*df.inner(df.grad(u), df.outer(u_1, v))*df.dx
+        + 2*nu_*df.inner(df.sym(df.grad(u)), df.grad(v))*df.dx
+        - p * df.div(v)*df.dx
+        + df.div(u)*q*df.dx
+        - df.dot(rho_*grav, v)*df.dx
+    )
+    if use_pressure_stabilization:
+        mesh = w_NS.function_space().mesh()
+        cellsize = df.CellSize(mesh)
+        beta = 0.0008
+        delta = beta*cellsize*cellsize
 
-    F = (per_tau * rho_ * df.dot(u - u_1, v)*df.dx
-         + rho_*df.inner(df.grad(u), df.outer(u_1, v))*df.dx
-         + 2*nu_*df.inner(df.sym(df.grad(u)), df.grad(v))*df.dx
-         - p * df.div(v)*df.dx
-         + df.div(u)*q*df.dx
-         - df.dot(rho_*grav, v)*df.dx)
+        F += (
+            delta*df.inner(df.grad(q), df.grad(p))*df.dx
+            - delta*df.dot(rho_*grav, df.grad(q))*df.dx
+        )
+
     if enable_PF:
         F += - drho*M_*df.inner(df.grad(u), df.outer(df.grad(g_), v))*df.dx
         F += - sigma_bar*eps*df.inner(df.outer(df.grad(phi_),
@@ -163,7 +200,11 @@ def setup_NS(w_NS, u, p, v, q, bcs,
 
     problem = df.LinearVariationalProblem(a, L, w_NS, bcs)
     solver = df.LinearVariationalSolver(problem)
-    solver
+
+    if use_iterative_solvers and use_pressure_stabilization:
+        solver.parameters["linear_solver"] = "gmres"
+        # solver.parameters["preconditioner"] = "ilu"
+
     return solver
 
 
@@ -191,6 +232,11 @@ def setup_PF(w_PF, phi, g, psi, h, bcs,
 
     problem = df.LinearVariationalProblem(a, L, w_PF)
     solver = df.LinearVariationalSolver(problem)
+
+    if use_iterative_solvers:
+        solver.parameters["linear_solver"] = "gmres"
+        # solver.parameters["preconditioner"] = "hypre_euclid"
+
     return solver
 
 
@@ -214,18 +260,24 @@ def setup_EC(w_EC, c, V, b, U, rho_e, bcs,
 
     problem = df.LinearVariationalProblem(a, L, w_EC, bcs)
     solver = df.LinearVariationalSolver(problem)
+
+    if use_iterative_solvers:
+        solver.parameters["linear_solver"] = "gmres"
+        # solver.parameters["preconditioner"] = "hypre_euclid"
+
     return solver
 
 
-def solve(solvers, enable_PF, enable_EC, enable_NS, **namespace):
+def solve(w_, solvers, enable_PF, enable_EC, enable_NS, **namespace):
     """ Solve equations. """
     timer_outer = df.Timer("Solve system")
     for subproblem, enable in zip(["PF", "EC", "NS"],
-                                  [enable_NS, enable_EC, enable_PF]):
-        if enable:
+                                  [enable_PF, enable_EC, enable_NS]):
             timer_inner = df.Timer("Solve subproblem " + subproblem)
+            df.mpi_comm_world().barrier()
             solvers[subproblem].solve()
             timer_inner.stop()
+
     timer_outer.stop()
 
 

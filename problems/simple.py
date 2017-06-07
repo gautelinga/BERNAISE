@@ -53,7 +53,8 @@ parameters.update(
     viscosity=[10., 1.],
     permittivity=[1., 5.],
     #
-    use_iterative_solvers=True
+    use_iterative_solvers=True,
+    use_pressure_stabilization=False
 )
 
 
