@@ -91,11 +91,11 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
         c_, V_ = cV_[:num_solutes], cV_[num_solutes]
         c_1, V_1 = cV_1[:num_solutes], cV_1[num_solutes]
 
-    M_ = pf_mobility(phi_, gamma)
-    M_1 = pf_mobility(phi_1, gamma)
-    nu_ = ramp(phi_, viscosity)
-    rho_ = ramp(phi_, density)
-    veps_ = ramp(phi_, permittivity)
+    M_ = pf_mobility(unit_interval_filter(phi_), gamma)
+    M_1 = pf_mobility(unit_interval_filter(phi_1), gamma)
+    nu_ = ramp(unit_interval_filter(phi_), viscosity)
+    rho_ = ramp(unit_interval_filter(phi_), density)
+    veps_ = ramp(unit_interval_filter(phi_), permittivity)
 
     dveps = dramp(permittivity)
     drho = dramp(density)
@@ -132,7 +132,8 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
                                  rho_, g_, M_, nu_, rho_e_, V_,
                                  per_tau, drho, sigma_bar, eps, dveps, grav,
                                  enable_PF, enable_EC,
-                                 use_iterative_solvers, use_pressure_stabilization)
+                                 use_iterative_solvers,
+                                 use_pressure_stabilization)
     return dict(solvers=solvers)
 
 
@@ -187,14 +188,16 @@ def setup_NS(w_NS, u, p, v, q, bcs,
 
     if enable_PF:
         F += - drho*M_*df.inner(df.grad(u), df.outer(df.grad(g_), v))*df.dx
-        F += - sigma_bar*eps*df.inner(df.outer(df.grad(phi_),
-                                               df.grad(phi_)),
+        F += - sigma_bar*eps*df.inner(df.outer(
+            df.grad(unit_interval_filter(phi_)),
+            df.grad(unit_interval_filter(phi_))),
                                       df.grad(v))*df.dx
     if enable_EC:
         F += rho_e_*df.dot(df.grad(V_), v)*df.dx
     if enable_PF and enable_EC:
-        F += dveps * df.dot(df.grad(phi_), v)*df.dot(df.grad(V_),
-                                                     df.grad(V_))*df.dx
+        F += dveps * df.dot(df.grad(
+            unit_interval_filter(phi_)), v)*df.dot(df.grad(V_),
+                                                   df.grad(V_))*df.dx
 
     a, L = df.lhs(F), df.rhs(F)
 
@@ -216,13 +219,16 @@ def setup_PF(w_PF, phi, g, psi, h, bcs,
              use_iterative_solvers):
     """ Set up phase field subproblem. """
 
-    F_phi = (per_tau*(phi-phi_1)*psi*df.dx +
+    F_phi = (per_tau*(phi-unit_interval_filter(phi_1))*psi*df.dx +
              M_1*df.dot(df.grad(g), df.grad(psi))*df.dx)
     if enable_NS:
         F_phi += df.dot(u_1, df.grad(phi))*psi*df.dx
     F_g = (g*h*df.dx
            - sigma_bar*eps*df.dot(df.grad(phi), df.grad(h))*df.dx
-           - sigma_bar/eps*diff_pf_potential_linearised(phi, phi_1)*h*df.dx)
+           - sigma_bar/eps*(
+               diff_pf_potential_linearised(phi,
+                                            unit_interval_filter(
+                                                phi_1))*h*df.dx))
     if enable_EC:
         F_g += (-sum([dbeta_i*ci_1*h*df.dx
                       for dbeta_i, ci_1 in zip(dbeta, c_1)])
@@ -287,3 +293,15 @@ def update(w_, w_1, enable_PF, enable_EC, enable_NS, **namespace):
                                   [enable_NS, enable_EC, enable_PF]):
         if enable:
             w_1[subproblem].assign(w_[subproblem])
+
+
+def max_value(a, b):
+    return 0.5*(a+b+df.sign(a-b)*(a-b))
+
+
+def min_value(a, b):
+    return 0.5*(a+b-df.sign(a-b)*(a-b))
+
+
+def unit_interval_filter(phi):
+    return min_value(max_value(phi, -1.), 1.)

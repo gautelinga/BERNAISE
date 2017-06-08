@@ -56,11 +56,14 @@ for name, subproblem in subproblems.iteritems():
 #                              # segregated at some point
 fields = []
 field_to_subspace = dict()
+field_to_subproblem = dict()
 for name, subproblem in subproblems.iteritems():
     for i, s in enumerate(subproblem):
         field = s["name"]
         fields.append(field)
         field_to_subspace[field] = spaces[name].sub(i)
+        field_to_subproblem[field] = (name, i)
+
 
 # Create initial folders for storing results
 newfolder, tstepfiles = create_initial_folders(folder, restart_folder,
