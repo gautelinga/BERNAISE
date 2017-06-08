@@ -4,38 +4,19 @@ from . import *
 from common.io import mpi_is_root
 __author__ = "Gaute Linga"
 
-info_cyan("Welcome to the simple problem!")
-
-
-class PeriodicBoundary(df.SubDomain):
-    # Left boundary is target domain
-    def __init__(self, Lx):
-        self.Lx = Lx
-        df.SubDomain.__init__(self)
-
-    def inside(self, x, on_boundary):
-        return bool(df.near(x[0], 0.) and on_boundary)
-
-    def map(self, x, y):
-        y[0] = x[0] - self.Lx
-        y[1] = x[1]
+info_cyan("Two oppositely charged droplets")
 
 
 class DirichletBoundary(df.SubDomain):
-    def __init__(self, Ly):
-        self.Ly = Ly
-        df.SubDomain.__init__(self)
-
     def inside(self, x, on_boundary):
-        return bool((df.near(x[1], 0.) or
-                     df.near(x[1], self.Ly)) and on_boundary)
+        return bool(on_boundary)
 
 
 # Define solutes
 # Format: name, valency, diffusivity in phase 1, diffusivity in phase
 #         2, beta in phase 1, beta in phase 2
-solutes = [["c_p",  1, 1., 1., 1., 1.],
-           ["c_m", -1, 1., 1., 1., 1.]]
+solutes = [["c_p",  0*1, 1e-4, 1.e-3, 1., 1.],
+           ["c_m", -1*0, 1e-4, 1.e-3, 1., 1.]]
 
 # Format: name : (family, degree, is_vector)
 base_elements = dict(u=["Lagrange", 2, True],
@@ -45,12 +26,11 @@ base_elements = dict(u=["Lagrange", 2, True],
                      c=["Lagrange", 1, False],
                      V=["Lagrange", 1, False])
 
-factor = 1./4.
 
 # Default parameters to be loaded unless starting from checkpoint.
 parameters.update(
     solver="basic",
-    folder="results_simple",
+    folder="results_two_charged_droplets",
     restart_folder=False,
     enable_NS=True,
     enable_PF=True,
@@ -59,32 +39,29 @@ parameters.update(
     stats_intv=5,
     checkpoint_intv=50,
     tstep=0,
-    dt=factor*0.08,
+    dt=0.02,
     t_0=0.,
     T=20.,
-    dx=factor*1./16,
-    interface_thickness=factor*0.040,
+    dx=1./64,
+    interface_thickness=0.010,
     solutes=solutes,
     base_elements=base_elements,
-    Lx=1.,
-    Ly=2.,
-    rad_init=0.25,
+    Lx=2.,
+    Ly=1.,
+    rad_init=0.2,
     #
-    V_top=1.,
-    V_btm=0.,
+    V_boundary=0.,
     surface_tension=24.5,
-    grav_const=0.98,
+    grav_const=0.,
     #
-    pf_mobility_coeff=factor*0.000040,
+    pf_mobility_coeff=0.000010,
     density=[1000., 100.],
     viscosity=[10., 1.],
-    permittivity=[1., 5.],
+    permittivity=[1., 1.],
     #
     use_iterative_solvers=False,
     use_pressure_stabilization=False
 )
-
-constrained_domain = PeriodicBoundary(1.)
 
 
 def mesh(Lx=1, Ly=5, dx=1./16, **namespace):
@@ -96,30 +73,24 @@ def initialize(Lx, Ly, rad_init,
                interface_thickness, solutes, restart_folder,
                field_to_subspace,
                enable_NS, enable_PF, enable_EC, **namespace):
-    """ Create the initial state.
-    The initial states are specified in a dict indexed by field. The format
-    should be
-                w_init_field[field] = 'df.Function(...)'.
-    The work dicts w_ and w_1 are automatically initialized from these
-    functions elsewhere in the code.
-
-    Note: You only need to specify the initial states that are nonzero.
-    """
+    """ Create the initial state. """
     w_init_field = dict()
     if not restart_folder:
+        x0, y0, rad0 = [Lx/4, 3*Lx/4], [Ly/2, Ly/2], [rad_init, rad_init]
+        c0 = [1., 1.]
         # Phase field
         if enable_PF:
-            w_init_field["phi"] = initial_phasefield(
-                Lx/2, Lx/2, rad_init, interface_thickness,
+            w_init_field["phi"] = initial_pf(
+                x0, y0, rad0, interface_thickness,
                 field_to_subspace["phi"].collapse())
 
         # Electrochemistry
         if enable_EC:
-            # c_init = df.Function(field_to_subspace[solutes[0][0]].collapse())
-            # c_init.vector()[:] = 0.
-            # for solute in solutes:
-            #     w_init_field[solute[0]] = c_init
-            V_init_expr = df.Expression("x[1]/Ly", Ly=Ly, degree=1)
+            for x, y, rad, ci, solute in zip(x0, y0, rad0, c0, solutes):
+                c_init = initial_c(x, y, 2.*rad/3., ci, interface_thickness,
+                                   field_to_subspace[solute[0]].collapse())
+                w_init_field[solute[0]] = c_init
+            V_init_expr = df.Expression("0.", degree=1)
             w_init_field["V"] = df.interpolate(
                 V_init_expr, field_to_subspace["V"].collapse())
 
@@ -127,26 +98,19 @@ def initialize(Lx, Ly, rad_init,
 
 
 def create_bcs(field_to_subspace, Lx, Ly, solutes,
-               V_top, V_btm,
+               V_boundary,
                enable_NS, enable_PF, enable_EC,
                **namespace):
     """ The boundary conditions are defined in terms of field. """
     bcs_fields = dict()
 
+    wall = DirichletBoundary()
     # Navier-Stokes
     if enable_NS:
-        #freeslip = df.DirichletBC(field_to_subspace["u"].sub(0),
-        #                          df.Constant(0.),
-        #                          "on_boundary && (x[0] < DOLFIN_EPS "
-        #                          "|| x[0] > {Lx}-DOLFIN_EPS)".format(Lx=Lx))
-        dbc = DirichletBoundary(Ly)
         noslip = df.DirichletBC(field_to_subspace["u"],
                                 df.Constant((0., 0.)),
-                                dbc)
-
-        #bcs_fields["u"] = [noslip, freeslip]
+                                wall)
         bcs_fields["u"] = [noslip]
-        # GL: Should we pin the pressure?
         p_pin = df.DirichletBC(field_to_subspace["p"],
                                df.Constant(0.),
                                "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS",
@@ -160,38 +124,39 @@ def create_bcs(field_to_subspace, Lx, Ly, solutes,
 
     # Electrochemistry
     if enable_EC:
-        bc_V_top = df.DirichletBC(
-            field_to_subspace["V"], df.Constant(V_top),
-            "on_boundary && x[1] > {Ly}-DOLFIN_EPS".format(Ly=Ly))
-        bc_V_btm = df.DirichletBC(field_to_subspace["V"], df.Constant(V_btm),
-                                  "on_boundary && x[1] < DOLFIN_EPS")
+        bc_V = df.DirichletBC(
+            field_to_subspace["V"], df.Constant(V_boundary), wall)
         # bcs_fields["EC"] = [bc_V_top, bc_V_btm]
         # for solute in solutes:
         #     bcs_fields[solute[0]] = []
-        bcs_fields["V"] = [bc_V_top, bc_V_btm]
+        bcs_fields["V"] = [bc_V]
     return bcs_fields
 
 
-def initial_phasefield(x0, y0, rad, eps, function_space, shape="circle"):
-    if shape == "flat":
-        expr_str = "tanh((x[1]-y0)/(sqrt(2)*eps))"
-    elif shape == "circle":
-        expr_str = ("tanh(sqrt(2)*(sqrt(pow(x[0]-x0,2)" +
-                    "+pow(x[1]-y0,2))-rad)/eps)")
-    else:
-        info_red("Unrecognized shape: " + shape)
-        exit()
-    phi_init_expr = df.Expression(expr_str, x0=x0, y0=y0, rad=rad,
-                                  eps=eps, degree=2)
+def initial_pf(x0, y0, rad0, eps, function_space):
+    expr_str = "1."
+    for x, y, rad in zip(x0, y0, rad0):
+        expr_str += ("-(1.-tanh(sqrt(2)*(sqrt(pow(x[0]-{x}, 2)"
+                     "+pow(x[1]-{y}, 2))-{rad})/{eps}))").format(
+                        x=x, y=y, rad=rad, eps=eps)
+    phi_init_expr = df.Expression(expr_str, degree=2)
     phi_init = df.interpolate(phi_init_expr, function_space)
     return phi_init
+
+
+def initial_c(x, y, rad, c_init, eps, function_space):
+    expr_str = ("{c_init}*0.5*(1.-tanh(sqrt(2)*(sqrt(pow(x[0]-{x}, 2)"
+                "+pow(x[1]-{y}, 2))-{rad})/{eps}))").format(
+                    x=x, y=y, rad=rad, eps=eps, c_init=c_init)
+    c_init_expr = df.Expression(expr_str, degree=2)
+    return df.interpolate(c_init_expr, function_space)
 
 
 def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
                field_to_subproblem, subproblems, w_, **namespace):
     info_blue("Timestep = {}".format(tstep))
 
-    if stats_intv and tstep % stats_intv == 0:
+    if False and stats_intv and tstep % stats_intv == 0:
         # GL: Seems like a rather awkward way of doing this,
         # but any other way seems to fuck up the simulation.
         # Anyhow, a better idea could be to move some of this to a post-processing stage.

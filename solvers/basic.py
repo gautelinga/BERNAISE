@@ -192,7 +192,7 @@ def setup_NS(w_NS, u, p, v, q, bcs,
             df.grad(unit_interval_filter(phi_)),
             df.grad(unit_interval_filter(phi_))),
                                       df.grad(v))*df.dx
-    if enable_EC:
+    if enable_EC and rho_e_ != 0:
         F += rho_e_*df.dot(df.grad(V_), v)*df.dx
     if enable_PF and enable_EC:
         F += dveps * df.dot(df.grad(
@@ -255,12 +255,15 @@ def setup_EC(w_EC, c, V, b, U, rho_e, bcs,
     F_c = []
     for ci, ci_1, bi, Ki_, zi in zip(c, c_1, b, K_, z):
         F_ci = (per_tau*(ci-ci_1)*bi*df.dx
-                + Ki_*df.dot(df.grad(ci), df.grad(bi))*df.dx
-                + zi*ci_1*df.dot(df.grad(V), df.grad(bi))*df.dx)
+                + Ki_*df.dot(df.grad(ci), df.grad(bi))*df.dx)
+        if zi != 0:
+            F_ci += zi*ci_1*df.dot(df.grad(V), df.grad(bi))*df.dx
         if enable_NS:
             F_ci += df.dot(u_1, df.grad(ci))*bi*df.dx
         F_c.append(F_ci)
-    F_V = (veps_*df.dot(df.grad(V), df.grad(U))*df.dx + rho_e*U*df.dx)
+    F_V = veps_*df.dot(df.grad(V), df.grad(U))*df.dx
+    if rho_e != 0:
+        F_V += rho_e*U*df.dx
     F = sum(F_c) + F_V
     a, L = df.lhs(F), df.rhs(F)
 
