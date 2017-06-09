@@ -42,7 +42,8 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
           density, viscosity,
           solutes, enable_PF, enable_EC, enable_NS,
           surface_tension, dt, interface_thickness,
-          grav_const, pf_mobility_coeff,pf_mobility, 
+          grav_const, pf_mobility_coeff, pf_mobility,
+          use_iterative_solvers,
           **namespace):
     """ Set up problem. """
     # Constant
@@ -52,27 +53,27 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
     gamma = pf_mobility_coeff
     eps = interface_thickness
 
-    v = None
-    q = None
-    psi = None
-    h = None
-    b = None
-    U = None
-    u_ = None
-    p_ = None
-    phi_ = None
-    g_ = None
-    c_ = None
-    V_ = None
-    u_1 = None
-    p_1 = None
-    phi_1 = None
-    g_1 = None
-    c_1 = None
-    V_1 = None
-    rho_e = None
-    rho_e_ = None
-    rho_e_1 = None
+    v = 1
+    q = 1
+    psi = 1
+    h = 1
+    b = 1
+    U = 1
+    u_ = 1
+    p_ = 1
+    phi_ = 1.
+    g_ = 1
+    c_ = 1
+    V_ = 1
+    u_1 = 1
+    p_1 = 1
+    phi_1 = 1
+    g_1 = 1
+    c_1 = 1
+    V_1 = 1
+    rho_e = 1
+    rho_e_ = 1
+    rho_e_1 = 1
     # Set up the feilds
     
     funs_ = df.split(w_["NSPFEC"])
@@ -135,7 +136,8 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
                                     M_, nu_, veps_, rho_, K_, beta_, rho_e_,
                                     dbeta, dveps, drho,
                                     per_tau, sigma_bar, eps, grav, z,
-                                    enable_NS, enable_PF, enable_EC)
+                                    enable_NS, enable_PF, enable_EC,
+                                    use_iterative_solvers)
     return dict(solvers=solver)
 
 
@@ -146,7 +148,8 @@ def setup_NSPFEC(w_NSPFEC, w_1NSPFEC, bcs_NSPFEC,
                  M_, nu_, veps_, rho_, K_, beta_, rho_e_,
                  dbeta, dveps, drho,
                  per_tau, sigma_bar, eps, grav, z,
-                 enable_NS, enable_PF, enable_EC):
+                 enable_NS, enable_PF, enable_EC,
+                 use_iterative_solvers):
     """ The Full problem of electrohydrodynamics in two pahase.
     Note that it is possioble to trun off the dirffent parts at will.
     """
@@ -203,8 +206,13 @@ def setup_NSPFEC(w_NSPFEC, w_1NSPFEC, bcs_NSPFEC,
 
     F = sum(F)
     J = df.derivative(F, w_NSPFEC)
+
     problem_NSPFEC = df.NonlinearVariationalProblem(F, w_NSPFEC, bcs_NSPFEC, J)
     solver_NSPFEC = df.NonlinearVariationalSolver(problem_NSPFEC)
+    if use_iterative_solvers:
+        solver_NSPFEC.parameters['newton_solver']['linear_solver'] = 'gmres'
+        solver_NSPFEC.parameters['newton_solver']['preconditioner'] = 'ilu'
+
     return solver_NSPFEC
 
 def solve(solvers, **namespace):

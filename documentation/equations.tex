@@ -1,24 +1,191 @@
 \documentclass[a4paper,10pt]{article}
-\usepackage{cite}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage{graphicx}
-\usepackage{amsmath, amssymb}
-\usepackage{url}
+\usepackage{fullpage}
 \usepackage{hyperref}
-\usepackage{multirow}
-\numberwithin{equation}{section}
-\numberwithin{figure}{section}
-\usepackage{caption}
-\usepackage{subcaption} %Not actually used. You can put multiple includegraphics commands right after each other without spaces without problems. This is only useful for separated captions.
+\usepackage[sort&compress,numbers]{natbib}
+\usepackage{doi}
+\usepackage{graphicx}
+\usepackage{epstopdf}
+\usepackage{epsfig}
+\usepackage{amssymb,amsmath,stmaryrd,tabularx}
+\usepackage{wrapfig}
+\usepackage{bm}
+\usepackage[center]{subfigure}
+\usepackage{enumerate}
+%Not actually used. You can put multiple includegraphics commands right after each other without spaces without problems. This is only useful for separated captions.
 %Prevent indentation of first line in paragraphs.
-\setlength{\parindent}{0pt}
+%\setlength{\parindent}{0pt}
+
+\setlength{\bibsep}{1pt} % or use whatever dimension you want
+\renewcommand{\bibfont}{\small}
+
+\usepackage{titlesec}
+
+\titleformat*{\section}{\large\bfseries}
+\titleformat*{\subsection}{\large\bfseries}
+\titleformat*{\subsubsection}{\large\bfseries}
+
+\renewcommand{\v}[1]{\mathbf{#1}}
+\newcommand{\intf}{\textrm{if}}
+
+% Physics header, modified from dfdc.net %
+\let\vaccent=\v % rename builtin command \v{} to \vaccent{}
+\renewcommand{\v}[1]{\ensuremath{\mathbf{#1}}} % for vectors
+
+\newcommand{\ti}[1]{\ensuremath{\tilde{#1}}} % for dimensionless equations
+\renewcommand{\times}{\cdot} % times symbol
+\renewcommand{\vec}[1]{\v{#1}} % also for vectors
+\newcommand{\gv}[1]{\ensuremath{\mbox{\boldmath$ #1 $}}} 
+% for vectors of Greek letters
+\newcommand{\uv}[1]{\ensuremath{\mathbf{\hat{#1}}}} % for unit vector
+\newcommand{\abs}[1]{\left| #1 \right|} % for absolute value
+\newcommand{\avg}[1]{\left< #1 \right>} % for average
+\let\underdot=\d % rename builtin command \d{} to \underdot{}
+\newcommand{\diff}{\mathrm{d}}
+\renewcommand{\d}[2]{\frac{\diff #1}{\diff #2}} % for derivatives
+\newcommand{\dd}[2]{\frac{\diff^2 #1}{\diff #2^2}} % for double derivatives
+%\newcommand{\pd}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\pd}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\pdinl}[2]{\partial #1 / \partial #2 }
+% for partial derivatives
+\newcommand{\pdd}[2]{\frac{\partial^2 #1}{\partial #2^2}}
+% for double partial derivatives
+\newcommand{\pdc}[3]{\left( \frac{\partial #1}{\partial #2}
+	\right)_{#3}} % for thermodynamic partial derivatives
+\newcommand{\pdcinl}[3]{\left(\partial #1 / \partial #2 \right)_{#3}}
+\newcommand{\ket}[1]{\left| #1 \right>} % for Dirac bras
+\newcommand{\bra}[1]{\left< #1 \right|} % for Dirac kets
+\newcommand{\braket}[2]{\left< #1 \vphantom{#2} \right|
+	\left. #2 \vphantom{#1} \right>} % for Dirac brackets
+\newcommand{\matrixel}[3]{\left< #1 \vphantom{#2#3} \right|
+	#2 \left| #3 \vphantom{#1#2} \right>} % for Dirac matrix elements
+\newcommand{\grad}[1]{\gv{\nabla} #1} % for gradient
+\let\divsymb=\div % rename builtin command \div to \divsymb
+\renewcommand{\div}[1]{\gv{\nabla} \cdot #1} % for divergence
+\newcommand{\curl}[1]{\gv{\nabla} \times #1} % for curl
+\newcommand{\mean}[1]{\left< #1 \right>}
+\newcommand{\laplacian}[1]{\grad^2 #1}
+\newcommand{\emphy}[1]{\textsc{#1}}
+\newcommand{\pdt}[1]{\partial_t #1}
+\newcommand{\sym}[1]{\mathrm{sym} #1 }
+\newcommand{\inpr}[2]{\left< #1, #2 \right>}
+
+\newcommand{\wall}{\mathrm{wall}}
+\newcommand{\inlet}{\mathrm{in}}
+\newcommand{\outlet}{\mathrm{out}}
+
 
 \begin{document}
 \section{Equations}
+The equations of the system:
+\begin{gather}
+\begin{split}
+\rho(\phi) \pdt \v v + \left( \left(\rho(\phi) \v v - \rho'(\phi) M(\phi) \grad g_\phi  \right) \cdot \grad \right) \v v - \div \left[  \mu(\phi)(\grad \v v + \grad \v v ^T) \right] + \grad p \\
+= - \rho_e \grad V - \tilde \sigma \xi\div \left[ \grad \phi \otimes \grad \phi \right] - \frac 1 2 \epsilon'(\phi) | \grad V |^2 \grad \phi,
+\end{split}\\
+\div \v v = 0, 
+\end{gather}
+\begin{gather}
+\pdt \phi + \v v \cdot \grad \phi - \div(M(\phi) \grad g_\phi ) = 0,
+\end{gather}
+\begin{gather}
+\pdt c_i + \v v \cdot \grad c_i - \div \left( D_{i} (\phi) \grad c_i + \frac{ q_e  z_i}{k_{\rm B} T} D_i(\phi) c_i \grad V +\frac{1}{k_{\rm B} T} D_i(\phi)c_i\beta_i'(\phi) \grad \phi \right) = 0, 
+\end{gather}
+\begin{gather}
+\div ( \epsilon (\phi) \grad V ) = - \rho_e.
+\end{gather}
+\begin{align}
+g_\phi &= \tilde\sigma\xi^{-1}W'(\phi) - \tilde\sigma\xi\laplacian\phi + \sum_i \beta_i'(\phi) c_i - \frac{1}{2} \epsilon'(\phi) | \grad V |^2 ,
+\end{align}
+\begin{equation}
+\tilde p = p - \tilde \sigma \left( \frac{\xi}{2} |\grad \phi|^2 + \xi^{-1} W(\phi) \right) - \sum_i ( k_{\mathrm{B}} T c_i(\log(c_i) -1) + \beta_i(\phi) c_i ) .
+\end{equation}
+
+\section{Dimensionless Equations}
+\begin{align}
+c_i &\propto c_0, ~~~~ V \propto V_T = \frac{k_B T}{z_i q_e}, ~~~~\v{v} \propto U_0 = \frac{\epsilon_D V_T^2}{\mu l}, ~~~~p \propto \frac{\mu U_0}{l},\\
+x &\propto l , ~~~~ t \propto \frac{l^2}{D_i}, ~~~~ \rho \propto \rho_0.
+\end{align}
+Navier-Stokes equation: 
+\begin{gather}
+\begin{split}	
+\frac{\rho_0 U_0 D}{ l^2}\ti{\rho}(\phi) \ti{\pdt{}} \ti{\v{v}}\\
++ \frac{U_0}{l}\left( \left( \rho_0 
+ 	U_0 \ti\rho(\phi) \ti{\v{v}} - \frac{\rho_0 M_0 g_0}{l}\ti\rho'(\phi) \ti M(\phi) \ti{\grad{}} \ti g_\phi  \right) \cdot \ti{\grad{}} \right) \ti{\v{v}}\\
+- \frac{\mu U_0}{l^2}\ti{\div{}} \left[\ti \mu(\phi)(\ti{\grad{}} \ti{\v{v}} + \ti{\grad{}} \ti{\v{v}} ^T) \right] + \frac{\mu U_0}{l^2}\ti{\grad{}} p \\
+= - \frac{q_e z_t c_0 V_T}{l} \ti \rho_e \ti{\grad{}} \ti{V} - \frac{\sigma_0 \xi_0 }{l^2}\hat{\ti{\sigma}} \ti \xi\ti{\div{}} \left[ \ti{\grad{}} \phi \otimes \ti{\grad{}} \phi \right] - \frac 1 2 \frac{\epsilon_D V_T^2}{l^3} \ti \epsilon'(\phi) | \ti{\grad{}} \ti V |^2 \ti{\grad{}} \phi,
+\end{split}\\
+\ti{\div{}} \ti{\v{v}} = 0, 
+\end{gather}
+or 
+\begin{gather}
+\begin{split}	
+\mathrm{Sc} \ti{\rho}(\phi) \ti{\pdt{}} \ti{\v{v}}\\
++ \left( \left( \mathrm{Re} \ti\rho(\phi) \ti{\v{v}} - \frac{\rho_0 M_0 g_0}{\mu}\ti\rho'(\phi) \ti M(\phi) \ti{\grad{}} \ti g_\phi  \right) \cdot \ti{\grad{}} \right) \ti{\v{v}}\\
+- \ti{\div{}} \left[\ti \mu(\phi)(\ti{\grad{}} \ti{\v{v}} + \ti{\grad{}} \ti{\v{v}} ^T) \right] + \ti{\grad{}} p \\
+= - \frac{-1}{2\tilde{\lambda}_D^2} \ti \rho_e \ti{\grad{}} \ti{V} - \frac{\sigma_0 \xi_0 }{U_0 \mu}\hat{\ti{\sigma}} \ti \xi\ti{\div{}} \left[ \ti{\grad{}} \phi \otimes \ti{\grad{}} \phi \right] - \frac 1 2 \ti \epsilon'(\phi) | \ti{\grad{}} \ti V |^2 \ti{\grad{}} \phi,
+\end{split}\\
+\ti{\div{}} \ti{\v{v}} = 0, \mathrm{Sc} = \frac{\rho_0 D}{\mu},\mathrm{Re} = \frac{\rho_0 
+	U_0 l}{\mu} ,\tilde{\lambda}_D = \frac{1}{l}\sqrt{\frac{\epsilon_D k_B T}{2 c_0 e^2 z^2}} 
+\end{gather}
+The pressure is defined as 
+\begin{equation}
+\ti{p} = \ti{\mathcal{P}} -   \frac{\sigma_0 \xi_0}{l \mu U_0} \ti{\sigma}\ti{\xi}|\ti{\grad{}} \phi|^2 - \frac{\sigma_0 l}{\xi_0 \mu U_0}\ti{\sigma}\ti{\xi}^{-1} W(\phi)  - \sum_i ( \frac{k_{\mathrm{B}} T c_0 l}{\mu U_0} \ti{c}_i(\log(c_i) -1) + \frac{\beta_0 c_0 l}{\mu U_0}\ti{\beta}_i(\phi) \ti{c}_i ) .
+\end{equation}
+The phase field
+\begin{gather}
+\frac{D}{l^2}\ti{\pdt{}} \phi + U_0\ti{\v v} \cdot \ti{\phi} - \frac{M_0 g_0 }{l^2}\ti{\div{}} (\ti{M}(\phi) \ti{\grad{}} \ti{g}_\phi ) = 0,
+\end{gather}
+The "Chemical" Potential
+\begin{align}
+\tilde{g}_\phi &= \frac{\sigma_0}{\xi_0 g_0 }\hat{\ti{\sigma}}\ti{\xi}^{-1}W'(\phi) - \frac{\sigma_0 \xi_0}{g_0 l^2}\hat{\ti{\sigma}}\ti{\xi}\ti{\laplacian{}}\phi + \frac{\beta_0 c_0}{g_0}\sum_i \ti{\beta}_i'(\phi) \ti{c}_i - \frac{\epsilon_D V_T^2}{2 g_0 l^2} \ti{\epsilon}'(\phi) | \ti{\grad{}} \ti{V} |^2 ,
+\end{align}
+Nernst-Planck equation 
+\begin{gather}
+\frac{D c_0}{l^2}\ti{\pdt{}} \ti{c}_i + \frac{U_0 c_0}{l}\ti{\v{v}} \cdot \ti{\grad{}} \ti{c}_i - \ti{\div{}} \left( \frac{D c_0}{l^2}\ti{D}_{i} (\phi) \ti{\grad{}} \ti{c}_i + \frac{ q_e  z_i D c_0 V_T}{k_{\rm B} T l^2}\ti{D}_i(\phi)\ti{c}_i \ti{\grad{}} \ti{V} +\frac{D c_0 \beta_0}{k_{\rm B} T l^2}\ti{D}_i(\phi)\ti{c}_i\ti{\beta}_i'(\phi) \ti{\grad{}} \phi \right) = 0, 
+\end{gather}
+or 
+\begin{gather}
+\ti{\pdt{}} \ti{c}_i + \frac{1}{\mathrm{Pe}}\ti{\v{v}} \cdot \ti{\grad{}} \ti{c}_i - \ti{\div{}} \left( \ti{D}_{i} (\phi) \ti{\grad{}} \ti{c}_i + \mathrm{sign}(z_i)\ti{D}_i(\phi)\ti{c}_i \ti{\grad{}} \ti{V} +\frac{ \beta_0}{k_{\rm B} T }\ti{D}_i(\phi)\ti{c}_i\ti{\beta}_i'(\phi) \ti{\grad{}} \phi \right) = 0,\\ 
+\mathrm{Pe} = \frac{D}{U_0 l }
+\end{gather}
+Gauss' law: 
+\begin{gather}
+\ti{\div{}} ( \ti{\epsilon} (\phi) \ti{\grad{}} \ti{V} ) = - \frac{\sum_i \mathrm{sign}(z_i) c_i}{\ti{\lambda}_D^2}.
+\end{gather}
+\newpage
+\section{All The Equations}
+\begin{align}
+c_i &\propto c_0, ~~~~ V \propto V_T = \frac{k_B T}{z_i q_e}, ~~~~\v{v} \propto U_0 = \frac{\epsilon_D V_T^2}{\mu l}, ~~~~p \propto \frac{\mu U_0}{l},\\
+x &\propto l , ~~~~ t \propto \frac{l^2}{D_i}, ~~~~ \rho \propto \rho_0.
+\end{align}
+\begin{gather}
+\begin{split}	
+\mathrm{Sc} \ti{\rho}(\phi) \ti{\pdt{}} \ti{\v{v}}\\
++ \left( \left( \mathrm{Re} \ti\rho(\phi) \ti{\v{v}} - \frac{\rho_0 M_0 g_0}{\mu}\ti\rho'(\phi) \ti M(\phi) \ti{\grad{}} \ti g_\phi  \right) \cdot \ti{\grad{}} \right) \ti{\v{v}}\\
+- \ti{\div{}} \left[\ti \mu(\phi)(\ti{\grad{}} \ti{\v{v}} + \ti{\grad{}} \ti{\v{v}} ^T) \right] + \ti{\grad{}} p \\
+= - \frac{-1}{2\tilde{\lambda}_D^2} \ti \rho_e \ti{\grad{}} \ti{V} - \frac{\sigma_0 \xi_0 }{U_0 \mu}\hat{\ti{\sigma}} \ti \xi\ti{\div{}} \left[ \ti{\grad{}} \phi \otimes \ti{\grad{}} \phi \right] - \frac 1 2 \ti \epsilon'(\phi) | \ti{\grad{}} \ti V |^2 \ti{\grad{}} \phi,
+\end{split}\\
+\ti{\div{}} \ti{\v{v}} = 0, \mathrm{Sc} = \frac{\rho_0 D}{\mu},\mathrm{Re} = \frac{\rho_0 
+	U_0 l}{\mu} ,\tilde{\lambda}_D = \frac{1}{l}\sqrt{\frac{\epsilon_D k_B T}{2 c_0 e^2 z^2}} 
+\end{gather}
+\begin{gather}
+\frac{D}{l^2}\ti{\pdt{}} \phi + U_0\ti{\v v} \cdot \ti{\phi} - \frac{M_0 g_0 }{l^2}\ti{\div{}} (\ti{M}(\phi) \ti{\grad{}} \ti{g}_\phi ) = 0,
+\end{gather}
+\begin{align}
+\tilde{g}_\phi &= \frac{\sigma_0}{\xi_0 g_0 }\hat{\ti{\sigma}}\ti{\xi}^{-1}W'(\phi) - \frac{\sigma_0 \xi_0}{g_0 l^2}\hat{\ti{\sigma}}\ti{\xi}\ti{\laplacian{}}\phi + \frac{\beta_0 c_0}{g_0}\sum_i \ti{\beta}_i'(\phi) \ti{c}_i - \frac{\epsilon_D V_T^2}{2 g_0 l^2} \ti{\epsilon}'(\phi) | \ti{\grad{}} \ti{V} |^2 ,
+\end{align}
+\begin{gather}
+\ti{\pdt{}} \ti{c}_i + \frac{1}{\mathrm{Pe}}\ti{\v{v}} \cdot \ti{\grad{}} \ti{c}_i - \ti{\div{}} \left( \ti{D}_{i} (\phi) \ti{\grad{}} \ti{c}_i + \mathrm{sign}(z_i)\ti{D}_i(\phi)\ti{c}_i \ti{\grad{}} \ti{V} +\frac{ \beta_0}{k_{\rm B} T }\ti{D}_i(\phi)\ti{c}_i\ti{\beta}_i'(\phi) \ti{\grad{}} \phi \right) = 0,\\ 
+\mathrm{Pe} = \frac{D}{U_0 l }
+\end{gather}
+\begin{gather}
+\ti{\div{}} ( \ti{\epsilon} (\phi) \ti{\grad{}} \ti{V} ) = - \frac{\sum_i \mathrm{sign}(z_i) c_i}{\ti{\lambda}_D^2}.
+\end{gather}
+\newpage
+\section{Equations}
 Stokes equation:
 \begin{align}
-\rho(\psi) \partial_t \mathbf{u}  &=  \nabla P +\eta(\psi) \nabla^2 \mathbf{u} -  \rho_e  \nabla \phi + \mathbf{f}_{if}(\psi),  \\  
+\rho(\psi) \partial_t \v{u}  &=  \nabla P +\eta(\psi) \nabla^2 \mathbf{u} -  \rho_e  \nabla \phi + \mathbf{f}_{if}(\psi),  \\  
 \nabla \cdot\mathbf{u} &= 0.
 \end{align}
 $f_{if}$ is the interface force and the rest should be self explained for now. \newline
