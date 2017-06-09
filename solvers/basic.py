@@ -266,7 +266,7 @@ def setup_EC(w_EC, c, V, b, U, rho_e, bcs,
         F_c.append(F_ci)
     F_V = veps_*df.dot(df.grad(V), df.grad(U))*df.dx
     if rho_e != 0:
-        F_V += rho_e*U*df.dx
+        F_V += -rho_e*U*df.dx
     F = sum(F_c) + F_V
     a, L = df.lhs(F), df.rhs(F)
 

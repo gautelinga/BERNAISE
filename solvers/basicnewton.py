@@ -12,6 +12,7 @@ from common.functions import ramp, dramp, diff_pf_potential
 from . import *
 from . import __all__
 
+
 def get_subproblems(base_elements, solutes,
                     enable_NS, enable_PF, enable_EC,
                     **namespace):
@@ -165,15 +166,18 @@ def setup_NSPFEC(w_NSPFEC, w_1NSPFEC, bcs_NSPFEC,
                 + df.div(u_)*q*df.dx
                 - df.dot(rho_*grav, v)*df.dx)
         if enable_PF:
-            F_NS += - sigma_bar*eps*df.inner(df.outer(df.grad(phi_),
-                df.grad(phi_)), df.grad(v))*df.dx
-        if enable_EC:
+            F_NS += - sigma_bar*eps*df.inner(
+                df.outer(df.grad(phi_),
+                         df.grad(phi_)), df.grad(v))*df.dx
+        if enable_EC and rho_e_ != 0:
             F_NS += rho_e_*df.dot(df.grad(V_), v)*df.dx
         if enable_PF and enable_EC:
-            F_NS += dveps*df.dot(df.grad(phi_), v)*df.dot(df.grad(V_),
-                    df.grad(V_))*df.dx
+            F_NS += dveps*df.dot(
+                df.grad(phi_), v)*df.dot(df.grad(V_),
+                                         df.grad(V_))*df.dx
         F.append(F_NS)
-    # The setup of the Phase feild equations 
+
+    # The setup of the Phase feild equations
     if enable_PF:
         F_PF_phi = (per_tau*(phi_-phi_1)*psi*df.dx +
                     M_*df.dot(df.grad(g_), df.grad(psi))*df.dx)
@@ -181,12 +185,12 @@ def setup_NSPFEC(w_NSPFEC, w_1NSPFEC, bcs_NSPFEC,
             F_PF_phi += df.dot(u_, df.grad(phi_))*psi*df.dx
 
         F_PF_g = (g_*h*df.dx
-               - sigma_bar*eps*df.dot(df.grad(phi_), df.grad(h))*df.dx
-               - sigma_bar/eps*diff_pf_potential(phi_)*h*df.dx)
+                  - sigma_bar*eps*df.dot(df.grad(phi_), df.grad(h))*df.dx
+                  - sigma_bar/eps*diff_pf_potential(phi_)*h*df.dx)
         if enable_EC:
             F_PF_g += (-sum([dbeta_i*ci_*h*df.dx
-                         for dbeta_i, ci_ in zip(dbeta, c_)])
-                            + dveps*df.dot(df.grad(V_), df.grad(V_))*h*df.dx)
+                             for dbeta_i, ci_ in zip(dbeta, c_)])
+                       + dveps*df.dot(df.grad(V_), df.grad(V_))*h*df.dx)
         F_PF = F_PF_phi + F_PF_g
         F.append(F_PF)
     # The setup of the Electrochemistry
@@ -194,13 +198,16 @@ def setup_NSPFEC(w_NSPFEC, w_1NSPFEC, bcs_NSPFEC,
         F_E_c = []
         for ci_, ci_1, bi, Ki_, zi in zip(c_, c_1, b, K_, z):
             F_E_c_i = (per_tau*(ci_-ci_1)*bi*df.dx
-                       + Ki_*df.dot(df.grad(ci_), df.grad(bi))*df.dx
-                       + zi*ci_*df.dot(df.grad(V_), df.grad(bi))*df.dx)
+                       + Ki_*df.dot(df.grad(ci_), df.grad(bi))*df.dx)
+            if zi != 0:
+                F_E_c_i += Ki_*zi*ci_*df.dot(df.grad(V_),
+                                             df.grad(bi))*df.dx
             if enable_NS:
                 F_E_c_i += df.dot(u_, df.grad(ci_))*bi*df.dx
             F_E_c.append(F_E_c_i)
-        F_E_V = (veps_*df.dot(df.grad(V_), df.grad(U))*df.dx
-                 + rho_e_*U*df.dx)
+        F_E_V = veps_*df.dot(df.grad(V_), df.grad(U))*df.dx
+        if rho_e_ != 0:
+            F_E_V += -rho_e_*U*df.dx
         F_E = sum(F_E_c) + F_E_V
         F.append(F_E)
 

@@ -4,7 +4,7 @@ from . import *
 from common.io import mpi_is_root
 __author__ = "Gaute Linga"
 
-info_cyan("Charged droplets")
+info_cyan("Charged droplet in an electric field")
 
 
 class Wall(df.SubDomain):
@@ -28,10 +28,7 @@ class Right(df.SubDomain):
 
 # Define solutes
 # Format: name, valency, diffusivity in phase 1, diffusivity in phase
-#         2, beta in phase 1, beta in phase 2
-#solutes = [["c_p",  1, 1e-4, 1.e-3, 3., 1.],
-#           ["c_m", -1, 1e-4, 1.e-3, 3., 1.]]
-solutes = [["c_p",  1, 1e-4, 1.e-3, 3., 1.]]
+solutes = [["c_p",  1, 1e-4, 1.e-3, 2., 1.]]
 
 # Format: name : (family, degree, is_vector)
 base_elements = dict(u=["Lagrange", 2, True],
@@ -41,11 +38,10 @@ base_elements = dict(u=["Lagrange", 2, True],
                      c=["Lagrange", 1, False],
                      V=["Lagrange", 1, False])
 
-
 # Default parameters to be loaded unless starting from checkpoint.
 parameters.update(
     solver="basic",
-    folder="results_two_charged_droplets",
+    folder="results_charged_droplet",
     restart_folder=False,
     enable_NS=True,
     enable_PF=True,
@@ -58,14 +54,15 @@ parameters.update(
     t_0=0.,
     T=20.,
     dx=1./64,
-    interface_thickness=0.015,
+    interface_thickness=0.02,
     solutes=solutes,
     base_elements=base_elements,
     Lx=2.,
     Ly=1.,
     rad_init=0.2,
     #
-    V_boundary=0.,
+    V_left=10.,
+    V_right=0.,
     surface_tension=24.5,
     grav_const=0.,
     #
@@ -89,10 +86,6 @@ def initialize(Lx, Ly, rad_init,
                field_to_subspace,
                enable_NS, enable_PF, enable_EC, **namespace):
     """ Create the initial state. """
-    # x0 = [Lx/4, 3*Lx/4]
-    # y0 = [Ly/2, Ly/2]
-    # rad0 = [rad_init, rad_init]
-    # c0 = [1., 1.]
     x0 = [Lx/4]
     y0 = [Ly/2]
     rad0 = [rad_init]
@@ -109,7 +102,7 @@ def initialize(Lx, Ly, rad_init,
         # Electrochemistry
         if enable_EC:
             for x, y, rad, ci, solute in zip(x0, y0, rad0, c0, solutes):
-                c_init = initial_c(x, y, 2.*rad/3., ci, interface_thickness,
+                c_init = initial_c(x, y, rad/3., ci, interface_thickness,
                                    field_to_subspace[solute[0]].collapse())
                 w_init_field[solute[0]] = c_init
             V_init_expr = df.Expression("0.", degree=1)
@@ -120,7 +113,7 @@ def initialize(Lx, Ly, rad_init,
 
 
 def create_bcs(field_to_subspace, Lx, Ly, solutes,
-               V_boundary,
+               V_left, V_right,
                enable_NS, enable_PF, enable_EC,
                **namespace):
     """ The boundary conditions are defined in terms of field. """
@@ -148,12 +141,14 @@ def create_bcs(field_to_subspace, Lx, Ly, solutes,
 
     # Electrochemistry
     if enable_EC:
-        bc_V = df.DirichletBC(
-            field_to_subspace["V"], df.Constant(V_boundary), wall)
+        bc_V_left = df.DirichletBC(
+            field_to_subspace["V"], df.Constant(V_left), left)
+        bc_V_right = df.DirichletBC(
+            field_to_subspace["V"], df.Constant(V_right), right)
         # bcs_fields["EC"] = [bc_V_top, bc_V_btm]
         # for solute in solutes:
         #     bcs_fields[solute[0]] = []
-        bcs_fields["V"] = [bc_V]
+        bcs_fields["V"] = [bc_V_left, bc_V_right]
     return bcs_fields
 
 
@@ -169,10 +164,14 @@ def initial_pf(x0, y0, rad0, eps, function_space):
 
 
 def initial_c(x, y, rad, c_init, eps, function_space):
-    expr_str = ("{c_init}*0.5*(1.-tanh(sqrt(2)*(sqrt(pow(x[0]-{x}, 2)"
-                "+pow(x[1]-{y}, 2))-{rad})/{eps}))").format(
-                    x=x, y=y, rad=rad, eps=eps, c_init=c_init)
-    c_init_expr = df.Expression(expr_str, degree=2)
+    # expr_str = ("{c_init}*0.5*(1.-tanh(sqrt(2)*(sqrt(pow(x[0]-{x}, 2)"
+    #             "+pow(x[1]-{y}, 2))-{rad})/{eps}))").format(
+    #                 x=x, y=y, rad=rad, eps=eps, c_init=c_init)
+    expr_str = ("c_init*1./(2*pi*pow(sigma, 2)) * "
+                "exp(- 0.5*pow((x[0]-x0)/sigma, 2)"
+                " - 0.5*pow((x[1]-y0)/sigma, 2))")
+    c_init_expr = df.Expression(expr_str, x0=x, y0=y, sigma=rad,
+                                c_init=c_init, degree=2)
     return df.interpolate(c_init_expr, function_space)
 
 
@@ -184,6 +183,7 @@ def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
         # GL: Seems like a rather awkward way of doing this,
         # but any other way seems to fuck up the simulation.
         # Anyhow, a better idea could be to move some of this to a post-processing stage.
+        # GL: Move into common/utilities at a certain point.
         subproblem_name, subproblem_i = field_to_subproblem["phi"]
         Q = w_[subproblem_name].split(deepcopy=True)[subproblem_i]
         bubble = df.interpolate(Q, field_to_subspace["phi"].collapse())
