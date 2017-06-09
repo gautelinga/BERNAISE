@@ -4,19 +4,34 @@ from . import *
 from common.io import mpi_is_root
 __author__ = "Gaute Linga"
 
-info_cyan("Two oppositely charged droplets")
+info_cyan("Charged droplets")
 
 
-class DirichletBoundary(df.SubDomain):
+class Wall(df.SubDomain):
     def inside(self, x, on_boundary):
         return bool(on_boundary)
+
+
+class Left(df.SubDomain):
+    def inside(self, x, on_boundary):
+        return bool(x[0] < df.DOLFIN_EPS and on_boundary)
+
+
+class Right(df.SubDomain):
+    def __init__(self, Lx):
+        self.Lx = Lx
+        df.SubDomain.__init__(self)
+
+    def inside(self, x, on_boundary):
+        return bool(x[0] > self.Lx-df.DOLFIN_EPS and on_boundary)
 
 
 # Define solutes
 # Format: name, valency, diffusivity in phase 1, diffusivity in phase
 #         2, beta in phase 1, beta in phase 2
-solutes = [["c_p",  0*1, 1e-4, 1.e-3, 1., 1.],
-           ["c_m", -1*0, 1e-4, 1.e-3, 1., 1.]]
+#solutes = [["c_p",  1, 1e-4, 1.e-3, 3., 1.],
+#           ["c_m", -1, 1e-4, 1.e-3, 3., 1.]]
+solutes = [["c_p",  1, 1e-4, 1.e-3, 3., 1.]]
 
 # Format: name : (family, degree, is_vector)
 base_elements = dict(u=["Lagrange", 2, True],
@@ -43,7 +58,7 @@ parameters.update(
     t_0=0.,
     T=20.,
     dx=1./64,
-    interface_thickness=0.010,
+    interface_thickness=0.015,
     solutes=solutes,
     base_elements=base_elements,
     Lx=2.,
@@ -55,8 +70,8 @@ parameters.update(
     grav_const=0.,
     #
     pf_mobility_coeff=0.000010,
-    density=[1000., 100.],
-    viscosity=[10., 1.],
+    density=[100., 100.],
+    viscosity=[1., 1.],
     permittivity=[1., 1.],
     #
     use_iterative_solvers=False,
@@ -74,10 +89,17 @@ def initialize(Lx, Ly, rad_init,
                field_to_subspace,
                enable_NS, enable_PF, enable_EC, **namespace):
     """ Create the initial state. """
+    # x0 = [Lx/4, 3*Lx/4]
+    # y0 = [Ly/2, Ly/2]
+    # rad0 = [rad_init, rad_init]
+    # c0 = [1., 1.]
+    x0 = [Lx/4]
+    y0 = [Ly/2]
+    rad0 = [rad_init]
+    c0 = [1.]
+
     w_init_field = dict()
     if not restart_folder:
-        x0, y0, rad0 = [Lx/4, 3*Lx/4], [Ly/2, Ly/2], [rad_init, rad_init]
-        c0 = [1., 1.]
         # Phase field
         if enable_PF:
             w_init_field["phi"] = initial_pf(
@@ -104,7 +126,9 @@ def create_bcs(field_to_subspace, Lx, Ly, solutes,
     """ The boundary conditions are defined in terms of field. """
     bcs_fields = dict()
 
-    wall = DirichletBoundary()
+    wall = Wall()
+    left = Left()
+    right = Right(Lx)
     # Navier-Stokes
     if enable_NS:
         noslip = df.DirichletBC(field_to_subspace["u"],

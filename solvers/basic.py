@@ -124,7 +124,8 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
 
     if enable_EC:
         solvers["EC"] = setup_EC(w_["EC"], c, V, b, U, rho_e, bcs["EC"], c_1,
-                                 u_1, K_, veps_, per_tau, z, enable_NS,
+                                 u_1, K_, veps_, phi_, per_tau, z, dbeta,
+                                 enable_NS, enable_PF,
                                  use_iterative_solvers)
 
     if enable_NS:
@@ -247,17 +248,19 @@ def setup_PF(w_PF, phi, g, psi, h, bcs,
 
 
 def setup_EC(w_EC, c, V, b, U, rho_e, bcs,
-             c_1, u_1, K_, veps_,
-             per_tau, z,
-             enable_NS,
+             c_1, u_1, K_, veps_, phi_,
+             per_tau, z, dbeta,
+             enable_NS, enable_PF,
              use_iterative_solvers):
     """ Set up electrochemistry subproblem. """
     F_c = []
-    for ci, ci_1, bi, Ki_, zi in zip(c, c_1, b, K_, z):
-        F_ci = (per_tau*(ci-ci_1)*bi*df.dx
-                + Ki_*df.dot(df.grad(ci), df.grad(bi))*df.dx)
+    for ci, ci_1, bi, Ki_, zi, dbetai in zip(c, c_1, b, K_, z, dbeta):
+        F_ci = (per_tau*(ci-ci_1)*bi*df.dx +
+                Ki_*df.dot(df.grad(ci), df.grad(bi))*df.dx)
         if zi != 0:
-            F_ci += zi*ci_1*df.dot(df.grad(V), df.grad(bi))*df.dx
+            F_ci += Ki_*zi*ci_1*df.dot(df.grad(V), df.grad(bi))*df.dx
+        if enable_PF:
+            F_ci += Ki_*ci*dbetai*df.dot(df.grad(phi_), df.grad(bi))*df.dx
         if enable_NS:
             F_ci += df.dot(u_1, df.grad(ci))*bi*df.dx
         F_c.append(F_ci)
