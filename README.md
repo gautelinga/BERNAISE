@@ -5,6 +5,11 @@ It is written in Python and built on the FEniCS project, which in turn effective
 
 <p align="center">
     <img src="http://www.nbi.dk/~linga/bernaise/droplet.gif" width=122 height=254 alt="Buoyancy-driven droplet"/>
+    <br />Buoyancy-driven droplet
+</p>
+<p align="center">
+    <img src="http://www.nbi.dk/~linga/bernaise/charged_droplets.gif" width=264 height=87 alt="Colliding oppositely charged droplets"/><br />
+    Two colliding oppositely charged droplets. Red: positive charge, blue: negative charge.
 </p>
 
 ### Work plan
@@ -16,7 +21,7 @@ It is written in Python and built on the FEniCS project, which in turn effective
 * **Nobel Prize!!!** ***(only non-optional)***
 
 ### Folder plan
-         
+```
 * BERNAISE
   * common
     * __init__.py
@@ -43,7 +48,8 @@ It is written in Python and built on the FEniCS project, which in turn effective
   * articles
     * ...
   * README.md
-  * sauce.py
+  * sauce.py
+```
 
 ### Master Minds: 
 * **Gaute** er en ***nordmand***.
