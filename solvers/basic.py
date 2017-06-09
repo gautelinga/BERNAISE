@@ -296,7 +296,7 @@ def solve(w_, solvers, enable_PF, enable_EC, enable_NS, **namespace):
 def update(w_, w_1, enable_PF, enable_EC, enable_NS, **namespace):
     """ Update work variables at end of timestep. """
     for subproblem, enable in zip(["PF", "EC", "NS"],
-                                  [enable_NS, enable_EC, enable_PF]):
+                                  [enable_PF, enable_EC, enable_NS]):
         if enable:
             w_1[subproblem].assign(w_[subproblem])
 

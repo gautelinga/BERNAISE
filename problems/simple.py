@@ -123,6 +123,9 @@ def initialize(Lx, Ly, rad_init,
             w_init_field["V"] = df.interpolate(
                 V_init_expr, field_to_subspace["V"].collapse())
 
+        # Pressure field (u is zero)
+        
+            
     return w_init_field
 
 
