@@ -111,8 +111,8 @@ Navier-Stokes equation:
 \frac{\rho_0 U_0 D}{ l^2}\ti{\rho}(\phi) \ti{\pdt{}} \ti{\v{v}}\\
 + \frac{U_0}{l}\left( \left( \rho_0 
  	U_0 \ti\rho(\phi) \ti{\v{v}} - \frac{\rho_0 M_0 g_0}{l}\ti\rho'(\phi) \ti M(\phi) \ti{\grad{}} \ti g_\phi  \right) \cdot \ti{\grad{}} \right) \ti{\v{v}}\\
-- \frac{\mu U_0}{l^2}\ti{\div{}} \left[\ti \mu(\phi)(\ti{\grad{}} \ti{\v{v}} + \ti{\grad{}} \ti{\v{v}} ^T) \right] + \frac{\mu U_0}{l^2}\ti{\grad{}} p \\
-= - \frac{q_e z_t c_0 V_T}{l} \ti \rho_e \ti{\grad{}} \ti{V} - \frac{\sigma_0 \xi_0 }{l^2}\hat{\ti{\sigma}} \ti \xi\ti{\div{}} \left[ \ti{\grad{}} \phi \otimes \ti{\grad{}} \phi \right] - \frac 1 2 \frac{\epsilon_D V_T^2}{l^3} \ti \epsilon'(\phi) | \ti{\grad{}} \ti V |^2 \ti{\grad{}} \phi,
+- \frac{\mu_0 U_0}{l^2}\ti{\div{}} \left[\ti \mu(\phi)(\ti{\grad{}} \ti{\v{v}} + \ti{\grad{}} \ti{\v{v}} ^T) \right] + \frac{\mu_0 U_0}{l^2}\ti{\grad{}} p \\
+= - \frac{q_e z_t c_0 V_T}{l} \ti \rho_e \ti{\grad{}} \ti{V} - \frac{\sigma_0 \xi_0 }{l^3}\hat{\ti{\sigma}} \ti \xi\ti{\div{}} \left[ \ti{\grad{}} \phi \otimes \ti{\grad{}} \phi \right] - \frac 1 2 \frac{\epsilon_D V_T^2}{l^3} \ti \epsilon'(\phi) | \ti{\grad{}} \ti V |^2 \ti{\grad{}} \phi,
 \end{split}\\
 \ti{\div{}} \ti{\v{v}} = 0, 
 \end{gather}
@@ -120,12 +120,12 @@ or
 \begin{gather}
 \begin{split}	
 \mathrm{Sc} \ti{\rho}(\phi) \ti{\pdt{}} \ti{\v{v}}\\
-+ \left( \left( \mathrm{Re} \ti\rho(\phi) \ti{\v{v}} - \frac{\rho_0 M_0 g_0}{\mu}\ti\rho'(\phi) \ti M(\phi) \ti{\grad{}} \ti g_\phi  \right) \cdot \ti{\grad{}} \right) \ti{\v{v}}\\
++ \left( \left( \mathrm{Re} \ti\rho(\phi) \ti{\v{v}} - \frac{\rho_0 M_0 g_0}{\mu_0}\ti\rho'(\phi) \ti M(\phi) \ti{\grad{}} \ti g_\phi  \right) \cdot \ti{\grad{}} \right) \ti{\v{v}}\\
 - \ti{\div{}} \left[\ti \mu(\phi)(\ti{\grad{}} \ti{\v{v}} + \ti{\grad{}} \ti{\v{v}} ^T) \right] + \ti{\grad{}} p \\
-= - \frac{-1}{2\tilde{\lambda}_D^2} \ti \rho_e \ti{\grad{}} \ti{V} - \frac{\sigma_0 \xi_0 }{U_0 \mu}\hat{\ti{\sigma}} \ti \xi\ti{\div{}} \left[ \ti{\grad{}} \phi \otimes \ti{\grad{}} \phi \right] - \frac 1 2 \ti \epsilon'(\phi) | \ti{\grad{}} \ti V |^2 \ti{\grad{}} \phi,
+= - \frac{-1}{2\tilde{\lambda}_D^2} \ti \rho_e \ti{\grad{}} \ti{V} - \frac{\xi_0 }{l \mathrm{Ca}  }\hat{\ti{\sigma}} \ti \xi\ti{\div{}} \left[ \ti{\grad{}} \phi \otimes \ti{\grad{}} \phi \right] - \frac 1 2 \ti \epsilon'(\phi) | \ti{\grad{}} \ti V |^2 \ti{\grad{}} \phi,
 \end{split}\\
 \ti{\div{}} \ti{\v{v}} = 0, \mathrm{Sc} = \frac{\rho_0 D}{\mu},\mathrm{Re} = \frac{\rho_0 
-	U_0 l}{\mu} ,\tilde{\lambda}_D = \frac{1}{l}\sqrt{\frac{\epsilon_D k_B T}{2 c_0 e^2 z^2}} 
+	U_0 l}{\mu} ,\tilde{\lambda}_D = \frac{1}{l}\sqrt{\frac{\epsilon_D k_B T}{2 c_0 e^2 z^2}}, \mathrm{Ca} = \frac{\mu_0 U_0}{\sigma_0}
 \end{gather}
 The pressure is defined as 
 \begin{equation}
@@ -133,7 +133,11 @@ The pressure is defined as
 \end{equation}
 The phase field
 \begin{gather}
-\frac{D}{l^2}\ti{\pdt{}} \phi + U_0\ti{\v v} \cdot \ti{\phi} - \frac{M_0 g_0 }{l^2}\ti{\div{}} (\ti{M}(\phi) \ti{\grad{}} \ti{g}_\phi ) = 0,
+\frac{D}{l^2}\ti{\pdt{}} \phi + \frac{U_0}{l}\ti{\v v} \cdot \ti{\grad{}}\ti{\phi} - \frac{M_0 g_0 }{l^2}\ti{\div{}} (\ti{M}(\phi) \ti{\grad{}} \ti{g}_\phi ) = 0,
+\end{gather}
+or 
+\begin{gather}
+\ti{\pdt{}} \phi + \mathrm{Pe}\ti{\v v} \cdot \ti{\grad{}}\ti{\phi} - \frac{\mathrm{Pe} }{\mathfrak{Pe}} g_0\ti{\div{}} (\ti{M}(\phi) \ti{\grad{}} \ti{g}_\phi ) = 0,
 \end{gather}
 The "Chemical" Potential
 \begin{align}
@@ -145,8 +149,8 @@ Nernst-Planck equation
 \end{gather}
 or 
 \begin{gather}
-\ti{\pdt{}} \ti{c}_i + \frac{1}{\mathrm{Pe}}\ti{\v{v}} \cdot \ti{\grad{}} \ti{c}_i - \ti{\div{}} \left( \ti{D}_{i} (\phi) \ti{\grad{}} \ti{c}_i + \mathrm{sign}(z_i)\ti{D}_i(\phi)\ti{c}_i \ti{\grad{}} \ti{V} +\frac{ \beta_0}{k_{\rm B} T }\ti{D}_i(\phi)\ti{c}_i\ti{\beta}_i'(\phi) \ti{\grad{}} \phi \right) = 0,\\ 
-\mathrm{Pe} = \frac{D}{U_0 l }
+\ti{\pdt{}} \ti{c}_i + \mathrm{Pe}\ti{\v{v}} \cdot \ti{\grad{}} \ti{c}_i - \ti{\div{}} \left( \ti{D}_{i} (\phi) \ti{\grad{}} \ti{c}_i + \mathrm{sign}(z_i)\ti{D}_i(\phi)\ti{c}_i \ti{\grad{}} \ti{V} +\frac{ \beta_0}{k_{\rm B} T }\ti{D}_i(\phi)\ti{c}_i\ti{\beta}_i'(\phi) \ti{\grad{}} \phi \right) = 0,\\ 
+\mathrm{Pe} = \frac{U_0 l}{D }
 \end{gather}
 Gauss' law: 
 \begin{gather}
@@ -156,27 +160,26 @@ Gauss' law:
 \section{All The Equations}
 \begin{align}
 c_i &\propto c_0, ~~~~ V \propto V_T = \frac{k_B T}{z_i q_e}, ~~~~\v{v} \propto U_0 = \frac{\epsilon_D V_T^2}{\mu l}, ~~~~p \propto \frac{\mu U_0}{l},\\
-x &\propto l , ~~~~ t \propto \frac{l^2}{D_i}, ~~~~ \rho \propto \rho_0.
+x &\propto l , ~~~~ t \propto \frac{l^2}{D_i}, ~~~~ \rho \propto \rho_0, ~~~~ \mathrm{Sc} = \frac{\rho_0 D}{\mu}, ~~~~\mathrm{Re} = \frac{\rho_0 U_0 l}{\mu} \\
+\tilde{\lambda}_D &= \frac{1}{l}\sqrt{\frac{\epsilon_D k_B T}{2 c_0 e^2 z^2}}, ~~~~ \mathrm{Ca} = \frac{\mu_0 U_0}{\sigma_0}, ~~~~\mathfrak{Pe} = \frac{U_0 l}{M_0}, ~~~~ \mathrm{Pe} = \frac{U_0 l}{D }
 \end{align}
 \begin{gather}
 \begin{split}	
-\mathrm{Sc} \ti{\rho}(\phi) \ti{\pdt{}} \ti{\v{v}}\\
-+ \left( \left( \mathrm{Re} \ti\rho(\phi) \ti{\v{v}} - \frac{\rho_0 M_0 g_0}{\mu}\ti\rho'(\phi) \ti M(\phi) \ti{\grad{}} \ti g_\phi  \right) \cdot \ti{\grad{}} \right) \ti{\v{v}}\\
+\mathrm{Sc} \ti{\rho}(\phi) \ti{\pdt{}} \ti{\v{v}}
++ \left( \left( \mathrm{Re} \ti\rho(\phi) \ti{\v{v}} - \frac{\mathrm{Re} }{\mathfrak{Pe}}g_0\ti\rho'(\phi) \ti M(\phi) \ti{\grad{}} \ti g_\phi  \right) \cdot \ti{\grad{}} \right) \ti{\v{v}}\\
 - \ti{\div{}} \left[\ti \mu(\phi)(\ti{\grad{}} \ti{\v{v}} + \ti{\grad{}} \ti{\v{v}} ^T) \right] + \ti{\grad{}} p \\
-= - \frac{-1}{2\tilde{\lambda}_D^2} \ti \rho_e \ti{\grad{}} \ti{V} - \frac{\sigma_0 \xi_0 }{U_0 \mu}\hat{\ti{\sigma}} \ti \xi\ti{\div{}} \left[ \ti{\grad{}} \phi \otimes \ti{\grad{}} \phi \right] - \frac 1 2 \ti \epsilon'(\phi) | \ti{\grad{}} \ti V |^2 \ti{\grad{}} \phi,
+= - \frac{-1}{2\tilde{\lambda}_D^2} \ti \rho_e \ti{\grad{}} \ti{V} - \frac{ \xi_0 }{l\mathrm{Ca}}\hat{\ti{\sigma}} \ti \xi\ti{\div{}} \left[ \ti{\grad{}} \phi \otimes \ti{\grad{}} \phi \right] - \frac 1 2 \ti \epsilon'(\phi) | \ti{\grad{}} \ti V |^2 \ti{\grad{}} \phi,
 \end{split}\\
-\ti{\div{}} \ti{\v{v}} = 0, \mathrm{Sc} = \frac{\rho_0 D}{\mu},\mathrm{Re} = \frac{\rho_0 
-	U_0 l}{\mu} ,\tilde{\lambda}_D = \frac{1}{l}\sqrt{\frac{\epsilon_D k_B T}{2 c_0 e^2 z^2}} 
+\ti{\div{}} \ti{\v{v}} = 0, 
 \end{gather}
 \begin{gather}
-\frac{D}{l^2}\ti{\pdt{}} \phi + U_0\ti{\v v} \cdot \ti{\phi} - \frac{M_0 g_0 }{l^2}\ti{\div{}} (\ti{M}(\phi) \ti{\grad{}} \ti{g}_\phi ) = 0,
+\ti{\pdt{}} \phi + \mathrm{Pe}\ti{\v v} \cdot \ti{\grad{}}\ti{\phi} - \frac{\mathrm{Pe} }{\mathfrak{Pe}} g_0\ti{\div{}} (\ti{M}(\phi) \ti{\grad{}} \ti{g}_\phi ) = 0,,
 \end{gather}
 \begin{align}
 \tilde{g}_\phi &= \frac{\sigma_0}{\xi_0 g_0 }\hat{\ti{\sigma}}\ti{\xi}^{-1}W'(\phi) - \frac{\sigma_0 \xi_0}{g_0 l^2}\hat{\ti{\sigma}}\ti{\xi}\ti{\laplacian{}}\phi + \frac{\beta_0 c_0}{g_0}\sum_i \ti{\beta}_i'(\phi) \ti{c}_i - \frac{\epsilon_D V_T^2}{2 g_0 l^2} \ti{\epsilon}'(\phi) | \ti{\grad{}} \ti{V} |^2 ,
 \end{align}
 \begin{gather}
-\ti{\pdt{}} \ti{c}_i + \frac{1}{\mathrm{Pe}}\ti{\v{v}} \cdot \ti{\grad{}} \ti{c}_i - \ti{\div{}} \left( \ti{D}_{i} (\phi) \ti{\grad{}} \ti{c}_i + \mathrm{sign}(z_i)\ti{D}_i(\phi)\ti{c}_i \ti{\grad{}} \ti{V} +\frac{ \beta_0}{k_{\rm B} T }\ti{D}_i(\phi)\ti{c}_i\ti{\beta}_i'(\phi) \ti{\grad{}} \phi \right) = 0,\\ 
-\mathrm{Pe} = \frac{D}{U_0 l }
+\ti{\pdt{}} \ti{c}_i + \mathrm{Pe}\ti{\v{v}} \cdot \ti{\grad{}} \ti{c}_i - \ti{\div{}} \left( \ti{D}_{i} (\phi) \ti{\grad{}} \ti{c}_i + \mathrm{sign}(z_i)\ti{D}_i(\phi)\ti{c}_i \ti{\grad{}} \ti{V} +\frac{ \beta_0}{k_{\rm B} T }\ti{D}_i(\phi)\ti{c}_i\ti{\beta}_i'(\phi) \ti{\grad{}} \phi \right) = 0,
 \end{gather}
 \begin{gather}
 \ti{\div{}} ( \ti{\epsilon} (\phi) \ti{\grad{}} \ti{V} ) = - \frac{\sum_i \mathrm{sign}(z_i) c_i}{\ti{\lambda}_D^2}.
