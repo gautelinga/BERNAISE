@@ -111,11 +111,18 @@ def check_if_kill(folder):
 
 def save_xdmf(t, w_, subproblems, tstepfiles):
     """ Save snapshot of solution to xdmf file. """
-    for subproblem_name, subfields in subproblems.iteritems():
-        q_ = w_[subproblem_name].split()
-        for s, q in zip(subfields, q_):
-            field = s["name"]
+    for name, subproblem in subproblems.iteritems():
+        q_ = w_[name].split()
+        if len(subproblem) > 1:
+            for s, q in zip(subproblem, q_):
+                field = s["name"]
+                if field in tstepfiles:
+                    q.rename(field, "tmp")
+                    tstepfiles[field].write(q, float(t))
+        else:
+            field = subproblem[0]["name"]
             if field in tstepfiles:
+                q = w_[name]
                 q.rename(field, "tmp")
                 tstepfiles[field].write(q, float(t))
 

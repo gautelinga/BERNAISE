@@ -48,9 +48,20 @@ for name, (family, degree, is_vector) in base_elements.iteritems():
 # Declare function spaces
 spaces = dict()
 for name, subproblem in subproblems.iteritems():
-    spaces[name] = df.FunctionSpace(
-        mesh, df.MixedElement([elements[s["element"]] for s in subproblem]),
-        constrained_domain=constrained_domain)
+    if len(subproblem) > 1:
+        spaces[name] = df.FunctionSpace(
+            mesh, df.MixedElement(
+                [elements[s["element"]] for s in subproblem]),
+            constrained_domain=constrained_domain)
+    # If there is only one field in the subproblem, don't bother with
+    # the MixedElement.
+    elif len(subproblem) == 1:
+        spaces[name] = df.FunctionSpace(
+            mesh, elements[subproblem[0]["element"]],
+            constrained_domain=constrained_domain)
+    else:
+        info_on_red("Something went wrong here!")
+        exit("")
 
 # dim = mesh.geometry().dim()  # In case the velocity fields should be
 #                              # segregated at some point
@@ -58,11 +69,17 @@ fields = []
 field_to_subspace = dict()
 field_to_subproblem = dict()
 for name, subproblem in subproblems.iteritems():
-    for i, s in enumerate(subproblem):
-        field = s["name"]
+    if len(subproblem) > 1:
+        for i, s in enumerate(subproblem):
+            field = s["name"]
+            fields.append(field)
+            field_to_subspace[field] = spaces[name].sub(i)
+            field_to_subproblem[field] = (name, i)
+    else:
+        field = subproblem[0]["name"]
         fields.append(field)
-        field_to_subspace[field] = spaces[name].sub(i)
-        field_to_subproblem[field] = (name, i)
+        field_to_subspace[field] = spaces[name]
+        field_to_subproblem[field] = (name, -1)
 
 
 # Create initial folders for storing results
@@ -70,11 +87,15 @@ newfolder, tstepfiles = create_initial_folders(folder, restart_folder,
                                                fields, tstep, parameters)
 
 # Create overarching test and trial functions
-# GL: A nonlinear solver doesn't require trial function?
-test_functions = dict((subproblem, df.TestFunctions(spaces[subproblem]))
-                      for subproblem in subproblems)
-trial_functions = dict((subproblem, df.TrialFunctions(spaces[subproblem]))
-                       for subproblem in subproblems)
+test_functions = dict()
+trial_functions = dict()
+for name, subproblem in subproblems.iteritems():
+    if len(subproblem) > 1:
+        test_functions[name] = df.TestFunctions(spaces[name])
+        trial_functions[name] = df.TrialFunctions(spaces[name])
+    else:
+        test_functions[name] = df.TestFunction(spaces[name])
+        trial_functions[name] = df.TrialFunction(spaces[name])
 
 # Create work dictionaries for all subproblems
 w_ = dict((subproblem, df.Function(space, name=subproblem))
@@ -99,24 +120,33 @@ w_init_fields = initialize(**vars())
 if w_init_fields:
     for name, subproblem in subproblems.iteritems():
         w_init_vector = []
-        for i, s in enumerate(subproblem):
-            field = s["name"]
-            # Only change initial state if it is given in w_init_fields.
+        if len(subproblem) > 1:
+            for i, s in enumerate(subproblem):
+                field = s["name"]
+                # Only change initial state if it is given in w_init_fields.
+                if field in w_init_fields:
+                    w_init_field = w_init_fields[field]
+                else:
+                    # Otherwise take the default value of that field.
+                    w_init_field = w_[name].sub(i)
+                # Use df.project(df.as_vector(...)) with care...
+                num_subspaces = w_init_field.function_space().num_sub_spaces()
+                if num_subspaces == 0:
+                    w_init_vector.append(w_init_field)
+                else:
+                    for j in xrange(num_subspaces):
+                        w_init_vector.append(w_init_field.sub(j))
+            assert len(w_init_vector) == w_[name].value_size()
+            w_init = df.project(
+                df.as_vector(tuple(w_init_vector)), w_[name].function_space())
+        else:
+            field = subproblem[0]["name"]
             if field in w_init_fields:
                 w_init_field = w_init_fields[field]
             else:
-                # Otherwise take the default value of that field.
-                w_init_field = w_[name].sub(i)
-            # Use df.project(df.as_vector(...)) with care...
-            num_subspaces = w_init_field.function_space().num_sub_spaces()
-            if num_subspaces == 0:
-                w_init_vector.append(w_init_field)
-            else:
-                for j in xrange(num_subspaces):
-                    w_init_vector.append(w_init_field.sub(j))
-        assert len(w_init_vector) == w_[name].value_size()
-        w_init = df.project(
-            df.as_vector(tuple(w_init_vector)), w_[name].function_space())
+                # Take default value...
+                w_init_field = w_[name]
+            w_init = df.project(w_init_field, w_[name].function_space())
         w_[name].interpolate(w_init)
         w_1[name].interpolate(w_init)
 
