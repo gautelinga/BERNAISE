@@ -76,6 +76,7 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
     else:
         # Defaults to phase 1 if phase field is disabled
         phi_ = phi_1 = 1.
+        g_ = g_1 = None
 
     # Electrochemistry
     if enable_EC:
@@ -90,6 +91,8 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
         cV_1 = df.split(w_1["EC"])
         c_, V_ = cV_[:num_solutes], cV_[num_solutes]
         c_1, V_1 = cV_1[:num_solutes], cV_1[num_solutes]
+    else:
+        c_ = V_ = c_1 = V_1 = None
 
     M_ = pf_mobility(unit_interval_filter(phi_), gamma)
     M_1 = pf_mobility(unit_interval_filter(phi_1), gamma)
@@ -111,8 +114,11 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
         beta_.append(ramp(phi_, [solute[4], solute[5]]))
         dbeta.append(dramp([solute[4], solute[5]]))
 
-    rho_e = sum([c_e*z_e for c_e, z_e in zip(c, z)])  # Sum of trial functions
-    rho_e_ = sum([c_e*z_e for c_e, z_e in zip(c_, z)])  # Sum of current sol.
+    if enable_EC:
+        rho_e = sum([c_e*z_e for c_e, z_e in zip(c, z)])  # Sum of trial func.
+        rho_e_ = sum([c_e*z_e for c_e, z_e in zip(c_, z)])  # Sum of curr. sol.
+    else:
+        rho_e_ = None
 
     solvers = dict()
     if enable_PF:
@@ -285,6 +291,7 @@ def solve(w_, solvers, enable_PF, enable_EC, enable_NS, **namespace):
     timer_outer = df.Timer("Solve system")
     for subproblem, enable in zip(["PF", "EC", "NS"],
                                   [enable_PF, enable_EC, enable_NS]):
+        if enable:
             timer_inner = df.Timer("Solve subproblem " + subproblem)
             df.mpi_comm_world().barrier()
             solvers[subproblem].solve()
