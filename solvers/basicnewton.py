@@ -54,27 +54,6 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
     gamma = pf_mobility_coeff
     eps = interface_thickness
 
-    v = 1
-    q = 1
-    psi = 1
-    h = 1
-    b = 1
-    U = 1
-    u_ = 1
-    p_ = 1
-    phi_ = 1.
-    g_ = 1
-    c_ = 1
-    V_ = 1
-    u_1 = 1
-    p_1 = 1
-    phi_1 = 1
-    g_1 = 1
-    c_1 = 1
-    V_1 = 1
-    rho_e = 1
-    rho_e_ = 1
-    rho_e_1 = 1
     # Set up the feilds
     
     funs_ = df.split(w_["NSPFEC"])
@@ -89,6 +68,8 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
         p_ = funs_[field_number]
         p_1 = funs_1[field_number]
         field_number += 1
+    else:
+        v = u_ = u_1 = q = q_ = q_1 = 0  
     if enable_PF:
         psi = test_functions["NSPFEC"][field_number]
         phi_ = funs_[field_number]
@@ -98,6 +79,8 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
         g_ = funs_[field_number]
         g_1 = funs_1[field_number]
         field_number += 1
+    else:
+        psi = phi_ = phi_1 = h = g_ = g_1 = 1
     if enable_EC:
         num_solutes = len(test_functions["NSPFEC"])-field_number-1
         b = test_functions["NSPFEC"][field_number:(num_solutes+field_number)]
@@ -106,6 +89,8 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
         U = test_functions["NSPFEC"][num_solutes+field_number]
         V_ = funs_[num_solutes+field_number]
         V_1 = funs_1[num_solutes+field_number]
+    else:
+        b = c_ = c_1 = U = V_ = V_1 = 0
 
     M_ = pf_mobility(phi_, gamma)
     nu_ = ramp(phi_, viscosity)
