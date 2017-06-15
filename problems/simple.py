@@ -191,13 +191,14 @@ def initial_phasefield(x0, y0, rad, eps, function_space, shape="circle"):
 
 
 def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
-               field_to_subproblem, subproblems, w_, **namespace):
+               field_to_subproblem, subproblems, w_, enable_PF, **namespace):
     info_blue("Timestep = {}".format(tstep))
 
-    if stats_intv and tstep % stats_intv == 0:
-        # GL: Seems like a rather awkward way of doing this,
-        # but any other way seems to fuck up the simulation.
-        # Anyhow, a better idea could be to move some of this to a post-processing stage.
+    if stats_intv and tstep % stats_intv == 0 and enable_PF:
+        # GL: Seems like a rather awkward way of doing this, but any
+        # other way seems to fuck up the simulation.  Anyhow, a better
+        # idea could be to move some of this to a post-processing
+        # stage.
         subproblem_name, subproblem_i = field_to_subproblem["phi"]
         Q = w_[subproblem_name].split(deepcopy=True)[subproblem_i]
         bubble = df.interpolate(Q, field_to_subspace["phi"].collapse())

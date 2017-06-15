@@ -65,6 +65,9 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
 
         u_, p_ = df.split(w_["NS"])
         u_1, p_1 = df.split(w_1["NS"])
+    else:
+        u_ = p_ = None
+        u_1 = p_1 = None
 
     # Phase field
     if enable_PF:
