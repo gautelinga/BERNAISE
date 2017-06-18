@@ -102,6 +102,8 @@ w_ = dict((subproblem, df.Function(space, name=subproblem))
            for subproblem, space in spaces.iteritems())
 w_1 = dict((subproblem, df.Function(space, name=subproblem+"_1"))
             for subproblem, space in spaces.iteritems())
+w_tmp = dict((subproblem, df.Function(space, name=subproblem+"_tmp"))
+             for subproblem, space in spaces.iteritems())
 
 # If continuing from previously, restart from checkpoint
 load_checkpoint(restart_folder, w_, w_1)
@@ -160,8 +162,6 @@ stop = False
 t = t_0
 df.tic()
 while t < T and not stop:
-    t += dt
-    tstep += 1
 
     tstep_hook(**vars())
 
@@ -170,6 +170,9 @@ while t < T and not stop:
     stop = save_solution(**vars())
 
     update(**vars())
+
+    t += dt
+    tstep += 1
 
     if tstep % info_intv == 0:
         info_green("Time = {0:f}, timestep = {1:d}".format(t, tstep))
