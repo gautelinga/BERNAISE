@@ -4,7 +4,7 @@ from . import *
 from common.io import mpi_is_root
 __author__ = "Asger Bolet"
 
-info_cyan("Bulk intrusion of a front of one fluide in to an other")
+info_cyan("Bulk intrusion of a front of one fluid into another.")
 
 class PeriodicBoundary(df.SubDomain):
     # Left boundary is target domain
@@ -36,7 +36,7 @@ solutes = [["c_p",  1, 1., 1., 1., 1.],
            ["c_m", -1, 1., 1., 1., 1.]]
 
 # Format: name : (family, degree, is_vector)
-base_elements = dict(u=["Lagrange", 2, True],
+base_elements = dict(u=["Lagrange", 1, True],
                      p=["Lagrange", 1, False],
                      phi=["Lagrange", 1, False],
                      g=["Lagrange", 1, False],
@@ -52,7 +52,7 @@ parameters.update(
     restart_folder=False,
     enable_NS=True,
     enable_PF=True,
-    enable_EC=True,
+    enable_EC=False,
     save_intv=5,
     stats_intv=5,
     checkpoint_intv=50,
@@ -61,7 +61,7 @@ parameters.update(
     t_0=0.,
     T=20.,
     dx=factor*1./16,
-    interface_thickness=factor*0.040,
+    interface_thickness=factor*0.060,
     solutes=solutes,
     base_elements=base_elements,
     Lx=5.,
@@ -140,8 +140,7 @@ def create_bcs(field_to_subspace, Lx, Ly, solutes,
         # The pressure gauge
         p_pin = df.DirichletBC(field_to_subspace["p"],
                                df.Constant(0.),
-                               " x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS",
-                               "pointwise")
+                               left)
         bcs_fields["p"] = [p_pin]
 
     # Phase field
@@ -210,8 +209,9 @@ def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
 def pf_mobility(phi, gamma):
     """ Phase field mobility function. """
     # return gamma * (phi**2-1.)**2
-    func = 1.-phi**2
-    return 0.75 * gamma * 0.5 * (1. + df.sign(func)) * func
+    # func = 1.-phi**2
+    # return 0.75 * gamma * 0.5 * (1. + df.sign(func)) * func
+    return gamma
 
 
 def start_hook(newfolder, **namespace):

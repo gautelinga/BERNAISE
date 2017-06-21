@@ -46,22 +46,20 @@ def get_subproblems(base_elements, solutes,
     return subproblems
 
 
-def setup(tstep, test_functions, trial_functions, w_, w_1, bcs, permittivity,
-          density, viscosity,
-          solutes, enable_PF, enable_EC, enable_NS,
-          surface_tension, dt, interface_thickness,
-          grav_const, pf_mobility, pf_mobility_coeff,
-          use_iterative_solvers, use_pressure_stabilization,
-          **namespace):
-    """ Set up problem. """
+def unpack_quantities(surface_tension, grav_const, pf_mobility_coeff,
+                      pf_mobility, interface_thickness, density,
+                      viscosity, permittivity, trial_functions,
+                      test_functions, w_, w_1, solutes, dt, enable_EC,
+                      enable_PF, enable_NS):
+    """ """
     # Constant
     sigma_bar = surface_tension*3./(2*math.sqrt(2))
     per_tau = df.Constant(1./dt)
     grav = df.Constant((0., -grav_const))
     gamma = pf_mobility_coeff
     eps = interface_thickness
-    chi = min(density)
-
+    chi = 0.5*min(density)
+    
     # Navier-Stokes
     if enable_NS:
         u = trial_functions["NSu"]
@@ -103,7 +101,7 @@ def setup(tstep, test_functions, trial_functions, w_, w_1, bcs, permittivity,
         c_, V_ = cV_[:num_solutes], cV_[num_solutes]
         c_1, V_1 = cV_1[:num_solutes], cV_1[num_solutes]
     else:
-        c_ = V_ = c_1 = V_1 = None
+        c = V = b = U = c_ = V_ = c_1 = V_1 = None
 
     # phi_flt_ = unit_interval_filter(phi_)
     # phi_flt_1 = unit_interval_filter(phi_1)
@@ -134,10 +132,39 @@ def setup(tstep, test_functions, trial_functions, w_, w_1, bcs, permittivity,
         dbeta.append(dramp([solute[4], solute[5]]))
 
     if enable_EC:
-        rho_e = sum([c_e*z_e for c_e, z_e in zip(c, z)])  # Sum of trial functions
-        rho_e_ = sum([c_e*z_e for c_e, z_e in zip(c_, z)])  # Sum of current sol.
+        rho_e = sum([c_e*z_e for c_e, z_e in zip(c, z)])  # Sum of trial func.
+        rho_e_ = sum([c_e*z_e for c_e, z_e in zip(c_, z)])  # Sum of curr. sol.
     else:
         rho_e = rho_e_ = 0.
+
+    return (sigma_bar, per_tau, grav, gamma, eps, chi, u, p, v, q, u_,
+            p_, u_1, p_1, phi, g, psi, h, phi_, g_, phi_1, g_1, c, V, b, U,
+            c_, V_, c_1, V_1, phi_flt_, phi_flt_1, M_, M_1, nu_, rho_, veps_,
+            rho_1, nu_1, dveps, drho, dbeta, z, K_, beta_, rho_e, rho_e_)
+
+
+def setup(tstep, test_functions, trial_functions, w_, w_1, bcs, permittivity,
+          density, viscosity,
+          solutes, enable_PF, enable_EC, enable_NS,
+          surface_tension, dt, interface_thickness,
+          grav_const, pf_mobility, pf_mobility_coeff,
+          use_iterative_solvers,
+          **namespace):
+    """ Set up problem. """
+
+    (sigma_bar, per_tau, grav, gamma, eps, chi, u, p, v, q, u_, p_,
+     u_1, p_1, phi, g, psi, h, phi_, g_, phi_1, g_1, c, V, b, U, c_,
+     V_, c_1, V_1, phi_flt_, phi_flt_1, M_, M_1, nu_, rho_, veps_,
+     rho_1, nu_1, dveps, drho, dbeta, z, K_, beta_,
+     rho_e, rho_e_) = unpack_quantities(surface_tension, grav_const,
+                                        pf_mobility_coeff,
+                                        pf_mobility,
+                                        interface_thickness, density,
+                                        viscosity, permittivity,
+                                        trial_functions,
+                                        test_functions, w_, w_1,
+                                        solutes, dt, enable_EC,
+                                        enable_PF, enable_NS)
 
     if tstep == 0 and enable_NS:
         solve_initial_pressure(w_["NSp"], p, q, u, v, bcs["NSp"],

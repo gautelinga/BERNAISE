@@ -15,7 +15,7 @@ solutes = [["c_p",  1, 1., 1., 1., 1.],
            ["c_m", -1, 1., 1., 1., 1.]]
 
 # Format: name : (family, degree, is_vector)
-base_elements = dict(u=["Lagrange", 2, True],
+base_elements = dict(u=["Lagrange", 1, True],
                      p=["Lagrange", 1, False],
                      phi=["Lagrange", 1, False],
                      g=["Lagrange", 1, False],
@@ -34,12 +34,12 @@ parameters.update(
     stats_intv=5,
     checkpoint_intv=50,
     tstep=0,
-    dt=0.01,
+    dt=0.1,
     t_0=0.,
     T=10.,
     Nx=64,  # 257,
     Ny=64,  # 257,
-    interface_thickness=0.02,
+    interface_thickness=0.04,
     solutes=solutes,
     base_elements=base_elements,
     Lx=2.,
@@ -52,12 +52,11 @@ parameters.update(
     grav_const=0.0,
     #
     pf_mobility_coeff=2e-3/0.02,
-    density=[1., 1.],
-    viscosity=[1., 1.],
+    density=[10., 1.],
+    viscosity=[10., 1.],
     permittivity=[1., 1.],
     #
-    use_iterative_solvers=False,
-    use_pressure_stabilization=False
+    use_iterative_solvers=False
 )
 
 
@@ -69,8 +68,7 @@ class DirichletBoundary(df.SubDomain):
 def mesh(Lx=1, Ly=1, Nx=16, Ny=16, **namespace):
     msh = df.RectangleMesh(df.Point(-Lx/2., -Ly/2.),
                            df.Point(Lx/2., Ly/2.),
-                           Nx//2, Ny//2)
-    msh = df.refine(msh)
+                           Nx, Ny)
     return msh
 
 
@@ -113,10 +111,12 @@ def create_bcs(field_to_subspace, Lx, Ly, solutes,
                                 dbc)
         bcs_fields["u"] = [noslip]
 
-        p_pin = df.DirichletBC(field_to_subspace["p"],
-                               df.Constant(0.),
-                               "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS",
-                               "pointwise")
+        p_pin = df.DirichletBC(
+            field_to_subspace["p"],
+            df.Constant(0.),
+            "x[0] < -{Lx}/2+DOLFIN_EPS && x[1] < -{Ly}/2+DOLFIN_EPS".format(
+                Lx=Lx, Ly=Ly),
+            "pointwise")
         bcs_fields["p"] = [p_pin]
 
     return bcs_fields
@@ -125,8 +125,6 @@ def create_bcs(field_to_subspace, Lx, Ly, solutes,
 def initial_phasefield(x0, y0, rad, eps, function_space):
     expr_str = ("tanh(sqrt(2)*(pow(pow(x[0]-x0, exponent)" +
                 "+pow(x[1]-y0, exponent), 1./exponent) - rad)/eps)")
-    # expr_str = ("tanh(sqrt(2)*(sqrt(pow(x[0]-x0,2)" +
-    #             "+pow(x[1]-y0,2))-rad)/eps)")
     phi_init_expr = df.Expression(expr_str, x0=x0, y0=y0, rad=rad,
                                   eps=eps, degree=2, exponent=20)
     phi_init = df.interpolate(phi_init_expr, function_space)
@@ -155,7 +153,6 @@ def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
 
 def pf_mobility(phi, gamma):
     """ Phase field mobility function. """
-    # return gamma * (phi**2-1.)**2
     # func = 1.-phi**2
     # return 0.75 * gamma * 0.5 * (1. + df.sign(func)) * func
     return gamma
