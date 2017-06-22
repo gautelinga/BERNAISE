@@ -2,6 +2,7 @@ import dolfin as df
 import os
 from . import *
 from common.io import mpi_is_root
+from common.bcs import Fixed
 
 __author__ = "Gaute Linga"
 
@@ -13,57 +14,57 @@ class Wall(df.SubDomain):
         return bool(on_boundary)
 
 
-# Define solutes
-# Format: name, valency, diffusivity in phase 1, diffusivity in phase
-#         2, beta in phase 1, beta in phase 2
-solutes = [["c_p",  1, 1e-4, 1.e-3, 3., 1.],
-           ["c_m", -1, 1e-4, 1.e-3, 3., 1.]]
+def problem():
+    # Define solutes
+    # Format: name, valency, diffusivity in phase 1, diffusivity in phase
+    #         2, beta in phase 1, beta in phase 2
+    solutes = [["c_p",  1, 1e-4, 1.e-3, 3., 1.],
+               ["c_m", -1, 1e-4, 1.e-3, 3., 1.]]
 
+    # Format: name : (family, degree, is_vector)
+    base_elements = dict(u=["Lagrange", 2, True],
+                         p=["Lagrange", 1, False],
+                         phi=["Lagrange", 1, False],
+                         g=["Lagrange", 1, False],
+                         c=["Lagrange", 1, False],
+                         V=["Lagrange", 1, False])
 
-# Format: name : (family, degree, is_vector)
-base_elements = dict(u=["Lagrange", 2, True],
-                     p=["Lagrange", 1, False],
-                     phi=["Lagrange", 1, False],
-                     g=["Lagrange", 1, False],
-                     c=["Lagrange", 1, False],
-                     V=["Lagrange", 1, False])
-
-
-# Default parameters to be loaded unless starting from checkpoint.
-parameters.update(
-    solver="basic",
-    folder="results_charged_droplets",
-    restart_folder=False,
-    enable_NS=True,
-    enable_PF=True,
-    enable_EC=True,
-    save_intv=5,
-    stats_intv=5,
-    checkpoint_intv=50,
-    tstep=0,
-    dt=0.02,
-    t_0=0.,
-    T=20.,
-    dx=1./64,
-    interface_thickness=0.02,
-    solutes=solutes,
-    base_elements=base_elements,
-    Lx=3.,
-    Ly=1.,
-    rad_init=0.2,
-    #
-    V_boundary=0.,
-    surface_tension=24.5,
-    grav_const=0.,
-    #
-    pf_mobility_coeff=0.000010,
-    density=[100., 100.],
-    viscosity=[1., 1.],
-    permittivity=[1., 1.],
-    #
-    use_iterative_solvers=False,
-    use_pressure_stabilization=False
-)
+    # Default parameters to be loaded unless starting from checkpoint.
+    parameters = dict(
+        solver="basic",
+        folder="results_charged_droplets",
+        restart_folder=False,
+        enable_NS=True,
+        enable_PF=True,
+        enable_EC=True,
+        save_intv=5,
+        stats_intv=5,
+        checkpoint_intv=50,
+        tstep=0,
+        dt=0.02,
+        t_0=0.,
+        T=20.,
+        dx=1./64,
+        interface_thickness=0.02,
+        solutes=solutes,
+        base_elements=base_elements,
+        Lx=3.,
+        Ly=1.,
+        rad_init=0.2,
+        #
+        V_boundary=0.,
+        surface_tension=24.5,
+        grav_const=0.,
+        #
+        pf_mobility_coeff=0.000010,
+        density=[100., 100.],
+        viscosity=[1., 1.],
+        permittivity=[1., 1.],
+        #
+        use_iterative_solvers=False,
+        use_pressure_stabilization=False
+    )
+    return parameters
 
 
 def mesh(Lx=1, Ly=5, dx=1./16, **namespace):
@@ -107,27 +108,26 @@ def create_bcs(field_to_subspace, Lx, Ly, solutes,
                enable_NS, enable_PF, enable_EC,
                **namespace):
     """ The boundary conditions are defined in terms of field. """
-    bcs_fields = dict()
 
-    wall = Wall()
+    boundaries = dict(wall=[Wall()])
+
+    bcs = dict(
+        wall=dict()
+    )
+    bcs_pointwise = dict()
+
+    noslip = Fixed((0., 0.))
+
     # Navier-Stokes
     if enable_NS:
-        noslip = df.DirichletBC(field_to_subspace["u"],
-                                df.Constant((0., 0.)),
-                                wall)
-        bcs_fields["u"] = [noslip]
-        p_pin = df.DirichletBC(field_to_subspace["p"],
-                               df.Constant(0.),
-                               "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS",
-                               "pointwise")
-        bcs_fields["p"] = [p_pin]
+        bcs["wall"]["u"] = noslip
+        bcs_pointwise["p"] = (0., "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS")
 
     # Electrochemistry
     if enable_EC:
-        bc_V = df.DirichletBC(
-            field_to_subspace["V"], df.Constant(V_boundary), wall)
-        bcs_fields["V"] = [bc_V]
-    return bcs_fields
+        bcs["wall"]["V"] = Fixed(V_boundary)
+
+    return boundaries, bcs, bcs_pointwise
 
 
 def initial_pf(x0, y0, rad0, eps, function_space):
