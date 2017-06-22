@@ -85,7 +85,7 @@ def problem():
         use_iterative_solvers=False,
         use_pressure_stabilization=False
     )
-    return parameters 
+    return parameters
 
 def mesh(Lx=1, Ly=5, dx=1./16, **namespace):
     return df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly),
@@ -114,10 +114,10 @@ def initialize(Lx, Ly, rad_init,
                                    field_to_subspace[solute[0]].collapse())
             V_init_expr = df.Expression("0.", degree=1)
             w_init_field["V"] = df.interpolate(
-            V_init_expr, field_to_subspace["V"].collapse())
+                V_init_expr, field_to_subspace["V"].collapse())
 
         # Phase field
-        
+
         if enable_PF:
             w_init_field["phi"] = initial_phasefield(
                 Lx/5, Lx/2, rad_init, interface_thickness,
@@ -131,7 +131,7 @@ def create_bcs(Lx, Ly, solutes, **namespace):
     boundaries = dict(
         right=[Right(Lx)],
         left=[Left(0)],
-        bottom=[Bottom(0)],  
+        bottom=[Bottom(0)],
         top=[Top(Ly)]
     )
     c0 = [.001, .001]
@@ -147,17 +147,16 @@ def create_bcs(Lx, Ly, solutes, **namespace):
     bcs["left"] = dict(
         u=noslip
     )
-        
+
     bcs["top"] = dict(
         u=noslip,
         V=surfacecharge
-            )
+    )
     bcs["bottom"] = dict(
         V=V_ground
-            )
+    )
     for ci, solute in zip(c0, solutes):
-        bcs["bottom"][solute[0]] = Fixed(ci)  
-    
+        bcs["bottom"][solute[0]] = Fixed(ci)
 
     # Apply pointwise BCs e.g. to pin pressure.
     bcs_pointwise = dict()
@@ -227,13 +226,13 @@ def create_bcs_old(field_to_subspace, Lx, Ly, solutes,
          #bcs_fields["g"] = []
 
     # Electrochemistry
-    
+
     if enable_EC:
         bc_V_bottom = df.DirichletBC(field_to_subspace["V"],
                                     df.Constant(V_top),
                                     bottom)
         bcs_fields["EC"] = [bc_V_top, bc_V_btm]
-        
+
         for solute in solutes:
              bcs_fields[solute[0]] = []
              bcs_fields[solute[0]] = []
