@@ -46,7 +46,7 @@ def get_subproblems(base_elements, solutes,
 
 def setup(test_functions, trial_functions, w_, w_1,
           ds, dx,
-          dirichlet_bcs, neumann_bcs,
+          dirichlet_bcs, neumann_bcs, boundary_to_mark,
           permittivity, density, viscosity,
           solutes, enable_PF, enable_EC, enable_NS,
           surface_tension, dt, interface_thickness,
@@ -131,6 +131,7 @@ def setup(test_functions, trial_functions, w_, w_1,
         solvers["PF"] = setup_PF(w_["PF"], phi, g, psi, h,
                                  dx, ds,
                                  dirichlet_bcs["PF"], neumann_bcs,
+                                 boundary_to_mark,
                                  phi_1, u_1, M_1, c_1, V_1,
                                  per_tau, sigma_bar, eps, dbeta, dveps,
                                  enable_NS, enable_EC,
@@ -140,6 +141,7 @@ def setup(test_functions, trial_functions, w_, w_1,
         solvers["EC"] = setup_EC(w_["EC"], c, V, b, U, rho_e,
                                  dx, ds,
                                  dirichlet_bcs["EC"], neumann_bcs,
+                                 boundary_to_mark,
                                  c_1, u_1, K_, veps_, phi_, per_tau, z, dbeta,
                                  enable_NS, enable_PF,
                                  use_iterative_solvers)
@@ -148,6 +150,7 @@ def setup(test_functions, trial_functions, w_, w_1,
         solvers["NS"] = setup_NS(w_["NS"], u, p, v, q,
                                  dx, ds,
                                  dirichlet_bcs["NS"], neumann_bcs,
+                                 boundary_to_mark,
                                  u_1, phi_,
                                  rho_, g_, M_, nu_, rho_e_, V_,
                                  per_tau, drho, sigma_bar, eps, dveps, grav,
@@ -159,7 +162,7 @@ def setup(test_functions, trial_functions, w_, w_1,
 
 def setup_NS(w_NS, u, p, v, q,
              dx, ds,
-             dirichlet_bcs, neumann_bcs,
+             dirichlet_bcs, neumann_bcs, boundary_to_mark,
              u_1, phi_, rho_, g_, M_, nu_, rho_e_, V_,
              per_tau, drho, sigma_bar, eps, dveps, grav,
              enable_PF, enable_EC,
@@ -211,7 +214,7 @@ def setup_NS(w_NS, u, p, v, q,
 
 def setup_PF(w_PF, phi, g, psi, h,
              dx, ds,
-             dirichlet_bcs, neumann_bcs,
+             dirichlet_bcs, neumann_bcs, boundary_to_mark,
              phi_1, u_1, M_1, c_1, V_1,
              per_tau, sigma_bar, eps,
              dbeta, dveps,
@@ -248,7 +251,7 @@ def setup_PF(w_PF, phi, g, psi, h,
 
 def setup_EC(w_EC, c, V, b, U, rho_e,
              dx, ds,
-             dirichlet_bcs, neumann_bcs,
+             dirichlet_bcs, neumann_bcs, boundary_to_mark,
              c_1, u_1, K_, veps_, phi_,
              per_tau, z, dbeta,
              enable_NS, enable_PF,
@@ -261,17 +264,17 @@ def setup_EC(w_EC, c, V, b, U, rho_e,
         if zi != 0:
             F_ci += Ki_*zi*ci_1*df.dot(df.grad(V), df.grad(bi))*dx
             for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
-                F_ci += Ki_*zi*ci_1*sigma_e/veps_*bi*ds(boundary_name)
+                F_ci += Ki_*zi*ci_1*sigma_e/veps_*bi*ds(boundary_to_mark[boundary_name])
         if enable_PF:
             F_ci += Ki_*ci*dbetai*df.dot(df.grad(phi_), df.grad(bi))*dx
             # for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
-            #     F_ci += -Ki_*ci*dbetai*df.dot(df.grad(phi_), normal)*bi*ds(boundary_name)
+            #     F_ci += -Ki_*ci*dbetai*df.dot(df.grad(phi_), normal)*bi*ds(boundary_to_mark[boundary_name])
         if enable_NS:
             F_ci += df.dot(u_1, df.grad(ci))*bi*dx
         F_c.append(F_ci)
     F_V = veps_*df.dot(df.grad(V), df.grad(U))*dx
     for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
-        F_V += sigma_e*U*ds(boundary_name)
+        F_V += sigma_e*U*ds(boundary_to_mark[boundary_name])
     if rho_e != 0:
         F_V += -rho_e*U*dx
     F = sum(F_c) + F_V
