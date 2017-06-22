@@ -2,6 +2,7 @@ import dolfin as df
 import os
 from . import *
 from common.io import mpi_is_root
+from common.bcs import Fixed
 __author__ = "Asger Bolet"
 
 info_cyan("Bulk intrusion of a front of one fluid into another.")
@@ -31,61 +32,65 @@ class Right(df.SubDomain):
     def inside(self, x, on_boundary):
         return bool(df.near(x[0], self.Lx) and on_boundary )
 
-#         2, beta in phase 1, beta in phase 2
-solutes = [["c_p",  1, 1., 1., 1., 1.],
-           ["c_m", -1, 1., 1., 1., 1.]]
 
-# Format: name : (family, degree, is_vector)
-base_elements = dict(u=["Lagrange", 1, True],
-                     p=["Lagrange", 1, False],
-                     phi=["Lagrange", 1, False],
-                     g=["Lagrange", 1, False],
-                     c=["Lagrange", 1, False],
-                     V=["Lagrange", 1, False])
+def problem():
+    #         2, beta in phase 1, beta in phase 2
+    solutes = [["c_p",  1, 1., 1., 1., 1.],
+               ["c_m", -1, 1., 1., 1., 1.]]
 
-factor = 1./4.
+    # Format: name : (family, degree, is_vector)
+    base_elements = dict(u=["Lagrange", 2, True],
+                         p=["Lagrange", 1, False],
+                         phi=["Lagrange", 1, False],
+                         g=["Lagrange", 1, False],
+                         c=["Lagrange", 1, False],
+                         V=["Lagrange", 1, False])
 
-# Default parameters to be loaded unless starting from checkpoint.
-parameters.update(
-    solver="basic",
-    folder="results_intrusion_bulk",
-    restart_folder=False,
-    enable_NS=True,
-    enable_PF=True,
-    enable_EC=False,
-    save_intv=5,
-    stats_intv=5,
-    checkpoint_intv=50,
-    tstep=0,
-    dt=factor*0.08,
-    t_0=0.,
-    T=20.,
-    dx=factor*1./16,
-    interface_thickness=factor*0.060,
-    solutes=solutes,
-    base_elements=base_elements,
-    Lx=5.,
-    Ly=1.,
-    rad_init=0.25,
-    #
-    V_top=1.,
-    V_btm=0.,
-    surface_tension=24.5,
-    grav_const=0.0,
-    inlet_velocity=0.1,
-    #
-    pf_mobility_coeff=factor*0.000040,
-    density=[1000., 1000.],
-    viscosity=[1., 10.],
-    permittivity=[1., 5.],
-    #
-    initial_interface="flat",
-    #
-    use_iterative_solvers=False,
-    use_pressure_stabilization=False
-)
+    factor = 1./4.
 
-constrained_domain = PeriodicBoundary(1.)
+    # Default parameters to be loaded unless starting from checkpoint.
+    parameters.update(
+        solver="basic",
+        folder="results_intrusion_bulk",
+        restart_folder=False,
+        enable_NS=True,
+        enable_PF=True,
+        enable_EC=False,
+        save_intv=5,
+        stats_intv=5,
+        checkpoint_intv=50,
+        tstep=0,
+        dt=factor*0.08,
+        t_0=0.,
+        T=20.,
+        dx=factor*1./16,
+        interface_thickness=factor*0.060,
+        solutes=solutes,
+        base_elements=base_elements,
+        Lx=5.,
+        Ly=1.,
+        rad_init=0.25,
+        #
+        V_top=1.,
+        V_btm=0.,
+        surface_tension=24.5,
+        grav_const=0.0,
+        inlet_velocity=0.1,
+        #
+        pf_mobility_coeff=factor*0.000040,
+        density=[1000., 1000.],
+        viscosity=[1., 10.],
+        permittivity=[1., 5.],
+        #
+        initial_interface="flat",
+        #
+        use_iterative_solvers=False,
+        use_pressure_stabilization=False
+    )
+    return parameters
+
+def constrained_domain(Ly, **namespace):
+    return PeriodicBoundary(Ly)
 
 def mesh(Lx=1, Ly=5, dx=1./16, **namespace):
     return df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly),
@@ -109,7 +114,7 @@ def initialize(Lx, Ly, rad_init,
     if not restart_folder:
         if enable_NS:
             w_init_field["u"] = initial_velocity(inlet_velocity,
-                                                 field_to_subspace["u"])
+                                                 field_to_subspace["u"].collapse())
         # Phase field
         if enable_PF:
             w_init_field["phi"] = initial_phasefield(
@@ -119,7 +124,38 @@ def initialize(Lx, Ly, rad_init,
     return w_init_field
 
 
-def create_bcs(field_to_subspace, Lx, Ly, solutes,
+def create_bcs(Lx, Ly,inlet_velocity, **namespace):
+    """ The boundaries and boundary conditions are defined here. """
+    boundaries = dict(
+        right=[Right(Lx)],
+        left=[Left(0)]
+    )
+
+    bcs = dict()
+
+    inletvelocity = Fixed((inlet_velocity, 0.))
+    pressurein_out = Fixed(0.0)
+    phi_inlet = Fixed(-1.0) 
+    phi_outlet = Fixed(1.0) 
+
+    bcs["left"] = dict(
+        u=inletvelocity,
+        p=pressurein_out,
+        phi = phi_inlet
+    )
+    
+    bcs["right"] = dict(
+        p=pressurein_out,
+        phi =phi_outlet
+    )
+
+    # Apply pointwise BCs e.g. to pin pressure.
+    bcs_pointwise = dict()
+    
+    return boundaries, bcs, bcs_pointwise
+
+
+def create_bcs_old(field_to_subspace, Lx, Ly, solutes,
                V_top, V_btm, inlet_velocity,
                enable_NS, enable_PF, enable_EC,
                **namespace):
