@@ -25,9 +25,6 @@ parameters.update(problem())
 # Internalize cmd arguments and mesh
 vars().update(import_problem_hook(**vars()))
 
-# Compute facetnormals
-normal = df.FacetNormal(mesh)
-
 # If loading from checkpoint, update parameters from file, and then
 # again from command line arguments.
 if restart_folder:
@@ -140,13 +137,21 @@ dirichlet_bcs = dict()
 for subproblem_name in subproblems.keys():
     dirichlet_bcs[subproblem_name] = []
 
+# Neumann BCs (per field)
+neumann_bcs = dict()
+for field in fields:
+    neumann_bcs[field] = dict()
+    
 for boundary_name, bcs_fields in bcs.iteritems():
     for field, bc in bcs_fields.iteritems():
         subproblem_name = field_to_subproblem[field][0]
         subspace = field_to_subspace[field]
         mark = boundary_to_mark[boundary_name]
-        dirichlet_bcs[subproblem_name].append(
-            bc.dbc(subspace, subdomains, mark))
+        if bc.is_dbc():
+            dirichlet_bcs[subproblem_name].append(
+                bc.dbc(subspace, subdomains, mark))
+        if bc.is_nbc():
+            neumann_bcs[field][boundary_name] = bc.nbc()
 
 # Pointwise dirichlet bcs
 for field, (value, c_code) in bcs_pointwise.iteritems():
@@ -156,6 +161,11 @@ for field, (value, c_code) in bcs_pointwise.iteritems():
         df.DirichletBC(subspace, df.Constant(value),
                        c_code, "pointwise"))
 
+# Compute some mesh related stuff
+dx = df.dx
+ds = df.Measure("ds", domain=mesh, subdomain_data=subdomains)
+normal = df.FacetNormal(mesh)
+    
 # Initialize solutions
 w_init_fields = initialize(**vars())
 if w_init_fields:

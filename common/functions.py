@@ -31,3 +31,16 @@ def ramp(phi, A):
 def dramp(A):
     """ Derivative of ramping function above. Returns df.Constant."""
     return df.Constant(0.5*(A[0]-A[1]))
+
+
+# Filters
+def max_value(a, b):
+    return 0.5*(a+b+df.sign(a-b)*(a-b))
+
+
+def min_value(a, b):
+    return 0.5*(a+b-df.sign(a-b)*(a-b))
+
+
+def unit_interval_filter(phi):
+    return min_value(max_value(phi, -1.), 1.)

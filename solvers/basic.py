@@ -20,7 +20,8 @@ GL, 2017-05-29
 """
 import dolfin as df
 import math
-from common.functions import ramp, dramp, diff_pf_potential_linearised
+from common.functions import ramp, dramp, diff_pf_potential_linearised, \
+    unit_interval_filter
 from . import *
 from . import __all__
 
@@ -44,8 +45,9 @@ def get_subproblems(base_elements, solutes,
 
 
 def setup(test_functions, trial_functions, w_, w_1,
-          dirichlet_bcs, permittivity,
-          density, viscosity,
+          ds, dx,
+          dirichlet_bcs, neumann_bcs,
+          permittivity, density, viscosity,
           solutes, enable_PF, enable_EC, enable_NS,
           surface_tension, dt, interface_thickness,
           grav_const, pf_mobility, pf_mobility_coeff,
@@ -127,7 +129,8 @@ def setup(test_functions, trial_functions, w_, w_1,
     solvers = dict()
     if enable_PF:
         solvers["PF"] = setup_PF(w_["PF"], phi, g, psi, h,
-                                 dirichlet_bcs["PF"],
+                                 dx, ds,
+                                 dirichlet_bcs["PF"], neumann_bcs,
                                  phi_1, u_1, M_1, c_1, V_1,
                                  per_tau, sigma_bar, eps, dbeta, dveps,
                                  enable_NS, enable_EC,
@@ -135,14 +138,17 @@ def setup(test_functions, trial_functions, w_, w_1,
 
     if enable_EC:
         solvers["EC"] = setup_EC(w_["EC"], c, V, b, U, rho_e,
-                                 dirichlet_bcs["EC"], c_1,
-                                 u_1, K_, veps_, phi_, per_tau, z, dbeta,
+                                 dx, ds,
+                                 dirichlet_bcs["EC"], neumann_bcs,
+                                 c_1, u_1, K_, veps_, phi_, per_tau, z, dbeta,
                                  enable_NS, enable_PF,
                                  use_iterative_solvers)
 
     if enable_NS:
         solvers["NS"] = setup_NS(w_["NS"], u, p, v, q,
-                                 dirichlet_bcs["NS"], u_1, phi_,
+                                 dx, ds,
+                                 dirichlet_bcs["NS"], neumann_bcs,
+                                 u_1, phi_,
                                  rho_, g_, M_, nu_, rho_e_, V_,
                                  per_tau, drho, sigma_bar, eps, dveps, grav,
                                  enable_PF, enable_EC,
@@ -151,19 +157,21 @@ def setup(test_functions, trial_functions, w_, w_1,
     return dict(solvers=solvers)
 
 
-def setup_NS(w_NS, u, p, v, q, dirichlet_bcs,
+def setup_NS(w_NS, u, p, v, q,
+             dx, ds,
+             dirichlet_bcs, neumann_bcs,
              u_1, phi_, rho_, g_, M_, nu_, rho_e_, V_,
              per_tau, drho, sigma_bar, eps, dveps, grav,
              enable_PF, enable_EC,
              use_iterative_solvers, use_pressure_stabilization):
     """ Set up the Navier-Stokes subproblem. """
     F = (
-        per_tau * rho_ * df.dot(u - u_1, v)*df.dx
-        + rho_*df.inner(df.grad(u), df.outer(u_1, v))*df.dx
-        + 2*nu_*df.inner(df.sym(df.grad(u)), df.grad(v))*df.dx
-        - p * df.div(v)*df.dx
-        + df.div(u)*q*df.dx
-        - df.dot(rho_*grav, v)*df.dx
+        per_tau * rho_ * df.dot(u - u_1, v)*dx
+        + rho_*df.inner(df.grad(u), df.outer(u_1, v))*dx
+        + 2*nu_*df.inner(df.sym(df.grad(u)), df.grad(v))*dx
+        - p * df.div(v)*dx
+        + df.div(u)*q*dx
+        - df.dot(rho_*grav, v)*dx
     )
     if use_pressure_stabilization:
         mesh = w_NS.function_space().mesh()
@@ -172,22 +180,22 @@ def setup_NS(w_NS, u, p, v, q, dirichlet_bcs,
         delta = beta*cellsize*cellsize
 
         F += (
-            delta*df.inner(df.grad(q), df.grad(p))*df.dx
-            - delta*df.dot(rho_*grav, df.grad(q))*df.dx
+            delta*df.inner(df.grad(q), df.grad(p))*dx
+            - delta*df.dot(rho_*grav, df.grad(q))*dx
         )
 
     if enable_PF:
-        F += - drho*M_*df.inner(df.grad(u), df.outer(df.grad(g_), v))*df.dx
+        F += - drho*M_*df.inner(df.grad(u), df.outer(df.grad(g_), v))*dx
         F += - sigma_bar*eps*df.inner(df.outer(
             df.grad(unit_interval_filter(phi_)),
             df.grad(unit_interval_filter(phi_))),
-                                      df.grad(v))*df.dx
+                                      df.grad(v))*dx
     if enable_EC and rho_e_ != 0:
-        F += rho_e_*df.dot(df.grad(V_), v)*df.dx
+        F += rho_e_*df.dot(df.grad(V_), v)*dx
     if enable_PF and enable_EC:
         F += dveps * df.dot(df.grad(
             unit_interval_filter(phi_)), v)*df.dot(df.grad(V_),
-                                                   df.grad(V_))*df.dx
+                                                   df.grad(V_))*dx
 
     a, L = df.lhs(F), df.rhs(F)
 
@@ -201,7 +209,9 @@ def setup_NS(w_NS, u, p, v, q, dirichlet_bcs,
     return solver
 
 
-def setup_PF(w_PF, phi, g, psi, h, dirichlet_bcs,
+def setup_PF(w_PF, phi, g, psi, h,
+             dx, ds,
+             dirichlet_bcs, neumann_bcs,
              phi_1, u_1, M_1, c_1, V_1,
              per_tau, sigma_bar, eps,
              dbeta, dveps,
@@ -209,20 +219,20 @@ def setup_PF(w_PF, phi, g, psi, h, dirichlet_bcs,
              use_iterative_solvers):
     """ Set up phase field subproblem. """
 
-    F_phi = (per_tau*(phi-unit_interval_filter(phi_1))*psi*df.dx +
-             M_1*df.dot(df.grad(g), df.grad(psi))*df.dx)
+    F_phi = (per_tau*(phi-unit_interval_filter(phi_1))*psi*dx +
+             M_1*df.dot(df.grad(g), df.grad(psi))*dx)
     if enable_NS:
-        F_phi += df.dot(u_1, df.grad(phi))*psi*df.dx
-    F_g = (g*h*df.dx
-           - sigma_bar*eps*df.dot(df.grad(phi), df.grad(h))*df.dx
+        F_phi += df.dot(u_1, df.grad(phi))*psi*dx
+    F_g = (g*h*dx
+           - sigma_bar*eps*df.dot(df.grad(phi), df.grad(h))*dx
            - sigma_bar/eps*(
                diff_pf_potential_linearised(phi,
                                             unit_interval_filter(
-                                                phi_1))*h*df.dx))
+                                                phi_1))*h*dx))
     if enable_EC:
-        F_g += (-sum([dbeta_i*ci_1*h*df.dx
+        F_g += (-sum([dbeta_i*ci_1*h*dx
                       for dbeta_i, ci_1 in zip(dbeta, c_1)])
-                + dveps*df.dot(df.grad(V_1), df.grad(V_1))*h*df.dx)
+                + dveps*df.dot(df.grad(V_1), df.grad(V_1))*h*dx)
     F = F_phi + F_g
     a, L = df.lhs(F), df.rhs(F)
 
@@ -236,7 +246,9 @@ def setup_PF(w_PF, phi, g, psi, h, dirichlet_bcs,
     return solver
 
 
-def setup_EC(w_EC, c, V, b, U, rho_e, dirichlet_bcs,
+def setup_EC(w_EC, c, V, b, U, rho_e,
+             dx, ds,
+             dirichlet_bcs, neumann_bcs,
              c_1, u_1, K_, veps_, phi_,
              per_tau, z, dbeta,
              enable_NS, enable_PF,
@@ -244,21 +256,24 @@ def setup_EC(w_EC, c, V, b, U, rho_e, dirichlet_bcs,
     """ Set up electrochemistry subproblem. """
     F_c = []
     for ci, ci_1, bi, Ki_, zi, dbetai in zip(c, c_1, b, K_, z, dbeta):
-        F_ci = (per_tau*(ci-ci_1)*bi*df.dx +
-                Ki_*df.dot(df.grad(ci), df.grad(bi))*df.dx)
+        F_ci = (per_tau*(ci-ci_1)*bi*dx +
+                Ki_*df.dot(df.grad(ci), df.grad(bi))*dx)
         if zi != 0:
-            F_ci += Ki_*zi*ci_1*df.dot(df.grad(V), df.grad(bi))*df.dx
-            #F_ci += Ki_*zi*ci_1*sigma/veps_*bi*df.ds["charged-wall"] 
+            F_ci += Ki_*zi*ci_1*df.dot(df.grad(V), df.grad(bi))*dx
+            for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
+                F_ci += Ki_*zi*ci_1*sigma_e/veps_*bi*ds(boundary_name)
         if enable_PF:
-            F_ci += Ki_*ci*dbetai*df.dot(df.grad(phi_), df.grad(bi))*df.dx
-            #F_ci += -Ki_*ci*dbetai*df.dot(df.grad(phi_),normal)*bi*df.ds["wall"] 
+            F_ci += Ki_*ci*dbetai*df.dot(df.grad(phi_), df.grad(bi))*dx
+            # for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
+            #     F_ci += -Ki_*ci*dbetai*df.dot(df.grad(phi_), normal)*bi*ds(boundary_name)
         if enable_NS:
-            F_ci += df.dot(u_1, df.grad(ci))*bi*df.dx
+            F_ci += df.dot(u_1, df.grad(ci))*bi*dx
         F_c.append(F_ci)
-    F_V = veps_*df.dot(df.grad(V), df.grad(U))*df.dx
-    #F_V += sigma*U*df.ds["charged-wall"]
+    F_V = veps_*df.dot(df.grad(V), df.grad(U))*dx
+    for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
+        F_V += sigma_e*U*ds(boundary_name)
     if rho_e != 0:
-        F_V += -rho_e*U*df.dx
+        F_V += -rho_e*U*dx
     F = sum(F_c) + F_V
     a, L = df.lhs(F), df.rhs(F)
 
@@ -292,15 +307,3 @@ def update(w_, w_1, enable_PF, enable_EC, enable_NS, **namespace):
                                   [enable_PF, enable_EC, enable_NS]):
         if enable:
             w_1[subproblem].assign(w_[subproblem])
-
-
-def max_value(a, b):
-    return 0.5*(a+b+df.sign(a-b)*(a-b))
-
-
-def min_value(a, b):
-    return 0.5*(a+b-df.sign(a-b)*(a-b))
-
-
-def unit_interval_filter(phi):
-    return min_value(max_value(phi, -1.), 1.)

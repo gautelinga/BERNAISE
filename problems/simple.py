@@ -68,7 +68,7 @@ def problem():
         dt=factor*0.08,
         t_0=0.,
         T=20.,
-        dx=factor*1./16,
+        grid_spacing=factor/16.,
         interface_thickness=factor*0.040,
         solutes=solutes,
         base_elements=base_elements,
@@ -96,9 +96,9 @@ def constrained_domain(Lx, **namespace):
     return PeriodicBoundary(Lx)
 
 
-def mesh(Lx=1, Ly=5, dx=1./16, **namespace):
+def mesh(Lx=1, Ly=5, grid_spacing=1./16, **namespace):
     return df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly),
-                            int(Lx/dx), int(Ly/dx))
+                            int(Lx/grid_spacing), int(Ly/grid_spacing))
 
 
 def initialize(Lx, Ly, rad_init,
@@ -225,7 +225,7 @@ def initial_phasefield(x0, y0, rad, eps, function_space, shape="circle"):
 
 
 def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
-               field_to_subproblem, subproblems, w_, enable_PF, **namespace):
+               field_to_subproblem, subproblems, w_, enable_PF, dx, ds, **namespace):
     info_blue("Timestep = {}".format(tstep))
 
     if stats_intv and tstep % stats_intv == 0 and enable_PF:
@@ -237,9 +237,9 @@ def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
         Q = w_[subproblem_name].split(deepcopy=True)[subproblem_i]
         bubble = df.interpolate(Q, field_to_subspace["phi"].collapse())
         bubble = 0.5*(1.-df.sign(bubble))
-        mass = df.assemble(bubble*df.dx)
+        mass = df.assemble(bubble*dx)
         massy = df.assemble(
-            bubble*df.Expression("x[1]", degree=1)*df.dx)
+            bubble*df.Expression("x[1]", degree=1)*dx)
         if mpi_is_root():
             with file(statsfile, "a") as outfile:
                 outfile.write("{} {} {} \n".format(t, mass, massy))
