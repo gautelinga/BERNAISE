@@ -2,6 +2,7 @@ import dolfin as df
 import os
 from . import *
 from common.io import mpi_is_root
+from common.bcs import Fixed, Charged  
 __author__ = "Asger Bolet"
 
 info_cyan("Charge wall for at test of debye layers")
@@ -31,60 +32,60 @@ class Top(df.SubDomain):
         return bool(df.near(x[1], self.Ly) and on_boundary )
 
 
+def problem():
+    #         2, beta in phase 1, beta in phase 2
+    solutes = [["c_p",  1, 1e-4, 1.e-3, 3., 1.],
+               ["c_m", -1, 1e-4, 1.e-3, 3., 1.]]
 
-#         2, beta in phase 1, beta in phase 2
-solutes = [["c_p",  1, 1., 1., 1., 1.],
-           ["c_m", -1, 1., 1., 1., 1.]]
+    # Format: name : (family, degree, is_vector)
+    base_elements = dict(u=["Lagrange", 2, True],
+                         p=["Lagrange", 1, False],
+                         phi=["Lagrange", 1, False],
+                         g=["Lagrange", 1, False],
+                         c=["Lagrange", 1, False],
+                         V=["Lagrange", 1, False])
 
-# Format: name : (family, degree, is_vector)
-base_elements = dict(u=["Lagrange", 2, True],
-                     p=["Lagrange", 1, False],
-                     phi=["Lagrange", 1, False],
-                     g=["Lagrange", 1, False],
-                     c=["Lagrange", 1, False],
-                     V=["Lagrange", 1, False])
+    factor = 1./4.
 
-factor = 1./4.
-
-# Default parameters to be loaded unless starting from checkpoint.
-parameters.update(
-    solver="basic",
-    folder="results_charge_wall",
-    restart_folder=False,
-    enable_NS=True,
-    enable_PF=False,
-    enable_EC=True,
-    save_intv=5,
-    stats_intv=5,
-    checkpoint_intv=50,
-    tstep=0,
-    dt=factor*0.08,
-    t_0=0.,
-    T=20.,
-    dx=factor*1./16,
-    interface_thickness=factor*0.080,
-    solutes=solutes,
-    base_elements=base_elements,
-    Lx=1.,
-    Ly=5.,
-    rad_init=0.25,
-    #
-    V_top=1.,
-    V_btm=0.,
-    surface_tension=24.5,
-    grav_const=0.0,
-    #
-    pf_mobility_coeff=factor*0.000040,
-    density=[1000., 1000.],
-    viscosity=[1., 1.],
-    permittivity=[1., 5.],
-    #
-    initial_interface="flat",
-    #
-    use_iterative_solvers=False,
-    use_pressure_stabilization=False
-)
-
+    # Default parameters to be loaded unless starting from checkpoint.
+    parameters = dict(
+        solver="basic",
+        folder="results_charge_wall",
+        restart_folder=False,
+        enable_NS=True,
+        enable_PF=False,
+        enable_EC=True,
+        save_intv=5,
+        stats_intv=5,
+        checkpoint_intv=50,
+        tstep=0,
+        dt=factor*0.08,
+        t_0=0.,
+        T=20.,
+        dx=factor*1./16,
+        interface_thickness=factor*0.080,
+        solutes=solutes,
+        base_elements=base_elements,
+        Lx=1.,
+        Ly=5.,
+        rad_init=0.25,
+        #
+        V_top=1.,
+        V_btm=0.,
+        surface_tension=24.5,
+        grav_const=0.0,
+        #
+        pf_mobility_coeff=factor*0.000040,
+        density=[1000., 1000.],
+        viscosity=[1., 1.],
+        permittivity=[1., 5.],
+        #
+        initial_interface="flat",
+        #
+        use_iterative_solvers=False,
+        use_pressure_stabilization=False
+    )
+    return parameters 
 
 def mesh(Lx=1, Ly=5, dx=1./16, **namespace):
     return df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly),
@@ -103,9 +104,20 @@ def initialize(Lx, Ly, rad_init,
 
     Note: You only need to specify the initial states that are nonzero.
     """
+
+    c0 = [.001, .001]
     w_init_field = dict()
     if not restart_folder:
+        if enable_EC:
+            for ci, solute in zip(c0, solutes):
+                c_init = initial_c(ci,
+                                   field_to_subspace[solute[0]].collapse())
+            V_init_expr = df.Expression("0.", degree=1)
+            w_init_field["V"] = df.interpolate(
+            V_init_expr, field_to_subspace["V"].collapse())
+
         # Phase field
+        
         if enable_PF:
             w_init_field["phi"] = initial_phasefield(
                 Lx/5, Lx/2, rad_init, interface_thickness,
@@ -113,7 +125,47 @@ def initialize(Lx, Ly, rad_init,
 
     return w_init_field
 
-def create_bcs(field_to_subspace, Lx, Ly, solutes,
+
+def create_bcs(Lx, Ly, solutes, **namespace):
+    """ The boundaries and boundary conditions are defined here. """
+    boundaries = dict(
+        right=[Right(Lx)],
+        left=[Left(0)],
+        bottom=[Bottom(0)],  
+        top=[Top(Ly)]
+    )
+    c0 = [.001, .001]
+    noslip = Fixed((0., 0.))
+    V_ground = Fixed(0.0)
+    surfacecharge = Charged(0.0001)
+
+    bcs = dict()
+
+    bcs["right"] = dict(
+        u=noslip,
+    )
+    bcs["left"] = dict(
+        u=noslip
+    )
+        
+    bcs["top"] = dict(
+        u=noslip,
+        V=surfacecharge
+            )
+    bcs["bottom"] = dict(
+        V=V_ground
+            )
+    for ci, solute in zip(c0, solutes):
+        bcs["bottom"][solute[0]] = Fixed(ci)  
+    
+
+    # Apply pointwise BCs e.g. to pin pressure.
+    bcs_pointwise = dict()
+    bcs_pointwise["p"] = (0., "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS")
+
+    return boundaries, bcs, bcs_pointwise
+
+def create_bcs_old(field_to_subspace, Lx, Ly, solutes,
                V_top, V_btm,
                enable_NS, enable_PF, enable_EC,
                **namespace):
@@ -121,10 +173,24 @@ def create_bcs(field_to_subspace, Lx, Ly, solutes,
     bcs_fields = dict()
 
     # Navier-Stokes
+    
+    # Define the FacetFunction an mark all
+    boundary_markers = df.FacetFunction('size_t', mesh)
+    boundary_markers.set_all(mark[0])
+    # Find the differet parts of the boundary
     right = Right(Lx)
     left = Left(0)
-    bottom = Bottom(0)
+    bottom = Bottom(0)  
     top = Top(Ly)
+    
+
+    
+    #Mark the differt parts of boundary in the FacetFunction
+    right.mark(boundary_markers,mark["wall"])
+    left.mark(boundary_markers,mark["openside"])
+    top.mark(boundary_markers,mark["openside"])
+    bottom.mark(boundary_markers,mark["openside"])
+
 
     if enable_NS:
         freeslip = df.DirichletBC(field_to_subspace["u"].sub(1),
@@ -149,7 +215,7 @@ def create_bcs(field_to_subspace, Lx, Ly, solutes,
         bcs_fields["p"] = [p_pin]
 
     # Phase field
-    if enable_PF:
+    #if enable_PF:
         #phiinlet = df.DirichletBC(field_to_subspace["phi"],
         #                        df.Constant(-1.0),
         #                        left)
@@ -161,11 +227,13 @@ def create_bcs(field_to_subspace, Lx, Ly, solutes,
          #bcs_fields["g"] = []
 
     # Electrochemistry
+    
     if enable_EC:
         bc_V_bottom = df.DirichletBC(field_to_subspace["V"],
                                     df.Constant(V_top),
                                     bottom)
         bcs_fields["EC"] = [bc_V_top, bc_V_btm]
+        
         for solute in solutes:
              bcs_fields[solute[0]] = []
              bcs_fields[solute[0]] = []
@@ -220,3 +288,11 @@ def pf_mobility(phi, gamma):
 def start_hook(newfolder, **namespace):
     statsfile = os.path.join(newfolder, "Statistics/stats.dat")
     return dict(statsfile=statsfile)
+
+def initial_c(c_init, function_space):
+    # expr_str = ("{c_init}*0.5*(1.-tanh(sqrt(2)*(sqrt(pow(x[0]-{x}, 2)"
+    #             "+pow(x[1]-{y}, 2))-{rad})/{eps}))").format(
+    #                 x=x, y=y, rad=rad, eps=eps, c_init=c_init)
+    expr_str = ("c_init")
+    c_init_expr = df.Expression(expr_str, c_init=c_init, degree=1)
+    return df.interpolate(c_init_expr, function_space)
