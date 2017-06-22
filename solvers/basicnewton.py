@@ -39,7 +39,7 @@ def get_subproblems(base_elements, solutes,
     return subproblems
 
 
-def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
+def setup(test_functions, trial_functions, w_, w_1, dirichlet_bcs, permittivity,
           density, viscosity,
           solutes, enable_PF, enable_EC, enable_NS,
           surface_tension, dt, interface_thickness,
@@ -90,7 +90,7 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
         V_ = funs_[num_solutes+field_number]
         V_1 = funs_1[num_solutes+field_number]
     else:
-        b = c_ = c_1 = U = V_ = V_1 = 0
+        b = c_ = c_1 = U = V_ = V_1 = rho_e_ =0
 
     M_ = pf_mobility(phi_, gamma)
     nu_ = ramp(phi_, viscosity)
@@ -115,7 +115,7 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
         rho_e_1 = sum([c_e*z_e for c_e, z_e in zip(c_1, z)])  # Sum of current sol.
 
     solver = dict()
-    solver["NSPFEC"] = setup_NSPFEC(w_["NSPFEC"], w_1["NSPFEC"], bcs["NSPFEC"],
+    solver["NSPFEC"] = setup_NSPFEC(w_["NSPFEC"], w_1["NSPFEC"], dirichlet_bcs["NSPFEC"],
                                     v, q, psi, h, b, U,
                                     u_, p_, phi_, g_, c_, V_,
                                     u_1, p_1, phi_1, g_1, c_1, V_1,
@@ -127,7 +127,7 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
     return dict(solvers=solver)
 
 
-def setup_NSPFEC(w_NSPFEC, w_1NSPFEC, bcs_NSPFEC,
+def setup_NSPFEC(w_NSPFEC, w_1NSPFEC, dirichlet_bcs_NSPFEC,
                  v, q, psi, h, b, U,
                  u_, p_, phi_, g_, c_, V_,
                  u_1, p_1, phi_1, g_1, c_1, V_1,
@@ -199,7 +199,7 @@ def setup_NSPFEC(w_NSPFEC, w_1NSPFEC, bcs_NSPFEC,
     F = sum(F)
     J = df.derivative(F, w_NSPFEC)
 
-    problem_NSPFEC = df.NonlinearVariationalProblem(F, w_NSPFEC, bcs_NSPFEC, J)
+    problem_NSPFEC = df.NonlinearVariationalProblem(F, w_NSPFEC, dirichlet_bcs_NSPFEC, J)
     solver_NSPFEC = df.NonlinearVariationalSolver(problem_NSPFEC)
     if use_iterative_solvers:
         solver_NSPFEC.parameters['newton_solver']['linear_solver'] = 'gmres'
