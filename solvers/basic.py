@@ -271,7 +271,7 @@ def setup_EC(w_EC, c, V, b, U, rho_e, bcs,
             #F_ci += Ki_*zi*ci_1*sigma/veps_*bi*df.ds["charged-wall"] 
         if enable_PF:
             F_ci += Ki_*ci*dbetai*df.dot(df.grad(phi_), df.grad(bi))*df.dx
-            #F_ci += -Ki_*ci*dbetai*df.dot(df.grad(phi_),"normal")*bi*df.ds["wall"] 
+            #F_ci += -Ki_*ci*dbetai*df.dot(df.grad(phi_),normal)*bi*df.ds["wall"] 
         if enable_NS:
             F_ci += df.dot(u_1, df.grad(ci))*bi*df.dx
         F_c.append(F_ci)
