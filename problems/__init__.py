@@ -16,13 +16,16 @@ df.parameters["std_out_all_processes"] = False
 df.parameters["form_compiler"]["cpp_optimize_flags"] = "-O3"
 # df.set_log_active(False)
 
+# Set default parameters
 parameters = dict(
     folder="results",  # default folder to store results in
     info_intv=10
 )
 
 
-constrained_domain = None
+def constrained_domain(**namespace):
+    """ Returns e.g. periodic domain. """
+    return None
 
 
 def initialize(**namespace):

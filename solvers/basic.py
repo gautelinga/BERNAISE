@@ -43,7 +43,8 @@ def get_subproblems(base_elements, solutes,
     return subproblems
 
 
-def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
+def setup(test_functions, trial_functions, w_, w_1,
+          dirichlet_bcs, permittivity,
           density, viscosity,
           solutes, enable_PF, enable_EC, enable_NS,
           surface_tension, dt, interface_thickness,
@@ -125,20 +126,23 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
 
     solvers = dict()
     if enable_PF:
-        solvers["PF"] = setup_PF(w_["PF"], phi, g, psi, h, bcs["PF"],
+        solvers["PF"] = setup_PF(w_["PF"], phi, g, psi, h,
+                                 dirichlet_bcs["PF"],
                                  phi_1, u_1, M_1, c_1, V_1,
                                  per_tau, sigma_bar, eps, dbeta, dveps,
                                  enable_NS, enable_EC,
                                  use_iterative_solvers)
 
     if enable_EC:
-        solvers["EC"] = setup_EC(w_["EC"], c, V, b, U, rho_e, bcs["EC"], c_1,
+        solvers["EC"] = setup_EC(w_["EC"], c, V, b, U, rho_e,
+                                 dirichlet_bcs["EC"], c_1,
                                  u_1, K_, veps_, phi_, per_tau, z, dbeta,
                                  enable_NS, enable_PF,
                                  use_iterative_solvers)
 
     if enable_NS:
-        solvers["NS"] = setup_NS(w_["NS"], u, p, v, q, bcs["NS"], u_1, phi_,
+        solvers["NS"] = setup_NS(w_["NS"], u, p, v, q,
+                                 dirichlet_bcs["NS"], u_1, phi_,
                                  rho_, g_, M_, nu_, rho_e_, V_,
                                  per_tau, drho, sigma_bar, eps, dveps, grav,
                                  enable_PF, enable_EC,
@@ -147,31 +151,7 @@ def setup(test_functions, trial_functions, w_, w_1, bcs, permittivity,
     return dict(solvers=solvers)
 
 
-class BernaiseKrylovSolver:
-    """ Define class to make it more easy...
-    Doesn't work now.
-    """
-    def __init__(self, a, L, bcs, b):
-        self.a = a
-        self.L = L
-        self.bcs = bcs
-        self.b = b
-        self.solver = df.KrylovSolver("gmres", "amg")
-        self.A = df.Matrix()
-        self.bb = df.Vector()
-        self.P = df.Matrix()
-        self.btmp = df.Vector()
-
-    def solve(self, w_spec):
-        df.assemble_system(self.a, self.L, self.bcs,
-                           A_tensor=self.A, b_tensor=self.bb)
-        df.assemble_system(self.b, self.L, self.bcs,
-                           A_tensor=self.P, b_tensor=self.btmp)
-        self.solver.set_operators(self.A, self.P)
-        self.solver.solve(w_spec.vector(), self.bb)
-
-
-def setup_NS(w_NS, u, p, v, q, bcs,
+def setup_NS(w_NS, u, p, v, q, dirichlet_bcs,
              u_1, phi_, rho_, g_, M_, nu_, rho_e_, V_,
              per_tau, drho, sigma_bar, eps, dveps, grav,
              enable_PF, enable_EC,
@@ -211,7 +191,7 @@ def setup_NS(w_NS, u, p, v, q, bcs,
 
     a, L = df.lhs(F), df.rhs(F)
 
-    problem = df.LinearVariationalProblem(a, L, w_NS, bcs)
+    problem = df.LinearVariationalProblem(a, L, w_NS, dirichlet_bcs)
     solver = df.LinearVariationalSolver(problem)
 
     if use_iterative_solvers and use_pressure_stabilization:
@@ -221,7 +201,7 @@ def setup_NS(w_NS, u, p, v, q, bcs,
     return solver
 
 
-def setup_PF(w_PF, phi, g, psi, h, bcs,
+def setup_PF(w_PF, phi, g, psi, h, dirichlet_bcs,
              phi_1, u_1, M_1, c_1, V_1,
              per_tau, sigma_bar, eps,
              dbeta, dveps,
@@ -256,7 +236,7 @@ def setup_PF(w_PF, phi, g, psi, h, bcs,
     return solver
 
 
-def setup_EC(w_EC, c, V, b, U, rho_e, bcs,
+def setup_EC(w_EC, c, V, b, U, rho_e, dirichlet_bcs,
              c_1, u_1, K_, veps_, phi_,
              per_tau, z, dbeta,
              enable_NS, enable_PF,
@@ -279,7 +259,7 @@ def setup_EC(w_EC, c, V, b, U, rho_e, bcs,
     F = sum(F_c) + F_V
     a, L = df.lhs(F), df.rhs(F)
 
-    problem = df.LinearVariationalProblem(a, L, w_EC, bcs)
+    problem = df.LinearVariationalProblem(a, L, w_EC, dirichlet_bcs)
     solver = df.LinearVariationalSolver(problem)
 
     if use_iterative_solvers:

@@ -2,6 +2,7 @@ import dolfin as df
 import os
 from . import *
 from common.io import mpi_is_root
+from common.bcs import Fixed
 __author__ = "Gaute Linga"
 
 info_cyan("Welcome to the simple problem!")
@@ -21,70 +22,78 @@ class PeriodicBoundary(df.SubDomain):
         y[1] = x[1]
 
 
-class DirichletBoundary(df.SubDomain):
+class Top(df.SubDomain):
     def __init__(self, Ly):
         self.Ly = Ly
         df.SubDomain.__init__(self)
 
     def inside(self, x, on_boundary):
-        return bool((df.near(x[1], 0.) or
-                     df.near(x[1], self.Ly)) and on_boundary)
+        return bool(df.near(x[1], self.Ly) and on_boundary)
 
 
-# Define solutes
-# Format: name, valency, diffusivity in phase 1, diffusivity in phase
-#         2, beta in phase 1, beta in phase 2
-solutes = [["c_p",  1, 1., 1., 1., 1.],
-           ["c_m", -1, 1., 1., 1., 1.]]
+class Bottom(df.SubDomain):
+    def inside(self, x, on_boundary):
+        return bool(df.near(x[1], 0.) and on_boundary)
 
-# Format: name : (family, degree, is_vector)
-base_elements = dict(u=["Lagrange", 2, True],
-                     p=["Lagrange", 1, False],
-                     phi=["Lagrange", 1, False],
-                     g=["Lagrange", 1, False],
-                     c=["Lagrange", 1, False],
-                     V=["Lagrange", 1, False])
 
-factor = 1./4.
+def problem():
+    # Define solutes
+    # Format: name, valency, diffusivity in phase 1, diffusivity in phase
+    #         2, beta in phase 1, beta in phase 2
+    solutes = [["c_p",  1, 1., 1., 1., 1.],
+               ["c_m", -1, 1., 1., 1., 1.]]
 
-# Default parameters to be loaded unless starting from checkpoint.
-parameters.update(
-    solver="basic",
-    folder="results_simple",
-    restart_folder=False,
-    enable_NS=True,
-    enable_PF=True,
-    enable_EC=True,
-    save_intv=5,
-    stats_intv=5,
-    checkpoint_intv=50,
-    tstep=0,
-    dt=factor*0.08,
-    t_0=0.,
-    T=20.,
-    dx=factor*1./16,
-    interface_thickness=factor*0.040,
-    solutes=solutes,
-    base_elements=base_elements,
-    Lx=1.,
-    Ly=2.,
-    rad_init=0.25,
-    #
-    V_top=1.,
-    V_btm=0.,
-    surface_tension=24.5,
-    grav_const=0.98,
-    #
-    pf_mobility_coeff=factor*0.000040,
-    density=[1000., 100.],
-    viscosity=[10., 1.],
-    permittivity=[1., 5.],
-    #
-    use_iterative_solvers=False,
-    use_pressure_stabilization=False
-)
+    # Format: name : (family, degree, is_vector)
+    base_elements = dict(u=["Lagrange", 2, True],
+                         p=["Lagrange", 1, False],
+                         phi=["Lagrange", 1, False],
+                         g=["Lagrange", 1, False],
+                         c=["Lagrange", 1, False],
+                         V=["Lagrange", 1, False])
 
-constrained_domain = PeriodicBoundary(1.)
+    factor = 1./4.
+
+    # Default parameters to be loaded unless starting from checkpoint.
+    parameters = dict(
+        solver="basic",
+        folder="results_simple",
+        restart_folder=False,
+        enable_NS=True,
+        enable_PF=True,
+        enable_EC=True,
+        save_intv=5,
+        stats_intv=5,
+        checkpoint_intv=50,
+        tstep=0,
+        dt=factor*0.08,
+        t_0=0.,
+        T=20.,
+        dx=factor*1./16,
+        interface_thickness=factor*0.040,
+        solutes=solutes,
+        base_elements=base_elements,
+        Lx=1.,
+        Ly=2.,
+        rad_init=0.25,
+        #
+        V_top=1.,
+        V_btm=0.,
+        surface_tension=24.5,
+        grav_const=0.98,
+        #
+        pf_mobility_coeff=factor*0.000040,
+        density=[1000., 100.],
+        viscosity=[10., 1.],
+        permittivity=[1., 5.],
+        #
+        use_iterative_solvers=False,
+        use_pressure_stabilization=False
+    )
+    return parameters
+
+
+def constrained_domain(Lx, **namespace):
+    return PeriodicBoundary(Lx)
 
 
 def mesh(Lx=1, Ly=5, dx=1./16, **namespace):
@@ -123,16 +132,41 @@ def initialize(Lx, Ly, rad_init,
             w_init_field["V"] = df.interpolate(
                 V_init_expr, field_to_subspace["V"].collapse())
 
-        # Pressure field (u is zero)
-        
-            
     return w_init_field
 
 
-def create_bcs(field_to_subspace, Lx, Ly, solutes,
-               V_top, V_btm,
-               enable_NS, enable_PF, enable_EC,
-               **namespace):
+def create_bcs(Ly, V_top, V_btm, **namespace):
+    """ The boundaries and boundary conditions are defined here. """
+    boundaries = dict(
+        top=[Top(Ly)],
+        bottom=[Bottom()]
+    )
+
+    bcs = dict()
+
+    noslip = Fixed((0., 0.))
+    V_bottom = Fixed(V_btm)
+
+    bcs["top"] = dict(
+        u=noslip,
+        V=Fixed(V_top)
+    )
+    bcs["bottom"] = dict(
+        u=noslip,
+        V=V_bottom
+    )
+
+    # Apply pointwise BCs e.g. to pin pressure.
+    bcs_pointwise = dict()
+    bcs_pointwise["p"] = (0., "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS")
+
+    return boundaries, bcs, bcs_pointwise
+
+
+def create_bcs_old(field_to_subspace, Lx, Ly, solutes,
+                   V_top, V_btm,
+                   enable_NS, enable_PF, enable_EC,
+                   **namespace):
     """ The boundary conditions are defined in terms of field. """
     bcs_fields = dict()
 

@@ -72,6 +72,7 @@ parameters.update(
     V_btm=0.,
     surface_tension=24.5,
     grav_const=0.0,
+    inlet_velocity=0.1,
     #
     pf_mobility_coeff=factor*0.000040,
     density=[1000., 1000.],
@@ -93,6 +94,7 @@ def mesh(Lx=1, Ly=5, dx=1./16, **namespace):
 def initialize(Lx, Ly, rad_init,
                interface_thickness, solutes, restart_folder,
                field_to_subspace,
+               inlet_velocity,
                enable_NS, enable_PF, enable_EC, initial_interface, **namespace):
     """ Create the initial state.
     The initial states are specified in a dict indexed by field. The format
@@ -105,6 +107,9 @@ def initialize(Lx, Ly, rad_init,
     """
     w_init_field = dict()
     if not restart_folder:
+        if enable_NS:
+            w_init_field["u"] = initial_velocity(inlet_velocity,
+                                                 field_to_subspace["u"])
         # Phase field
         if enable_PF:
             w_init_field["phi"] = initial_phasefield(
@@ -113,8 +118,9 @@ def initialize(Lx, Ly, rad_init,
 
     return w_init_field
 
+
 def create_bcs(field_to_subspace, Lx, Ly, solutes,
-               V_top, V_btm,
+               V_top, V_btm, inlet_velocity,
                enable_NS, enable_PF, enable_EC,
                **namespace):
     """ The boundary conditions are defined in terms of field. """
@@ -129,31 +135,34 @@ def create_bcs(field_to_subspace, Lx, Ly, solutes,
         #                          df.Constant(0.),
         #                          "on_boundary && (x[0] < DOLFIN_EPS "
         #                          "|| x[0] > {Lx}-DOLFIN_EPS)".format(Lx=Lx))
-        uinlet = df.DirichletBC(field_to_subspace["u"],
-                                df.Constant((0.1, 0.)),
-                                left)
-        uoutlet = df.DirichletBC(field_to_subspace["u"],
-                                df.Constant((0.1, 0.)),
-                                right)
+        u_inlet = df.DirichletBC(field_to_subspace["u"],
+                                 df.Constant((inlet_velocity, 0.)),
+                                 left)
+        # u_outlet = df.DirichletBC(field_to_subspace["u"],
+        #                           df.Constant((0.1, 0.)),
+        #                           right)
 
-        bcs_fields["u"] = [uinlet, uoutlet]
-        # The pressure gauge
-        p_pin = df.DirichletBC(field_to_subspace["p"],
-                               df.Constant(0.),
-                               left)
-        bcs_fields["p"] = [p_pin]
+        bcs_fields["u"] = [u_inlet]
+        # The pressure
+        p_left = df.DirichletBC(field_to_subspace["p"],
+                                df.Constant(0.),
+                                left)
+        p_right = df.DirichletBC(field_to_subspace["p"],
+                                 df.Constant(0.),
+                                 right)
+        bcs_fields["p"] = [p_left, p_right]
 
     # Phase field
     if enable_PF:
-        phiinlet = df.DirichletBC(field_to_subspace["phi"],
-                                df.Constant(-1.0),
-                                left)
+        phi_inlet = df.DirichletBC(field_to_subspace["phi"],
+                                   df.Constant(-1.0),
+                                   left)
 
-        phioutlet = df.DirichletBC(field_to_subspace["phi"],
-                                df.Constant(1.0),
-                                right)
-        bcs_fields["phi"] = [phiinlet, phioutlet]
-         #bcs_fields["g"] = []
+        phi_outlet = df.DirichletBC(field_to_subspace["phi"],
+                                    df.Constant(1.0),
+                                    right)
+        bcs_fields["phi"] = [phi_inlet, phi_outlet]
+        #bcs_fields["g"] = []
 
     # Electrochemistry
     #if enable_EC:
@@ -167,7 +176,6 @@ def create_bcs(field_to_subspace, Lx, Ly, solutes,
         #     bcs_fields[solute[0]] = []
         #bcs_fields["V"] = [bc_V_top, bc_V_btm]
     return bcs_fields
-
 
 
 def initial_phasefield(x0, y0, rad, eps, function_space, shape="circle"):
@@ -185,6 +193,13 @@ def initial_phasefield(x0, y0, rad, eps, function_space, shape="circle"):
                                   eps=eps, degree=2)
     phi_init = df.interpolate(phi_init_expr, function_space)
     return phi_init
+
+
+def initial_velocity(inlet_velocity, function_space):
+    u_init_expr = df.Constant((inlet_velocity, 0.))
+    u_init = df.interpolate(u_init_expr, function_space)
+    return u_init
+
 
 def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
                field_to_subproblem, subproblems, w_, **namespace):

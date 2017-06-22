@@ -19,8 +19,14 @@ default_problem = "simple"
 exec("from problems.{} import *".format(
     cmd_kwargs.get("problem", default_problem)))
 
+# Problem specific parameters
+parameters.update(problem())
+
 # Internalize cmd arguments and mesh
 vars().update(import_problem_hook(**vars()))
+
+# Compute facetnormals
+normal = df.FacetNormal(mesh)
 
 # If loading from checkpoint, update parameters from file, and then
 # again from command line arguments.
@@ -52,13 +58,13 @@ for name, subproblem in subproblems.iteritems():
         spaces[name] = df.FunctionSpace(
             mesh, df.MixedElement(
                 [elements[s["element"]] for s in subproblem]),
-            constrained_domain=constrained_domain)
+            constrained_domain=constrained_domain(**vars()))
     # If there is only one field in the subproblem, don't bother with
     # the MixedElement.
     elif len(subproblem) == 1:
         spaces[name] = df.FunctionSpace(
             mesh, elements[subproblem[0]["element"]],
-            constrained_domain=constrained_domain)
+            constrained_domain=constrained_domain(**vars()))
     else:
         info_on_red("Something went wrong here!")
         exit("")
@@ -109,13 +115,46 @@ w_tmp = dict((subproblem, df.Function(space, name=subproblem+"_tmp"))
 load_checkpoint(restart_folder, w_, w_1)
 
 # Get boundary conditions, from fields to subproblems
-bcs_fields = create_bcs(**vars())
-bcs = dict()
-for name, subproblem in subproblems.iteritems():
-    bcs[name] = []
-    for s in subproblem:
-        field = s["name"]
-        bcs[name] += bcs_fields.get(field, [])
+bcs_tuple = create_bcs(**vars())
+if len(bcs_tuple) == 3:
+    boundaries, bcs, bcs_pointwise = bcs_tuple
+elif len(bcs_tuple) == 2:
+    boundaries, bcs = bcs_tuple
+    bcs_pointwise = None
+else:
+    info_on_red("Wrong implementation of create_bcs.")
+    exit()
+
+subdomains = df.FacetFunction("size_t", mesh)
+subdomains.set_all(0)
+boundary_to_mark = dict()
+mark_to_boundary = dict()
+for i, (boundary_name, markers) in enumerate(boundaries.iteritems()):
+    for marker in markers:
+        marker.mark(subdomains, i+1)
+    boundary_to_mark[boundary_name] = i+1
+    mark_to_boundary[i] = boundary_name
+
+# Set up dirichlet part of bcs
+dirichlet_bcs = dict()
+for subproblem_name in subproblems.keys():
+    dirichlet_bcs[subproblem_name] = []
+
+for boundary_name, bcs_fields in bcs.iteritems():
+    for field, bc in bcs_fields.iteritems():
+        subproblem_name = field_to_subproblem[field][0]
+        subspace = field_to_subspace[field]
+        mark = boundary_to_mark[boundary_name]
+        dirichlet_bcs[subproblem_name].append(
+            bc.dbc(subspace, subdomains, mark))
+
+# Pointwise dirichlet bcs
+for field, (value, c_code) in bcs_pointwise.iteritems():
+    subproblem_name = field_to_subproblem[field][0]
+    subspace = field_to_subspace[field]
+    dirichlet_bcs[subproblem_name].append(
+        df.DirichletBC(subspace, df.Constant(value),
+                       c_code, "pointwise"))
 
 # Initialize solutions
 w_init_fields = initialize(**vars())
