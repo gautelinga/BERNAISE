@@ -263,11 +263,11 @@ def setup_EC(w_EC, c, V, b, U, rho_e,
                 Ki_*df.dot(df.grad(ci), df.grad(bi))*dx)
         if zi != 0:
             F_ci += Ki_*zi*ci_1*df.dot(df.grad(V), df.grad(bi))*dx
-            for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
-                F_ci += Ki_*zi*ci_1*sigma_e/veps_*bi*ds(boundary_to_mark[boundary_name])
+            #for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
+            #    F_ci += -Ki_*zi*ci_1*sigma_e/veps_*bi*ds(boundary_to_mark[boundary_name])
         if enable_PF:
             F_ci += Ki_*ci*dbetai*df.dot(df.grad(phi_), df.grad(bi))*dx
-            # for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
+            #for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
             #     F_ci += -Ki_*ci*dbetai*df.dot(df.grad(phi_), normal)*bi*ds(boundary_to_mark[boundary_name])
         if enable_NS:
             F_ci += df.dot(u_1, df.grad(ci))*bi*dx

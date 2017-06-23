@@ -35,8 +35,8 @@ class Top(df.SubDomain):
 def problem():
      # Format: name, valency, diffusivity in phase 1, diffusivity in phase
     #         2, beta in phase 1, beta in phase 2
-    solutes = [["c_p",  1, 1e-4, 1.e-3, 3., 1.],
-               ["c_m", -1, 1e-4, 1.e-3, 3., 1.]]
+    solutes = [["c_p",  1, 1e-1, 1.e-1, 1., 1.],
+               ["c_m", -1, 1e-1, 1.e-1, 1., 1.]]
 
     # Format: name : (family, degree, is_vector)
     base_elements = dict(u=["Lagrange", 2, True],
@@ -46,8 +46,10 @@ def problem():
                          c=["Lagrange", 1, False],
                          V=["Lagrange", 1, False])
 
-    factor = 1.
+    factor = 1./2
 
+    #surfacecharge = 1.9e-6 # [C]/[m]^2
+    #debeylengt = sqrt(epsilon/2*c0) 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
         solver="basic",
@@ -60,9 +62,9 @@ def problem():
         stats_intv=5,
         checkpoint_intv=50,
         tstep=0,
-        dt=factor*0.08,
+        dt=factor*0.8,
         t_0=0.,
-        T=20.,
+        T=100.,
         grid_spacing=factor*1./16,
         interface_thickness=factor*0.080,
         solutes=solutes,
@@ -71,15 +73,14 @@ def problem():
         Ly=5.,
         rad_init=0.25,
         #
-        V_top=1.,
-        V_btm=0.,
+        surface_charge=1.0,
         surface_tension=24.5,
         grav_const=0.0,
         #
         pf_mobility_coeff=factor*0.000040,
         density=[1000., 1000.],
         viscosity=[1., 1.],
-        permittivity=[1., 5.],
+        permittivity=[1., 1.],
         #
         initial_interface="flat",
         #
@@ -90,7 +91,7 @@ def problem():
 
 def mesh(Lx=1, Ly=5, grid_spacing=1./16, **namespace):
     return df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly),
-                            int(Lx/dx), int(Ly/dx))
+                            int(Lx/grid_spacing), int(Ly/grid_spacing))
 
 def initialize(Lx, Ly, rad_init,
                interface_thickness, solutes, restart_folder,
@@ -106,7 +107,7 @@ def initialize(Lx, Ly, rad_init,
     Note: You only need to specify the initial states that are nonzero.
     """
 
-    c0 = [.000000001, .000000001]
+    c0 = [1., 1.]
     w_init_field = dict()
     if not restart_folder:
         if enable_EC:
@@ -128,7 +129,7 @@ def initialize(Lx, Ly, rad_init,
     return w_init_field
 
 
-def create_bcs(Lx, Ly, solutes, 
+def create_bcs(Lx, Ly, solutes, surface_charge,  
     enable_NS, enable_PF, enable_EC, **namespace):
     """ The boundaries and boundary conditions are defined here. """
     boundaries = dict(
@@ -137,10 +138,10 @@ def create_bcs(Lx, Ly, solutes,
         bottom=[Bottom(0)],
         top=[Top(Ly)]
     )
-    c0 = [.000000001, .000000001]
+    c0 = [1.0, 1.0]
     noslip = Fixed((0., 0.))
     V_ground = Fixed(0.0)
-    surfacecharge = Charged(0.000001)
+    surfacecharge = Charged(surface_charge)
 
     bcs = dict()
     bcs_pointwise = dict()

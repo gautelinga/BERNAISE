@@ -59,7 +59,7 @@ def problem():
         dt=0.02,
         t_0=0.,
         T=20.,
-        dx=1./64,
+        grid_spacing=1./64,
         interface_thickness=0.02,
         solutes=solutes,
         base_elements=base_elements,
@@ -83,9 +83,9 @@ def problem():
     return parameters
 
 
-def mesh(Lx=1, Ly=5, dx=1./16, **namespace):
+def mesh(Lx=1, Ly=5, grid_spacing=1./16, **namespace):
     return df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly),
-                            int(Lx/dx), int(Ly/dx))
+                            int(Lx/grid_spacing), int(Ly/grid_spacing))
 
 
 def initialize(Lx, Ly, rad_init,
