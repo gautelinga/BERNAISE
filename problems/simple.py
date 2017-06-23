@@ -135,7 +135,8 @@ def initialize(Lx, Ly, rad_init,
     return w_init_field
 
 
-def create_bcs(Ly, V_top, V_btm, **namespace):
+def create_bcs(Ly, V_top, V_btm,
+         enable_NS, enable_PF, enable_EC, **namespace):
     """ The boundaries and boundary conditions are defined here. """
     boundaries = dict(
         top=[Top(Ly)],
@@ -143,22 +144,19 @@ def create_bcs(Ly, V_top, V_btm, **namespace):
     )
 
     bcs = dict()
+    bcs_pointwise = dict()
+    bcs["top"] = dict()
+    bcs["bottom"] = dict()
 
     noslip = Fixed((0., 0.))
-    V_bottom = Fixed(V_btm)
+    if enable_NS:
+        bcs["top"]["u"] = noslip
+        bcs["bottom"]["u"] = noslip
+        bcs_pointwise["p"] = (0., "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS")
 
-    bcs["top"] = dict(
-        u=noslip,
-        V=Fixed(V_top)
-    )
-    bcs["bottom"] = dict(
-        u=noslip,
-        V=V_bottom
-    )
-
-    # Apply pointwise BCs e.g. to pin pressure.
-    bcs_pointwise = dict()
-    bcs_pointwise["p"] = (0., "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS")
+    if enable_EC:
+        bcs["top"]["V"] = Fixed(V_top)
+        bcs["bottom"]["V"] = Fixed(V_btm)
 
     return boundaries, bcs, bcs_pointwise
 

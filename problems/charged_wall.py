@@ -33,6 +33,7 @@ class Top(df.SubDomain):
 
 
 def problem():
+     # Format: name, valency, diffusivity in phase 1, diffusivity in phase
     #         2, beta in phase 1, beta in phase 2
     solutes = [["c_p",  1, 1e-4, 1.e-3, 3., 1.],
                ["c_m", -1, 1e-4, 1.e-3, 3., 1.]]
@@ -126,7 +127,8 @@ def initialize(Lx, Ly, rad_init,
     return w_init_field
 
 
-def create_bcs(Lx, Ly, solutes, **namespace):
+def create_bcs(Lx, Ly, solutes, 
+    enable_NS, enable_PF, enable_EC, **namespace):
     """ The boundaries and boundary conditions are defined here. """
     boundaries = dict(
         right=[Right(Lx)],
@@ -140,27 +142,25 @@ def create_bcs(Lx, Ly, solutes, **namespace):
     surfacecharge = Charged(0.0001)
 
     bcs = dict()
+    bcs_pointwise = dict()
+    bcs["right"] = dict()
+    bcs["left"] = dict()
+    bcs["top"] = dict()
+    bcs["bottom"] = dict()
 
-    bcs["right"] = dict(
-        u=noslip,
-    )
-    bcs["left"] = dict(
-        u=noslip
-    )
+    if enable_NS:
+        bcs["right"]["u"] = noslip
+        bcs["left"]["u"] = noslip
+        bcs["top"]["u"] = noslip
+        bcs_pointwise["p"] = (0., "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS")
 
-    bcs["top"] = dict(
-        u=noslip,
-        V=surfacecharge
-    )
-    bcs["bottom"] = dict(
-        V=V_ground
-    )
-    for ci, solute in zip(c0, solutes):
-        bcs["bottom"][solute[0]] = Fixed(ci)
+    if enable_EC:
+        bcs["top"]["V"] = surfacecharge
+        bcs["bottom"]["V"] = V_ground
+        for ci, solute in zip(c0, solutes):
+            bcs["bottom"][solute[0]] = Fixed(ci)
 
     # Apply pointwise BCs e.g. to pin pressure.
-    bcs_pointwise = dict()
-    bcs_pointwise["p"] = (0., "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS")
 
     return boundaries, bcs, bcs_pointwise
 
