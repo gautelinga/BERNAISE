@@ -44,7 +44,7 @@ def problem():
         dt=0.02,
         t_0=0.,
         T=20.,
-        dx=1./64,
+        grid_spacing=1./64,
         interface_thickness=0.02,
         solutes=solutes,
         base_elements=base_elements,
