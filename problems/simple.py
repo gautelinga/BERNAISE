@@ -135,7 +135,8 @@ def initialize(Lx, Ly, rad_init,
     return w_init_field
 
 
-def create_bcs(Ly, V_top, V_btm, **namespace):
+def create_bcs(Ly, V_top, V_btm,
+         enable_NS, enable_PF, enable_EC, **namespace):
     """ The boundaries and boundary conditions are defined here. """
     boundaries = dict(
         top=[Top(Ly)],
@@ -143,71 +144,21 @@ def create_bcs(Ly, V_top, V_btm, **namespace):
     )
 
     bcs = dict()
+    bcs_pointwise = dict()
+    bcs["top"] = dict()
+    bcs["bottom"] = dict()
 
     noslip = Fixed((0., 0.))
-    V_bottom = Fixed(V_btm)
+    if enable_NS:
+        bcs["top"]["u"] = noslip
+        bcs["bottom"]["u"] = noslip
+        bcs_pointwise["p"] = (0., "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS")
 
-    bcs["top"] = dict(
-        u=noslip,
-        V=Fixed(V_top)
-    )
-    bcs["bottom"] = dict(
-        u=noslip,
-        V=V_bottom
-    )
-
-    # Apply pointwise BCs e.g. to pin pressure.
-    bcs_pointwise = dict()
-    bcs_pointwise["p"] = (0., "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS")
+    if enable_EC:
+        bcs["top"]["V"] = Fixed(V_top)
+        bcs["bottom"]["V"] = Fixed(V_btm)
 
     return boundaries, bcs, bcs_pointwise
-
-
-def create_bcs_old(field_to_subspace, Lx, Ly, solutes,
-                   V_top, V_btm,
-                   enable_NS, enable_PF, enable_EC,
-                   **namespace):
-    """ The boundary conditions are defined in terms of field. """
-    bcs_fields = dict()
-
-    # Navier-Stokes
-    if enable_NS:
-        #freeslip = df.DirichletBC(field_to_subspace["u"].sub(0),
-        #                          df.Constant(0.),
-        #                          "on_boundary && (x[0] < DOLFIN_EPS "
-        #                          "|| x[0] > {Lx}-DOLFIN_EPS)".format(Lx=Lx))
-        dbc = DirichletBoundary(Ly)
-        noslip = df.DirichletBC(field_to_subspace["u"],
-                                df.Constant((0., 0.)),
-                                dbc)
-
-        #bcs_fields["u"] = [noslip, freeslip]
-        bcs_fields["u"] = [noslip]
-        # GL: Should we pin the pressure?
-        p_pin = df.DirichletBC(field_to_subspace["p"],
-                               df.Constant(0.),
-                               "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS",
-                               "pointwise")
-        bcs_fields["p"] = [p_pin]
-
-    # Phase field
-    # if enable_PF:
-    #     bcs_fields["phi"] = []
-    #     bcs_fields["g"] = []
-
-    # Electrochemistry
-    if enable_EC:
-        bc_V_top = df.DirichletBC(
-            field_to_subspace["V"], df.Constant(V_top),
-            "on_boundary && x[1] > {Ly}-DOLFIN_EPS".format(Ly=Ly))
-        bc_V_btm = df.DirichletBC(field_to_subspace["V"], df.Constant(V_btm),
-                                  "on_boundary && x[1] < DOLFIN_EPS")
-        # bcs_fields["EC"] = [bc_V_top, bc_V_btm]
-        # for solute in solutes:
-        #     bcs_fields[solute[0]] = []
-        bcs_fields["V"] = [bc_V_top, bc_V_btm]
-    return bcs_fields
-
 
 def initial_phasefield(x0, y0, rad, eps, function_space, shape="circle"):
     if shape == "flat":

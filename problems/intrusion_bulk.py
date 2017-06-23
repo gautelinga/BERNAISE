@@ -49,7 +49,7 @@ def problem():
     factor = 1./4.
 
     # Default parameters to be loaded unless starting from checkpoint.
-    parameters.update(
+    parameters = dict(
         solver="basic",
         folder="results_intrusion_bulk",
         restart_folder=False,
@@ -63,7 +63,7 @@ def problem():
         dt=factor*0.08,
         t_0=0.,
         T=20.,
-        dx=factor*1./16,
+        grid_spacing=factor*1./16,
         interface_thickness=factor*0.060,
         solutes=solutes,
         base_elements=base_elements,
@@ -92,9 +92,9 @@ def problem():
 def constrained_domain(Ly, **namespace):
     return PeriodicBoundary(Ly)
 
-def mesh(Lx=1, Ly=5, dx=1./16, **namespace):
+def mesh(Lx=1, Ly=5, grid_spacing=1./16, **namespace):
     return df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly),
-                            int(Lx/dx), int(Ly/dx))
+                            int(Lx/grid_spacing), int(Ly/grid_spacing))
 
 def initialize(Lx, Ly, rad_init,
                interface_thickness, solutes, restart_folder,
@@ -124,95 +124,36 @@ def initialize(Lx, Ly, rad_init,
     return w_init_field
 
 
-def create_bcs(Lx, Ly,inlet_velocity, **namespace):
+def create_bcs(Lx, Ly,inlet_velocity,
+         enable_NS, enable_PF, enable_EC, **namespace):
     """ The boundaries and boundary conditions are defined here. """
     boundaries = dict(
         right=[Right(Lx)],
         left=[Left(0)]
     )
 
+    # alocatin the boundary dict's
     bcs = dict()
+    bcs_pointwise = dict()
+    bcs["left"] = dict()
+    bcs["right"] = dict()
+
 
     inletvelocity = Fixed((inlet_velocity, 0.))
     pressurein_out = Fixed(0.0)
     phi_inlet = Fixed(-1.0) 
     phi_outlet = Fixed(1.0) 
 
-    bcs["left"] = dict(
-        u=inletvelocity,
-        p=pressurein_out,
-        phi = phi_inlet
-    )
-    
-    bcs["right"] = dict(
-        p=pressurein_out,
-        phi =phi_outlet
-    )
+    if enable_NS: 
+        bcs["left"]["u"] = inletvelocity
+        bcs["right"]["p"] = pressurein_out
+        bcs["left"]["p"] = pressurein_out
 
-    # Apply pointwise BCs e.g. to pin pressure.
-    bcs_pointwise = dict()
-    
+    if enable_PF:  
+        bcs["left"]["phi"] = phi_inlet
+        bcs["right"]["phi"] = phi_outlet
+
     return boundaries, bcs, bcs_pointwise
-
-
-def create_bcs_old(field_to_subspace, Lx, Ly, solutes,
-               V_top, V_btm, inlet_velocity,
-               enable_NS, enable_PF, enable_EC,
-               **namespace):
-    """ The boundary conditions are defined in terms of field. """
-    bcs_fields = dict()
-
-    # Navier-Stokes
-    right = Right(Lx)
-    left = Left(0)
-    
-    if enable_NS:
-        #freeslip = df.DirichletBC(field_to_subspace["u"].sub(0),
-        #                          df.Constant(0.),
-        #                          "on_boundary && (x[0] < DOLFIN_EPS "
-        #                          "|| x[0] > {Lx}-DOLFIN_EPS)".format(Lx=Lx))
-        u_inlet = df.DirichletBC(field_to_subspace["u"],
-                                 df.Constant((inlet_velocity, 0.)),
-                                 left)
-        # u_outlet = df.DirichletBC(field_to_subspace["u"],
-        #                           df.Constant((0.1, 0.)),
-        #                           right)
-
-        bcs_fields["u"] = [u_inlet]
-        # The pressure
-        p_left = df.DirichletBC(field_to_subspace["p"],
-                                df.Constant(0.),
-                                left)
-        p_right = df.DirichletBC(field_to_subspace["p"],
-                                 df.Constant(0.),
-                                 right)
-        bcs_fields["p"] = [p_left, p_right]
-
-    # Phase field
-    if enable_PF:
-        phi_inlet = df.DirichletBC(field_to_subspace["phi"],
-                                   df.Constant(-1.0),
-                                   left)
-
-        phi_outlet = df.DirichletBC(field_to_subspace["phi"],
-                                    df.Constant(1.0),
-                                    right)
-        bcs_fields["phi"] = [phi_inlet, phi_outlet]
-        #bcs_fields["g"] = []
-
-    # Electrochemistry
-    #if enable_EC:
-        #bc_V_top = df.DirichletBC(
-        #    field_to_subspace["V"], df.Constant(V_top),
-        #    "on_boundary && x[1] > {Ly}-DOLFIN_EPS".format(Ly=Ly))
-        #bc_V_btm = df.DirichletBC(field_to_subspace["V"], df.Constant(V_btm),
-        #                          "on_boundary && x[1] < DOLFIN_EPS")
-        # bcs_fields["EC"] = [bc_V_top, bc_V_btm]
-        # for solute in solutes:
-        #     bcs_fields[solute[0]] = []
-        #bcs_fields["V"] = [bc_V_top, bc_V_btm]
-    return bcs_fields
-
 
 def initial_phasefield(x0, y0, rad, eps, function_space, shape="circle"):
     if shape == "flat":
