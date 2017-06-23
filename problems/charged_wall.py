@@ -45,7 +45,7 @@ def problem():
                          c=["Lagrange", 1, False],
                          V=["Lagrange", 1, False])
 
-    factor = 1./4.
+    factor = 1.
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
@@ -110,14 +110,15 @@ def initialize(Lx, Ly, rad_init,
     if not restart_folder:
         if enable_EC:
             for ci, solute in zip(c0, solutes):
-                c_init = initial_c(ci,
-                                   field_to_subspace[solute[0]].collapse())
+                solute_name = solute[0]
+                w_init_field[solute_name] = initial_c(
+                    ci,
+                    field_to_subspace[solute_name].collapse())
             V_init_expr = df.Expression("0.", degree=1)
             w_init_field["V"] = df.interpolate(
             V_init_expr, field_to_subspace["V"].collapse())
 
         # Phase field
-        
         if enable_PF:
             w_init_field["phi"] = initial_phasefield(
                 Lx/5, Lx/2, rad_init, interface_thickness,
