@@ -2,10 +2,8 @@ import dolfin as df
 import os
 from . import *
 from common.io import mpi_is_root
-from bcs import Fixed
+from common.bcs import Fixed
 __author__ = "Gaute Linga"
-
-info_cyan("Charged droplet in an electric field")
 
 
 class Wall(df.SubDomain):
@@ -32,6 +30,8 @@ class Right(df.SubDomain):
 
 
 def problem():
+    info_cyan("Charged droplet in an electric field")
+    
     # Define solutes
     # Format: name, valency, diffusivity in phase 1, diffusivity in phase
     solutes = [["c_p",  1, 1e-4, 1.e-3, 2., 1.]]
