@@ -38,8 +38,8 @@ def problem():
     info_cyan("A two-phase dielectricum.")
     
     #         2, beta in phase 1, beta in phase 2
-    solutes = [["c_p",  1, 1e-4, 1e-3, 1., 3.],
-               ["c_m", -1, 1e-4, 1e-3, 1., 3.]]
+    solutes = [["c_p",  1, 1e-4, 1e-3, 3., 1.],
+               ["c_m", -1, 1e-4, 1e-3, 3., 1.]]
 
     # Format: name : (family, degree, is_vector)
     base_elements = dict(u=["Lagrange", 2, True],
@@ -50,7 +50,7 @@ def problem():
                          V=["Lagrange", 1, False])
 
     factor = 1./4
-    sigma_e = 0.0
+    sigma_e = 1.
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
@@ -116,14 +116,14 @@ def initialize(Lx, Ly,
                 interface_thickness, field_to_subspace["phi"])
         if enable_EC:
             for solute in solutes:
-                c_init = initial_phasefield(
-                    Ly/2, undulation_amplitude, undulation_periods,
-                    interface_thickness, field_to_subspace["phi"])
-                c_init.vector()[:] = concentration_init*0.5*(1.-c_init.vector().array())
-                # w_init_field[solute[0]] = initial_c(
-                #    Lx/2, 0., Ly/8, concentration_init,
-                #    field_to_subspace[solute[0]].collapse())
-                w_init_field[solute[0]] = c_init
+                #c_init = initial_phasefield(
+                #    Ly/2, undulation_amplitude, undulation_periods,
+                #    interface_thickness, field_to_subspace["phi"])
+                #c_init.vector()[:] = concentration_init*0.5*(1.-c_init.vector().array())
+                w_init_field[solute[0]] = initial_c(
+                    Lx/2, 0., Ly/6, concentration_init,
+                    field_to_subspace[solute[0]].collapse())
+                #w_init_field[solute[0]] = c_init
 
     return w_init_field
 
@@ -201,9 +201,11 @@ def start_hook(newfolder, **namespace):
 
 
 def initial_c(x, y, rad, c_init, function_space):
-    expr_str = ("c_init*1./(2*pi*pow(sigma, 2)) * "
-                "exp(- 0.5*pow((x[0]-x0)/sigma, 2)"
-                " - 0.5*pow((x[1]-y0)/sigma, 2))")
+#    expr_str = ("c_init*1./(2*pi*pow(sigma, 2)) * "
+#                "exp(- 0.5*pow((x[0]-x0)/sigma, 2)"
+#               " - 0.5*pow((x[1]-y0)/sigma, 2))")
+    expr_str = ("2*c_init*1./(2*pi*pow(sigma, 2)) * "
+                "exp(- 0.5*pow((x[1]-y0)/sigma, 2))")
     c_init_expr = df.Expression(expr_str, x0=x, y0=y, sigma=rad,
                                 c_init=c_init, degree=2)
     return df.interpolate(c_init_expr, function_space)
