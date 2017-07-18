@@ -50,7 +50,7 @@ def problem():
                          V=["Lagrange", 1, False])
 
     factor = 1./4
-    sigma_e = 1.
+    sigma_e = 5.
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
@@ -116,14 +116,15 @@ def initialize(Lx, Ly,
                 interface_thickness, field_to_subspace["phi"])
         if enable_EC:
             for solute in solutes:
-                #c_init = initial_phasefield(
-                #    Ly/2, undulation_amplitude, undulation_periods,
-                #    interface_thickness, field_to_subspace["phi"])
-                #c_init.vector()[:] = concentration_init*0.5*(1.-c_init.vector().array())
-                w_init_field[solute[0]] = initial_c(
-                    Lx/2, 0., Ly/6, concentration_init,
-                    field_to_subspace[solute[0]].collapse())
-                #w_init_field[solute[0]] = c_init
+                c_init = initial_phasefield(
+                    Ly/2, undulation_amplitude, undulation_periods,
+                    interface_thickness, field_to_subspace["phi"])
+                c_init.vector()[:] = concentration_init*0.5*(
+                    1.-c_init.vector().array())
+                # w_init_field[solute[0]] = initial_c(
+                #     Lx/2, 0., Ly/6, concentration_init,
+                #     field_to_subspace[solute[0]].collapse())
+                w_init_field[solute[0]] = c_init
 
     return w_init_field
 
