@@ -8,7 +8,7 @@ linearisation. The problem is split between the following subproblems.
   double-well potential to make the problem linear.
 
 * EC: Solute concentrations are solved simultaneously as the electric
-  potential, with a linearization of the c \grad V term, to make the
+  potential, with a linearization of the c \grad V term, to make the whole
   problem linear.
 
 * NS: The Navier-Stokes equations are solved simultaneously for the
@@ -235,7 +235,7 @@ def setup_PF(w_PF, phi, g, psi, h,
     if enable_EC:
         F_g += (-sum([dbeta_i*ci_1*h*dx
                       for dbeta_i, ci_1 in zip(dbeta, c_1)])
-                + dveps*df.dot(df.grad(V_1), df.grad(V_1))*h*dx)
+                + 0.5*dveps*df.dot(df.grad(V_1), df.grad(V_1))*h*dx)
     F = F_phi + F_g
     a, L = df.lhs(F), df.rhs(F)
 
