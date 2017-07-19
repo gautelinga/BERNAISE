@@ -46,7 +46,7 @@ def problem():
                          c=["Lagrange", 1, False],
                          V=["Lagrange", 1, False])
 
-    factor = 1./4.
+    factor = 1./2.
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
@@ -73,16 +73,16 @@ def problem():
         #
         V_top=1.,
         V_btm=0.,
-        surface_tension=24.5,
+        surface_tension=2.45,  # 24.5,
         grav_const=0.0,
         inlet_velocity=0.1,
         #
         pf_mobility_coeff=factor*0.000040,
         density=[1000., 1000.],
-        viscosity=[1., 10.],
+        viscosity=[1000., 1.],
         permittivity=[1., 5.],
         #
-        initial_interface="flat",
+        initial_interface="sine",
         #
         use_iterative_solvers=False,
         use_pressure_stabilization=False
@@ -113,8 +113,12 @@ def initialize(Lx, Ly, rad_init,
     w_init_field = dict()
     if not restart_folder:
         if enable_NS:
+            try:
+                subspace = field_to_subspace["u"].collapse()
+            except:
+                subspace = field_to_subspace["u"]
             w_init_field["u"] = initial_velocity(inlet_velocity,
-                                                 field_to_subspace["u"].collapse())
+                                                 subspace)
         # Phase field
         if enable_PF:
             w_init_field["phi"] = initial_phasefield(
@@ -132,12 +136,11 @@ def create_bcs(Lx, Ly,inlet_velocity,
         left=[Left(0)]
     )
 
-    # alocatin the boundary dict's
+    # Alocating the boundary dicts
     bcs = dict()
     bcs_pointwise = dict()
     bcs["left"] = dict()
     bcs["right"] = dict()
-
 
     inletvelocity = Fixed((inlet_velocity, 0.))
     pressurein_out = Fixed(0.0)
@@ -155,11 +158,12 @@ def create_bcs(Lx, Ly,inlet_velocity,
 
     return boundaries, bcs, bcs_pointwise
 
-def initial_phasefield(x0, y0, rad, eps, function_space, shape="circle"):
+
+def initial_phasefield(x0, y0, rad, eps, function_space, shape="flat"):
     if shape == "flat":
         expr_str = "tanh((x[0]-x0)/(sqrt(2)*eps))"
     elif shape == "sine":
-        expr_str = "tanh((x[0]-x0-10*eps*sin(x[1]*pi))/(sqrt(2)*eps))"
+        expr_str = "tanh((x[0]-x0-eps*sin(2*x[1]*pi))/(sqrt(2)*eps))"
     elif shape == "circle":
         expr_str = ("tanh(sqrt(2)*(sqrt(pow(x[0]-x0,2)" +
                     "+pow(x[1]-y0,2))-rad)/eps)")
@@ -181,15 +185,14 @@ def initial_velocity(inlet_velocity, function_space):
 def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
                field_to_subproblem, subproblems, w_, **namespace):
     info_blue("Timestep = {}".format(tstep))
-    if False and stats_intv and tstep % stats_intv == 0:
+    if stats_intv and tstep % stats_intv == 0:
         # GL: Seems like a rather awkward way of doing this,
         # but any other way seems to fuck up the simulation.
         # Anyhow, a better idea could be to move some of this to a post-processing stage.
         # GL: Move into common/utilities at a certain point.
         subproblem_name, subproblem_i = field_to_subproblem["phi"]
-        Q = w_[subproblem_name].split(deepcopy=True)[subproblem_i]
-        bubble = df.interpolate(Q, field_to_subspace["phi"].collapse())
-        bubble = 0.5*(1.-df.sign(bubble))
+        phi = w_[subproblem_name].split(deepcopy=True)[subproblem_i]
+        bubble = 0.5*(1.-df.sign(phi))
         mass = df.assemble(bubble*df.dx)
         massy = df.assemble(
             bubble*df.Expression("x[1]", degree=1)*df.dx)

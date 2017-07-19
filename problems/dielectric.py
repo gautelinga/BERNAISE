@@ -36,10 +36,10 @@ class Top(df.SubDomain):
 
 def problem():
     info_cyan("A two-phase dielectricum.")
-    
+
     #         2, beta in phase 1, beta in phase 2
-    solutes = [["c_p",  1, 1e-4, 1e-3, 3., 1.],
-               ["c_m", -1, 1e-4, 1e-3, 3., 1.]]
+    solutes = [["c_p",  1, 1e-4, 1e-2, 4., 1.],
+               ["c_m", -1, 1e-4, 1e-2, 4., 1.]]
 
     # Format: name : (family, degree, is_vector)
     base_elements = dict(u=["Lagrange", 2, True],
@@ -50,7 +50,7 @@ def problem():
                          V=["Lagrange", 1, False])
 
     factor = 1./4
-    sigma_e = 5.
+    sigma_e = 10.
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
@@ -77,14 +77,14 @@ def problem():
         undulation_periods=1.,
         surface_charge_top=sigma_e,
         surface_charge_bottom=-sigma_e,
-        concentration_init=1.,
+        concentration_init=2.,
         #
-        surface_tension=24.5,
+        surface_tension=1.25,  # 24.5,
         grav_const=0.0,
         #
-        pf_mobility_coeff=factor*0.000040,
-        density=[100., 100.],
-        viscosity=[10., 1.],
+        pf_mobility_coeff=factor*0.000010,
+        density=[10., 10.],
+        viscosity=[1., 1.],
         permittivity=[1., 1.],
     )
     return parameters
@@ -119,6 +119,7 @@ def initialize(Lx, Ly,
                 c_init = initial_phasefield(
                     Ly/2, undulation_amplitude, undulation_periods,
                     interface_thickness, field_to_subspace["phi"])
+                # Only have ions in phase 2 (phi=-1)
                 c_init.vector()[:] = concentration_init*0.5*(
                     1.-c_init.vector().array())
                 # w_init_field[solute[0]] = initial_c(

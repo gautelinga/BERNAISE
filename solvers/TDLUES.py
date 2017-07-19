@@ -103,10 +103,10 @@ def unpack_quantities(surface_tension, grav_const, pf_mobility_coeff,
     else:
         c = V = b = U = c_ = V_ = c_1 = V_1 = None
 
-    # phi_flt_ = unit_interval_filter(phi_)
-    # phi_flt_1 = unit_interval_filter(phi_1)
-    phi_flt_ = phi_
-    phi_flt_1 = phi_1
+    phi_flt_ = unit_interval_filter(phi_)
+    phi_flt_1 = unit_interval_filter(phi_1)
+    # phi_flt_ = phi_
+    # phi_flt_1 = phi_1
 
     M_ = pf_mobility(phi_flt_, gamma)
     M_1 = pf_mobility(phi_flt_1, gamma)

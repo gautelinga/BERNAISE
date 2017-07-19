@@ -100,11 +100,15 @@ def setup(test_functions, trial_functions, w_, w_1,
     else:
         c_ = V_ = c_1 = V_1 = None
 
-    M_ = pf_mobility(unit_interval_filter(phi_), gamma)
-    M_1 = pf_mobility(unit_interval_filter(phi_1), gamma)
-    nu_ = ramp(unit_interval_filter(phi_), viscosity)
-    rho_ = ramp(unit_interval_filter(phi_), density)
-    veps_ = ramp(unit_interval_filter(phi_), permittivity)
+    phi_flt_ = unit_interval_filter(phi_)
+    phi_flt_1 = unit_interval_filter(phi_1)
+
+    M_ = pf_mobility(phi_flt_, gamma)
+    M_1 = pf_mobility(phi_flt_1, gamma)
+    nu_ = ramp(phi_flt_, viscosity)
+    rho_ = ramp(phi_flt_, density)
+    rho_1 = ramp(phi_flt_1, density)
+    veps_ = ramp(phi_flt_, permittivity)
 
     dveps = dramp(permittivity)
     drho = dramp(density)
@@ -142,7 +146,8 @@ def setup(test_functions, trial_functions, w_, w_1,
                                  dx, ds,
                                  dirichlet_bcs["EC"], neumann_bcs,
                                  boundary_to_mark,
-                                 c_1, u_1, K_, veps_, phi_, per_tau, z, dbeta,
+                                 c_1, u_1, K_, veps_, phi_flt_,
+                                 per_tau, z, dbeta,
                                  enable_NS, enable_PF,
                                  use_iterative_solvers)
 
@@ -151,8 +156,8 @@ def setup(test_functions, trial_functions, w_, w_1,
                                  dx, ds,
                                  dirichlet_bcs["NS"], neumann_bcs,
                                  boundary_to_mark,
-                                 u_1, phi_,
-                                 rho_, g_, M_, nu_, rho_e_, V_,
+                                 u_1, phi_flt_,
+                                 rho_, rho_1, g_, M_, nu_, rho_e_, V_,
                                  per_tau, drho, sigma_bar, eps, dveps, grav,
                                  enable_PF, enable_EC,
                                  use_iterative_solvers,
@@ -163,18 +168,31 @@ def setup(test_functions, trial_functions, w_, w_1,
 def setup_NS(w_NS, u, p, v, q,
              dx, ds,
              dirichlet_bcs, neumann_bcs, boundary_to_mark,
-             u_1, phi_, rho_, g_, M_, nu_, rho_e_, V_,
+             u_1, phi_, rho_, rho_1, g_, M_, nu_, rho_e_, V_,
              per_tau, drho, sigma_bar, eps, dveps, grav,
              enable_PF, enable_EC,
              use_iterative_solvers, use_pressure_stabilization):
     """ Set up the Navier-Stokes subproblem. """
+    # F = (
+    #     per_tau * rho_ * df.dot(u - u_1, v)*dx
+    #     + rho_*df.inner(df.grad(u), df.outer(u_1, v))*dx
+    #     + 2*nu_*df.inner(df.sym(df.grad(u)), df.grad(v))*dx
+    #     - p * df.div(v)*dx
+    #     + df.div(u)*q*dx
+    #     - df.dot(rho_*grav, v)*dx
+    # )
+    mom_1 = rho_1*u_1
+    if enable_PF:
+        mom_1 += -drho * df.grad(g_)
     F = (
-        per_tau * rho_ * df.dot(u - u_1, v)*dx
-        + rho_*df.inner(df.grad(u), df.outer(u_1, v))*dx
-        + 2*nu_*df.inner(df.sym(df.grad(u)), df.grad(v))*dx
-        - p * df.div(v)*dx
-        + df.div(u)*q*dx
-        - df.dot(rho_*grav, v)*dx
+        per_tau * rho_1 * df.dot(u - u_1, v) * dx
+        + 2*nu_*df.inner(df.sym(df.nabla_grad(u)),
+                         df.sym(df.nabla_grad(v))) * dx
+        - p * df.div(v) * dx
+        - q * df.div(u) * dx
+        + df.inner(df.grad(u), df.outer(mom_1, v)) * dx
+        + 0.5 * (per_tau * (rho_ - rho_1) + df.div(mom_1)) * df.dot(u, v) * dx
+        - rho_*df.dot(grav, v) * dx
     )
     if use_pressure_stabilization:
         mesh = w_NS.function_space().mesh()
