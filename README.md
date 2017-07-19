@@ -12,7 +12,7 @@ It is written in Python and built on the FEniCS project, which in turn effective
     Two colliding oppositely charged droplets. Red: positive charge, blue: negative charge.
 </p>
 <p align="center">
-    <img src="http://www.nbi.dk/~linga/bernaise/dielectric.gif" width=192 height=192 alt="Two-phase dielectricum."/><br />
+    <img src="http://www.nbi.dk/~linga/bernaise/dielectric_faster.gif" width=192 height=192 alt="Two-phase dielectricum."/><br />
     Two-phase dielectricum/capacitor. Red: positive charge, blue: negative charge. Top: negative surface charge, bottom: positive surface charge.
 </p>
 
