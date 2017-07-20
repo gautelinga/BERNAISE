@@ -5,17 +5,20 @@ It is written in Python and built on the FEniCS project, which in turn effective
 
 <p align="center">
     <img src="http://www.nbi.dk/~linga/bernaise/droplet.gif" width=122 height=254 alt="Buoyancy-driven droplet"/>
-    <br />Buoyancy-driven droplet
+    <br /><b>Buoyancy-driven droplet.</b>
 </p>
 <p align="center">
     <img src="http://www.nbi.dk/~linga/bernaise/charged_droplets.gif" width=264 height=87 alt="Colliding oppositely charged droplets"/><br />
-    Two colliding oppositely charged droplets. Red: positive charge, blue: negative charge.
+    <b>Two colliding oppositely charged droplets.</b> Red: positive charge, blue: negative charge.
 </p>
 <p align="center">
     <img src="http://www.nbi.dk/~linga/bernaise/dielectric_faster.gif" width=192 height=192 alt="Two-phase dielectricum."/><br />
-    Two-phase dielectricum/capacitor. Red: positive charge, blue: negative charge. Top: negative surface charge, bottom: positive surface charge.
+    <b>Two-phase dielectricum/capacitor.</b> Red: positive charge, blue: negative charge. Top: negative surface charge, bottom: positive surface charge.
 </p>
-
+<p align="center">
+    <img src="http://www.nbi.dk/~linga/bernaise/snoevsen.gif" width=250 height=140 alt="Snøvsen."/><br />
+    <b>Enhanced oil recovery</b> by application of a surface charge to the pore wall, and an ion concentration in the water phase. The color indicates the charge. The flow is driven by a constant velocity at the top (Couette flow). Without surface charge, the droplet would stay within the pore.
+</p>
 
 ### Work plan
 
