@@ -1,5 +1,5 @@
 import os
-from dolfin import MPI, mpi_comm_world, XDMFFile, HDF5File
+from dolfin import MPI, mpi_comm_world, XDMFFile, HDF5File, Mesh
 from cmd import info_red, info_cyan
 import simplejson as json
 
@@ -10,7 +10,8 @@ __license__ = "MIT"
 
 __all__ = ["mpi_is_root", "makedirs_safe", "load_parameters",
            "dump_parameters", "create_initial_folders",
-           "save_solution", "save_checkpoint", "load_checkpoint"]
+           "save_solution", "save_checkpoint", "load_checkpoint",
+           "load_mesh"]
 
 
 def mpi_is_root():
@@ -177,3 +178,13 @@ def load_checkpoint(checkpointfolder, w_, w_1):
             h5file.read(w_[field], field + "/current")
             h5file.read(w_1[field], field + "/previous")
         h5file.close()
+
+
+def load_mesh(filename):
+    """ Loads in the mesh specified by the argument filename. """
+    info_cyan("Loading mesh: " + filename)
+    mesh = Mesh()
+    h5file = HDF5File(mesh.mpi_comm(), filename, "r")
+    h5file.read(mesh, "mesh", False)
+    h5file.close()
+    return mesh

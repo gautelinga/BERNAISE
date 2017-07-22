@@ -30,6 +30,7 @@ def LoadMesh(filename="meshes/StraightCapilarDolfin_h1_l5_res10.h5"):
         print "Done"
     return mesh
 
+
 def main():
     '''The main
     '''
