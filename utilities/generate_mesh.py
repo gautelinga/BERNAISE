@@ -25,7 +25,7 @@ size = comm.Get_size()
 MESHES_DIR = "../meshes/"
 
 
-def StoreMeshHDF5(mesh, meshpath):
+def store_mesh_HDF5(mesh, meshpath):
     '''
     Function that stores generated mesh in both "HDMF5"
     (.h5) format and in "XDMF" (.XMDF) format.
@@ -43,7 +43,7 @@ def StoreMeshHDF5(mesh, meshpath):
         print 'Done.'
 
 
-def StraightCapilar(res=10, height=1, length=5, use_mshr=False):
+def straight_capilar(res=10, height=1, length=5, use_mshr=False):
     '''
     Function That Generates a mesh for a straight capilar,
     defualt meshing method is dolfin's "RectangleMesh" but have option for mshr.
@@ -81,10 +81,10 @@ def StraightCapilar(res=10, height=1, length=5, use_mshr=False):
                                 "StraightCapilarDolfin_h" +
                                 str(height) + "_l" +
                                 str(length) + "_res" + str(res))
-    StoreMeshHDF5(mesh, meshpath)
+    store_mesh_HDF5(mesh, meshpath)
 
 
-def BarbellCapilar(res=50, diameter=1., length=5.):
+def barbell_capilar(res=50, diameter=1., length=5.):
     '''
     Function That Generates a mesh for a barbell capilar,
     Meshing method is mshr.
@@ -115,14 +115,55 @@ def BarbellCapilar(res=50, diameter=1., length=5.):
     meshpath = os.path.join(MESHES_DIR,
                             "BarbellCapilarDolfin_d" + str(diameter) + "_l" +
                             str(length) + "_res" + str(res))
-    StoreMeshHDF5(mesh, meshpath)
+    store_mesh_HDF5(mesh, meshpath)
 
+def roudet_barbell_capilar(L=6., H=2., R=0.3, n_segments=40, res=120): 
+    """
+    Generates barbell capilar with roundet eges.
+    """
+    if rank == 0:
+        print "Generating mesh of roudet barbell capilar"
+    
+    pt_1 = df.Point(0., 0.)
+    pt_2 = df.Point(L, H)
+    pt_3 = df.Point(1.,H)
+    pt_4 = df.Point(L-1.,0)
+    pt_5 = df.Point(1.,R)
+    pt_6 = df.Point(1.,H-R)
+    pt_7 = df.Point(L-1.,R)
+    pt_8 = df.Point(L-1.,H-R)
+    pt_9 = df.Point(1.+2*R,R)
+    pt_10 = df.Point(1.+2*R,H-R)
+    pt_11 = df.Point(L-2*R-1,R)
+    pt_12 = df.Point(L-2*R-1,H-R)
+    pt_13 = df.Point(1.+2*R,H-2*R)
+    pt_14 = df.Point(L-2*R-1,2*R)
+
+    inlet = mshr.Rectangle(pt_1,pt_3)
+    outlet = mshr.Rectangle(pt_4,pt_2)
+    channel = mshr.Rectangle(pt_5,pt_8)
+    pos_cir_1 = mshr.Circle(pt_5,R,segments=n_segments)
+    pos_cir_2 = mshr.Circle(pt_6,R,segments=n_segments)
+    pos_cir_3 = mshr.Circle(pt_7,R,segments=n_segments)
+    pos_cir_4 = mshr.Circle(pt_8,R,segments=n_segments)
+    neg_cir_1 = mshr.Circle(pt_9,R,segments=n_segments)
+    neg_cir_2 = mshr.Circle(pt_10,R,segments=n_segments)
+    neg_cir_3 = mshr.Circle(pt_11,R,segments=n_segments)
+    neg_cir_4 = mshr.Circle(pt_12,R,segments=n_segments)
+    neg_reg_1 = mshr.Rectangle(pt_13,pt_12)
+    neg_reg_2 = mshr.Rectangle(pt_9,pt_14)
+
+    domain = inlet + outlet + channel + pos_cir_1 + pos_cir_2 + pos_cir_3 + pos_cir_4 - neg_cir_1 - neg_cir_2 - neg_cir_3 - neg_cir_4 - neg_reg_1 - neg_reg_2 
+
+    mesh = mshr.generate_mesh(domain, res)
+
+    df.plot(mesh)
+    df.interactive()
 
 def snausen_mesh(L=3., H=1., R=0.3, n_segments=40, res=60):
     """
     Generates mesh of Snausen/Snoevsen.
     """
-
     if rank == 0:
         print "Generating mesh of Snoevsen."
 
@@ -156,10 +197,10 @@ def snausen_mesh(L=3., H=1., R=0.3, n_segments=40, res=60):
 
     mesh_path = os.path.join(MESHES_DIR,
                              "snoevsen_res" + str(res))
-    StoreMeshHDF5(mesh, mesh_path)
+    store_mesh_HDF5(mesh, mesh_path)
 
-    # df.plot(mesh)
-    # df.interactive()
+    df.plot(mesh)
+    df.interactive()
 
 
 def porous_mesh(Lx=4., Ly=4., rad=0.2, R=0.3, N=24, n_segments=40, res=80):
@@ -407,11 +448,12 @@ def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
 
 
 def main():
-    #StraightCapilar()
-    #BarbellCapilar()
+    #straight_capilar()
+    #barbell_capilar()
     #snausen_mesh()
     #porous_mesh()
-    periodic_porous_mesh()
+    #periodic_porous_mesh()
+    roudet_barbell_capilar()
 
 if __name__ == "__main__":
     main()
