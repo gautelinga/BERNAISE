@@ -1,6 +1,7 @@
 import sys
 import json
 from dolfin import MPI, mpi_comm_world
+import os
 
 
 RED = "\033[1;37;31m{s}\033[0m"
@@ -82,12 +83,34 @@ def info(message, check=True):
 def info_on_red(message, check=True):
     info_style(message, check, ON_RED)
 
+
+def print_dir(folder):
+    for path in os.listdir(folder):
+        filename, ext = os.path.splitext(path)
+        if ext == ".py" and filename[0].isalpha():
+            info("   " + filename)
+    
+    
 def help_menu():
     info_yellow("BERNAISE (Binary ElectRohydrodyNAmIc SolvEr)")
-    info_red("You called for help! And here are your options:")
+    info_red("You called for help! And here are your options:\n")
 
-    with open("common/recipe.txt") as f:
-        lines = f.read().splitlines()
+    info_cyan("Usage:")
+    info("   python sauce.py problem=[...] solver=[...] ...")
 
-    for line in lines:
-        print line
+    info_cyan("\nImplemented problems:")
+
+    print_dir("problems")
+
+    info_cyan("\nImplemented solvers:")
+
+    print_dir("solvers")
+
+    q = raw_input("\n...or were you looking for the recipe for Bearnaise sauce? [Y/n] ").lower()
+
+    if q in ["y", "yes", ""]:
+        with open("common/recipe.txt") as f:
+            lines = f.read().splitlines()
+
+        for line in lines:
+            print line

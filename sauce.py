@@ -122,6 +122,7 @@ else:
     info_on_red("Wrong implementation of create_bcs.")
     exit()
 
+# Set up subdomains
 subdomains = df.FacetFunction("size_t", mesh)
 subdomains.set_all(0)
 boundary_to_mark = dict()
@@ -132,6 +133,11 @@ for i, (boundary_name, markers) in enumerate(boundaries.iteritems()):
     boundary_to_mark[boundary_name] = i+1
     mark_to_boundary[i] = boundary_name
 
+dump_subdomains = True
+if dump_subdomains:
+    subdomains_xdmf = df.XDMFFile("subdomains.xdmf")
+    subdomains_xdmf.write(subdomains)
+
 # Set up dirichlet part of bcs
 dirichlet_bcs = dict()
 for subproblem_name in subproblems.keys():
@@ -141,7 +147,7 @@ for subproblem_name in subproblems.keys():
 neumann_bcs = dict()
 for field in fields:
     neumann_bcs[field] = dict()
-    
+
 for boundary_name, bcs_fields in bcs.iteritems():
     for field, bc in bcs_fields.iteritems():
         subproblem_name = field_to_subproblem[field][0]
@@ -165,7 +171,7 @@ for field, (value, c_code) in bcs_pointwise.iteritems():
 dx = df.dx
 ds = df.Measure("ds", domain=mesh, subdomain_data=subdomains)
 normal = df.FacetNormal(mesh)
-    
+
 # Initialize solutions
 w_init_fields = initialize(**vars())
 if w_init_fields:

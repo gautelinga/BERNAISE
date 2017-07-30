@@ -45,7 +45,7 @@ def get_subproblems(base_elements, solutes,
 
 
 def setup(test_functions, trial_functions, w_, w_1,
-          ds, dx,
+          ds, dx, normal,
           dirichlet_bcs, neumann_bcs, boundary_to_mark,
           permittivity, density, viscosity,
           solutes, enable_PF, enable_EC, enable_NS,
@@ -153,7 +153,7 @@ def setup(test_functions, trial_functions, w_, w_1,
 
     if enable_NS:
         solvers["NS"] = setup_NS(w_["NS"], u, p, v, q,
-                                 dx, ds,
+                                 dx, ds, normal,
                                  dirichlet_bcs["NS"], neumann_bcs,
                                  boundary_to_mark,
                                  u_1, phi_flt_,
@@ -166,7 +166,7 @@ def setup(test_functions, trial_functions, w_, w_1,
 
 
 def setup_NS(w_NS, u, p, v, q,
-             dx, ds,
+             dx, ds, normal,
              dirichlet_bcs, neumann_bcs, boundary_to_mark,
              u_1, phi_, rho_, rho_1, g_, M_, nu_, rho_e_, V_,
              per_tau, drho, sigma_bar, eps, dveps, grav,
@@ -194,6 +194,8 @@ def setup_NS(w_NS, u, p, v, q,
         + 0.5 * (per_tau * (rho_ - rho_1) + df.div(mom_1)) * df.dot(u, v) * dx
         - rho_*df.dot(grav, v) * dx
     )
+    for boundary_name, pressure in neumann_bcs["p"].iteritems():
+        F += pressure * df.inner(normal, v) * ds(boundary_to_mark[boundary_name])
     if use_pressure_stabilization:
         mesh = w_NS.function_space().mesh()
         cellsize = df.CellSize(mesh)

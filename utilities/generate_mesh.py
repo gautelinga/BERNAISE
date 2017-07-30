@@ -206,18 +206,19 @@ def rad_points(x_c, rad, dx, theta_start=0., theta_stop=2*np.pi):
         arc_length = (-theta_stop+theta_start)*rad
     return [(rad * np.cos(theta) + x_c[0], rad * np.sin(theta) + x_c[1])
             for theta in np.linspace(theta_start, theta_stop,
-                                     int(np.ceil(arc_length/dx)))]
+                                     int(np.ceil(arc_length/dx)+1),
+                                     endpoint=True)]
 
 
 def line_points(x_left, x_right, dx):
     N = int(np.ceil(np.sqrt((x_right[0]-x_left[0])**2 +
                             (x_right[1]-x_left[1])**2)/dx))
-    return zip(np.linspace(x_left[0], x_right[0], N).flatten(),
-               np.linspace(x_left[1], x_right[1], N).flatten())
+    return zip(np.linspace(x_left[0], x_right[0], N, endpoint=True).flatten(),
+               np.linspace(x_left[1], x_right[1], N, endpoint=True).flatten())
 
 
-def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
-                         rad=0.3, R=0.45, dx=0.1):
+def periodic_porous_mesh(Lx=4., Ly=3., num_obstacles=12,
+                         rad=0.25, R=0.35, dx=0.05, seed=121, do_plot=True):
     N = int(np.ceil(Lx/dx))
 
     x_min, x_max = -Lx/2, Lx/2
@@ -227,9 +228,12 @@ def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
 
     pts = np.zeros((num_obstacles, 2))
     diam2 = 4*R**2
+
+    np.random.seed(seed)
+
     for i in range(num_obstacles):
         while True:
-            pt = (np.random.rand(2)-0.5) * np.array([Lx-2*R, Ly])
+            pt = (np.random.rand(2)-0.5) * np.array([Lx-4*R, Ly])
             if i == 0:
                 break
             dist = pts[:i, :] - np.outer(np.ones(i), pt)
@@ -241,15 +245,9 @@ def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
                 break
         pts[i, :] = pt
 
-    obstacles = [(-Lx/4., y_max-rad/2),
-                 (Lx/4., y_min+rad/2),
-                 (0., 0.),
-                 (Lx/4, 0.),
-                 (-Lx/4, 0.)]
-
+    pts = pts[pts[:, 0].argsort(), :]
+        
     obstacles = [tuple(row) for row in pts]
-
-    print obstacles
 
     line_segments_top = []
     line_segments_btm = []
@@ -260,6 +258,7 @@ def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
     curve_segments_btm = []
 
     interior_obstacles = []
+    exterior_obstacles = []
 
     for x_c in obstacles:
         # Close to the top of the domain
@@ -284,6 +283,9 @@ def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
             curve_segments_top.append(curve_top)
 
             x_prev = x_right
+
+            exterior_obstacles.append(x_c)
+            exterior_obstacles.append((x_c[0], x_c[1]-Ly))
         # Close to the bottom of the domain
         elif x_c[1] < y_min+rad:
             # identify intersection
@@ -306,6 +308,9 @@ def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
             curve_segments_top.append(curve_top)
 
             x_prev = x_right
+
+            exterior_obstacles.append(x_c)
+            exterior_obstacles.append((x_c[0], x_c[1]+Ly))
         else:
             interior_obstacles.append(x_c)
 
@@ -336,7 +341,7 @@ def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
     edges = round_trip_connect(0, len(pts)-1)
 
     for interior_obstacle in interior_obstacles:
-        pts_obstacle = rad_points(interior_obstacle, rad, dx)
+        pts_obstacle = rad_points(interior_obstacle, rad, dx)[1:]
         edges_obstacle = round_trip_connect(len(pts),
                                             len(pts)+len(pts_obstacle)-1)
 
@@ -346,12 +351,14 @@ def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
     nppts = np.array(pts)
     npedges = np.array(edges)
     lc = LineCollection(nppts[npedges])
-    fig = plt.figure()
-    plt.gca().add_collection(lc)
-    plt.xlim(nppts[:, 0].min(), nppts[:, 0].max())
-    plt.ylim(nppts[:, 1].min(), nppts[:, 1].max())
-    plt.plot(nppts[:, 0], nppts[:, 1], 'ro')
-    plt.show()
+
+    if do_plot:
+        fig = plt.figure()
+        plt.gca().add_collection(lc)
+        plt.xlim(nppts[:, 0].min(), nppts[:, 0].max())
+        plt.ylim(nppts[:, 1].min(), nppts[:, 1].max())
+        plt.plot(nppts[:, 0], nppts[:, 1], 'ro')
+        plt.show()
 
     mi = tri.MeshInfo()
     mi.set_points(pts)
@@ -366,13 +373,20 @@ def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
     coords = np.array(mesh.points)
     faces = np.array(mesh.elements)
 
-    #fig = plt.figure()
-    #plt.triplot(coords[:, 0], coords[:, 1], faces, 'go-')
-    #plt.show()
+    #face_size = np.zeros_like(faces)
+    #for i, face in enumerate(faces):
+    #
+    pp = [tuple(point) for point in mesh.points]
+    print "Number of points:", len(pp)
+    print "Number unique points:", len(set(pp))    
 
-    #msh = df.UnitSquareMesh(10, 10)
-    #msh.coordinates().array() = coords
-    #msh.cells().array() = faces
+    if do_plot:
+        fig = plt.figure()
+        colors = np.arange(len(faces))
+        plt.tripcolor(coords[:, 0], coords[:, 1], faces,
+                      facecolors=colors, edgecolors='k')
+        plt.gca().set_aspect('equal')
+        plt.show()
 
     with open("tmp.xml", "w") as f:
         f.write("""
@@ -402,8 +416,22 @@ def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
 
     msh = df.Mesh("tmp.xml")
 
-    df.plot(msh)
-    df.interactive()
+    if do_plot:
+        df.plot(msh)
+        df.interactive()
+
+    mesh_path = os.path.join(MESHES_DIR,
+                             "periodic_porous_dx" + str(dx))
+    StoreMeshHDF5(msh, mesh_path)
+
+    obstacles_path = os.path.join(MESHES_DIR,
+                                  "periodic_porous_dx" + str(dx) + ".dat")
+
+    all_obstacles = np.vstack((np.array(exterior_obstacles),
+                               np.array(interior_obstacles)))
+    np.savetxt(obstacles_path,
+               np.hstack((all_obstacles,
+                          np.ones((len(all_obstacles), 1))*rad)))
 
 
 def main():

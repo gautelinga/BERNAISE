@@ -44,3 +44,11 @@ class Charged(GenericBC):
 
     def nbc(self):
         return Constant(self.value)
+
+
+class Pressure(Fixed):
+    def is_nbc(self):
+        return True
+
+    def nbc(self):
+        return Constant(self.value)
