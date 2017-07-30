@@ -12,6 +12,10 @@ import mshr as mshr
 from mpi4py import MPI
 import numpy as np
 import os
+import sys
+extra_path = "/" + os.path.join(*os.path.realpath(__file__).split("/")[:-2])
+sys.path.append(extra_path)
+from common import parse_command_line
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -23,6 +27,11 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 MESHES_DIR = "../meshes/"
+
+
+__all__ = ["store_mesh_HDF5", "straight_capilar", "barbell_capilar",
+           "snausen_mesh", "porous_mesh", "periodic_porous_mesh",
+           "rounded_barbell_capilar"]
 
 
 def store_mesh_HDF5(mesh, meshpath):
@@ -117,12 +126,13 @@ def barbell_capilar(res=50, diameter=1., length=5.):
                             str(length) + "_res" + str(res))
     store_mesh_HDF5(mesh, meshpath)
 
-def roudet_barbell_capilar(L=6., H=2., R=0.3, n_segments=40, res=120): 
+
+def rounded_barbell_capilar(L=6., H=2., R=0.3, n_segments=40, res=120): 
     """
-    Generates barbell capilar with roundet eges.
+    Generates barbell capilar with rounded edges.
     """
     if rank == 0:
-        print "Generating mesh of roudet barbell capilar"
+        print "Generating mesh of rounded barbell capilar"
     
     pt_1 = df.Point(0., 0.)
     pt_2 = df.Point(L, H)
@@ -160,7 +170,8 @@ def roudet_barbell_capilar(L=6., H=2., R=0.3, n_segments=40, res=120):
     df.plot(mesh)
     df.interactive()
 
-def snausen_mesh(L=3., H=1., R=0.3, n_segments=40, res=60):
+
+def snoevsen(L=3., H=1., R=0.3, n_segments=40, res=60):
     """
     Generates mesh of Snausen/Snoevsen.
     """
@@ -203,7 +214,7 @@ def snausen_mesh(L=3., H=1., R=0.3, n_segments=40, res=60):
     df.interactive()
 
 
-def porous_mesh(Lx=4., Ly=4., rad=0.2, R=0.3, N=24, n_segments=40, res=80):
+def porous(Lx=4., Ly=4., rad=0.2, R=0.3, N=24, n_segments=40, res=80):
 
     if rank == 0:
         print "Generating porous mesh"
@@ -258,8 +269,8 @@ def line_points(x_left, x_right, dx):
                np.linspace(x_left[1], x_right[1], N, endpoint=True).flatten())
 
 
-def periodic_porous_mesh(Lx=4., Ly=3., num_obstacles=12,
-                         rad=0.25, R=0.35, dx=0.05, seed=121, do_plot=True):
+def periodic_porous(Lx=4., Ly=3., num_obstacles=12,
+                    rad=0.25, R=0.35, dx=0.05, seed=121, do_plot=True):
     N = int(np.ceil(Lx/dx))
 
     x_min, x_max = -Lx/2, Lx/2
@@ -414,9 +425,6 @@ def periodic_porous_mesh(Lx=4., Ly=3., num_obstacles=12,
     coords = np.array(mesh.points)
     faces = np.array(mesh.elements)
 
-    #face_size = np.zeros_like(faces)
-    #for i, face in enumerate(faces):
-    #
     pp = [tuple(point) for point in mesh.points]
     print "Number of points:", len(pp)
     print "Number unique points:", len(set(pp))    
@@ -463,7 +471,7 @@ def periodic_porous_mesh(Lx=4., Ly=3., num_obstacles=12,
 
     mesh_path = os.path.join(MESHES_DIR,
                              "periodic_porous_dx" + str(dx))
-    StoreMeshHDF5(msh, mesh_path)
+    store_mesh_HDF5(msh, mesh_path)
 
     obstacles_path = os.path.join(MESHES_DIR,
                                   "periodic_porous_dx" + str(dx) + ".dat")
@@ -476,13 +484,26 @@ def periodic_porous_mesh(Lx=4., Ly=3., num_obstacles=12,
 
 
 def main():
+    cmd_kwargs = parse_command_line()
+
+    mesh = cmd_kwargs.get("mesh", "straight_capilar")
+
+    args = ""
+    for key, arg in cmd_kwargs.items():
+        if key != "mesh":
+            args += key + "=" + str(arg) + ", "
+    args = args[:-2]
+    print args
+    
+    exec("{func}({args})".format(func=mesh, args=args))
+    
     #straight_capilar()
     #barbell_capilar()
-    #snausen_mesh()
-    #porous_mesh()
-    #periodic_porous_mesh()
-    roudet_barbell_capilar()
+    #snoevsen()
+    #porous()
+    #periodic_porous()
+    #rounded_barbell_capilar()
+
 
 if __name__ == "__main__":
     main()
- 
