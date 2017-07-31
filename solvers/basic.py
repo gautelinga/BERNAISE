@@ -294,7 +294,7 @@ def setup_EC(w_EC, c, V, b, U, rho_e,
         F_c.append(F_ci)
     F_V = veps_*df.dot(df.grad(V), df.grad(U))*dx
     for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
-        F_V += sigma_e*U*ds(boundary_to_mark[boundary_name])
+        F_V += -sigma_e*U*ds(boundary_to_mark[boundary_name])
     if rho_e != 0:
         F_V += -rho_e*U*dx
     F = sum(F_c) + F_V

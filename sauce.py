@@ -133,9 +133,8 @@ for i, (boundary_name, markers) in enumerate(boundaries.iteritems()):
     boundary_to_mark[boundary_name] = i+1
     mark_to_boundary[i] = boundary_name
 
-dump_subdomains = True
 if dump_subdomains:
-    subdomains_xdmf = df.XDMFFile("subdomains.xdmf")
+    subdomains_xdmf = df.XDMFFile("subdomains_dump.xdmf")
     subdomains_xdmf.write(subdomains)
 
 # Set up dirichlet part of bcs
@@ -215,25 +214,44 @@ vars().update(start_hook(**vars()))
 
 stop = False
 t = t_0
+
+total_computing_time = 0.
+total_num_tsteps = 0
+
+tstep_0 = tstep
 df.tic()
-while t < T and not stop:
+while not stop:
 
     tstep_hook(**vars())
 
     solve(**vars())
-
-    stop = save_solution(**vars())
 
     update(**vars())
 
     t += dt
     tstep += 1
 
-    if tstep % info_intv == 0:
-        info_green("Time = {0:f}, timestep = {1:d}".format(t, tstep))
-        info_cyan("Computing time for previous {0:d}"
-                  " timesteps: {1:f} seconds".format(info_intv, df.toc()))
-        df.list_timings(df.TimingClear_clear, [df.TimingType_wall])
-        df.tic()
+    stop = save_solution(**vars())
 
+    if tstep % info_intv == 0 or stop:
+        info_green("Time = {0:f}, timestep = {1:d}".format(t, tstep))
+        split_computing_time = df.toc()
+        split_num_tsteps = tstep-tstep_0
+        df.tic()
+        tstep_0 = tstep
+        total_computing_time += split_computing_time
+        total_num_tsteps += split_num_tsteps
+        info_cyan("Computing time for previous {0:d}"
+                  " timesteps: {1:f} seconds"
+                  " ({2:f} seconds/timestep)".format(
+                      split_num_tsteps, split_computing_time,
+                      split_computing_time/split_num_tsteps))
+        df.list_timings(df.TimingClear_clear, [df.TimingType_wall])
+
+info_cyan("Total computing time for all {0:d}"
+           " timesteps: {1:f} seconds"
+           " ({2:f} seconds/timestep)".format(
+               total_num_tsteps, total_computing_time,
+               total_computing_time/total_num_tsteps))
+    
 end_hook(**vars())

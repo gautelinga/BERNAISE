@@ -79,7 +79,7 @@ def create_initial_folders(folder, restart_folder, fields, tstep,
     return newfolder, tstepfiles
 
 
-def save_solution(tstep, t, w_, w_1, folder, newfolder,
+def save_solution(tstep, t, T, w_, w_1, folder, newfolder,
                   save_intv, checkpoint_intv,
                   parameters, tstepfiles, subproblems, **namespace):
     """ Save solution either to  """
@@ -87,12 +87,12 @@ def save_solution(tstep, t, w_, w_1, folder, newfolder,
         # Save snapshot to xdmf
         save_xdmf(t, w_, subproblems, tstepfiles)
 
-    kill = check_if_kill(folder)
-    if tstep % checkpoint_intv == 0 or kill:
+    stop = check_if_kill(folder) or t >= T
+    if tstep % checkpoint_intv == 0 or stop:
         # Save checkpoint
         save_checkpoint(tstep, t, w_, w_1, newfolder, parameters)
 
-    return kill
+    return stop
 
 
 def check_if_kill(folder):

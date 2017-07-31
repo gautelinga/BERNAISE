@@ -2,7 +2,7 @@ import dolfin as df
 import os
 from . import *
 from common.io import mpi_is_root, load_mesh
-from common.bcs import Fixed, Pressure
+from common.bcs import Fixed, Pressure, Charged
 import numpy as np
 __author__ = "Gaute Linga"
 
@@ -61,8 +61,8 @@ def problem():
     info_cyan("Intrusion of one fluid into another in a porous medium.")
 
     #         2, beta in phase 1, beta in phase 2
-    solutes = [["c_p",  1, 1., 1., 1., 1.],
-               ["c_m", -1, 1., 1., 1., 1.]]
+    solutes = [["c_p",  1, 1e-4, 1e-2, 4., 1.],
+               ["c_m", -1, 1e-4, 1e-2, 4., 1.]]
 
     # Format: name : (family, degree, is_vector)
     base_elements = dict(u=["Lagrange", 2, True],
@@ -73,6 +73,7 @@ def problem():
                          V=["Lagrange", 1, False])
 
     factor = 1./2.
+    sigma_e = -1.
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
@@ -81,7 +82,7 @@ def problem():
         restart_folder=False,
         enable_NS=True,
         enable_PF=True,
-        enable_EC=False,
+        enable_EC=True,
         save_intv=5,
         stats_intv=5,
         checkpoint_intv=50,
@@ -97,16 +98,21 @@ def problem():
         Ly=3.,
         rad_init=0.25,
         #
-        V_top=1.,
-        V_btm=0.,
-        surface_tension=24.5,  # 24.5,
+        surface_tension=24.5,
         grav_const=0.0,
-        inlet_velocity=0.1,
+        # inlet_velocity=0.1,
+        pressure_left=1000.,
+        pressure_right=0.,
+        V_left=0.,
+        V_right=0.,
+        surface_charge=sigma_e,
+        concentration_init=1.,
+        front_position_init=0.1,  # percentage "filled" initially
         #
         pf_mobility_coeff=factor*0.000040,
         density=[1000., 1000.],
         viscosity=[100., 10.],
-        permittivity=[1., 5.],
+        permittivity=[1., 1.],
         #
         initial_interface="flat",
         #
@@ -122,14 +128,15 @@ def constrained_domain(Ly, grid_spacing, **namespace):
 
 def mesh(Lx=4., Ly=3., grid_spacing=0.04, **namespace):
     return load_mesh("meshes/periodic_porous_dx" + str(grid_spacing) + ".h5")
-    # return df.RectangleMesh(df.Point(-Lx/2, -Ly/2), df.Point(Lx/2, Ly/2), 40, 40)
 
 
 def initialize(Lx, Ly, rad_init,
                interface_thickness, solutes, restart_folder,
-               field_to_subspace,
-               inlet_velocity,
-               enable_NS, enable_PF, enable_EC, initial_interface, **namespace):
+               field_to_subspace,  # inlet_velocity,
+               front_position_init, concentration_init,
+               pressure_left, pressure_right,
+               enable_NS, enable_PF, enable_EC, initial_interface,
+               **namespace):
     """ Create the initial state.
     The initial states are specified in a dict indexed by field. The format
     should be
@@ -141,23 +148,38 @@ def initialize(Lx, Ly, rad_init,
     """
     w_init_field = dict()
     if not restart_folder:
-        if enable_NS:
-            try:
-                subspace = field_to_subspace["u"].collapse()
-            except:
-                subspace = field_to_subspace["u"]
-            w_init_field["u"] = initial_velocity(inlet_velocity,
-                                                 subspace)
+        # if enable_NS:
+        #     try:
+        #         subspace = field_to_subspace["u"].collapse()
+        #     except:
+        #         subspace = field_to_subspace["u"]
+        #     w_init_field["u"] = initial_velocity(0.,
+        #                                          subspace)
         # Phase field
+        x_0 = -Lx/2 + Lx*front_position_init
+
         if enable_PF:
             w_init_field["phi"] = initial_phasefield(
-                -Lx/2+Lx/8, Ly/2, rad_init, interface_thickness,
+                x_0, Ly/2, rad_init, interface_thickness,
                 field_to_subspace["phi"].collapse(), shape=initial_interface)
 
+        if enable_EC:
+            for solute in solutes:
+                c_init = initial_phasefield(
+                    x_0, Ly/2, rad_init, interface_thickness,
+                    field_to_subspace["phi"].collapse(),
+                    shape=initial_interface)
+                # Only have ions in phase 1 (phi=1)
+                c_init.vector()[:] = concentration_init*0.5*(
+                    1.-c_init.vector().array())
+                w_init_field[solute[0]] = c_init
     return w_init_field
 
 
-def create_bcs(Lx, Ly, grid_spacing, inlet_velocity,
+def create_bcs(Lx, Ly, grid_spacing,  # inlet_velocity,
+               concentration_init, solutes,
+               surface_charge, V_left, V_right,
+               pressure_left, pressure_right,
                enable_NS, enable_PF, enable_EC, **namespace):
     """ The boundaries and boundary conditions are defined here. """
 
@@ -171,30 +193,38 @@ def create_bcs(Lx, Ly, grid_spacing, inlet_velocity,
         obstacles=[Obstacles(Lx, centroids, rad, grid_spacing)]
     )
 
-    # Alocating the boundary dicts
+    # Allocating the boundary dicts
     bcs = dict()
     bcs_pointwise = dict()
     for boundary in boundaries:
         bcs[boundary] = dict()
 
-    u_inlet = Fixed((inlet_velocity, 0.))
+    # u_inlet = Fixed((inlet_velocity, 0.))
     noslip = Fixed((0., 0.))
 
-    p_inlet = Pressure(1000.0)
-    p_outlet = Pressure(0.0)
+    p_inlet = Pressure(pressure_left)
+    p_outlet = Pressure(pressure_right)
     phi_inlet = Fixed(-1.0)
     phi_outlet = Fixed(1.0)
 
     if enable_NS:
-        #bcs["left"]["u"] = u_inlet
+        # bcs["left"]["u"] = u_inlet
         bcs["obstacles"]["u"] = noslip
         bcs["right"]["p"] = p_outlet
         bcs["left"]["p"] = p_inlet
-        #bcs_pointwise["p"] = (0., "x[0] < -{Lx}/2+DOLFIN_EPS && x[1] > {Ly}/2-DOLFIN_EPS".format(Lx=Lx, Ly=Ly))
+        # bcs_pointwise["p"] = (0., "x[0] < -{Lx}/2+DOLFIN_EPS && x[1] > {Ly}/2-DOLFIN_EPS".format(Lx=Lx, Ly=Ly))
 
     if enable_PF:
         bcs["left"]["phi"] = phi_inlet
         bcs["right"]["phi"] = phi_outlet
+
+    if enable_EC:
+        for solute in solutes:
+            bcs["left"][solute[0]] = Fixed(concentration_init)
+            # bcs["right"][solute[0]] = Fixed(0.)
+        bcs["left"]["V"] = Fixed(V_left)
+        bcs["right"]["V"] = Fixed(V_right)
+        bcs["obstacles"]["V"] = Charged(surface_charge)
 
     return boundaries, bcs, bcs_pointwise
 

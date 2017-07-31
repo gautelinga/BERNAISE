@@ -30,7 +30,7 @@ MESHES_DIR = os.path.join(bernaise_path, "meshes/")
 
 __meshes__ = ["straight_capilar", "barbell_capilar",
               "snausen", "porous", "periodic_porous",
-              "rounded_barbell_capilar"]
+              "rounded_barbell_capilar", "extended_dolphin"]
 __all__ = ["store_mesh_HDF5"] + __meshes__
 
 
@@ -39,14 +39,13 @@ def store_mesh_HDF5(mesh, meshpath):
     Function that stores generated mesh in both "HDMF5"
     (.h5) format and in "XDMF" (.XMDF) format.
     '''
-    meshpathhdf5 = meshpath + ".h5"
-    hdf5 = df.HDF5File(mesh.mpi_comm(), meshpathhdf5, "w")
-    info("Storing the mesh in " + MESHES_DIR)
-    hdf5.write(mesh, "mesh")
-    hdf5.close()
-    meshpathxdmf = meshpath + "_xdmf.xdmf"
-    xdmff1 = df.XDMFFile(mesh.mpi_comm(), meshpathxdmf)
-    xdmff1.write(mesh)
+    meshpath_hdf5 = meshpath + ".h5"
+    with df.HDF5File(mesh.mpi_comm(), meshpath_hdf5, "w") as hdf5:
+        info("Storing the mesh in " + MESHES_DIR)
+        hdf5.write(mesh, "mesh")
+    meshpath_xdmf = meshpath + "_xdmf.xdmf"
+    xdmff = df.XDMFFile(mesh.mpi_comm(), meshpath_xdmf)
+    xdmff.write(mesh)
     info("Done.")
 
 
@@ -393,17 +392,8 @@ def periodic_porous(Lx=4., Ly=3., num_obstacles=12,
         pts.extend(pts_obstacle)
         edges.extend(edges_obstacle)
 
-    nppts = np.array(pts)
-    npedges = np.array(edges)
-    lc = LineCollection(nppts[npedges])
-
     if do_plot:
-        fig = plt.figure()
-        plt.gca().add_collection(lc)
-        plt.xlim(nppts[:, 0].min(), nppts[:, 0].max())
-        plt.ylim(nppts[:, 1].min(), nppts[:, 1].max())
-        plt.plot(nppts[:, 0], nppts[:, 1], 'ro')
-        plt.show()
+        plot_edges(pts, edges)
 
     mi = tri.MeshInfo()
     mi.set_points(pts)
@@ -423,12 +413,7 @@ def periodic_porous(Lx=4., Ly=3., num_obstacles=12,
     # print "Number unique points:", len(set(pp))
 
     if do_plot:
-        fig = plt.figure()
-        colors = np.arange(len(faces))
-        plt.tripcolor(coords[:, 0], coords[:, 1], faces,
-                      facecolors=colors, edgecolors='k')
-        plt.gca().set_aspect('equal')
-        plt.show()
+        plot_faces(coords, faces)
 
     msh = numpy_to_dolfin(coords, faces)
 
@@ -448,6 +433,90 @@ def periodic_porous(Lx=4., Ly=3., num_obstacles=12,
     np.savetxt(obstacles_path,
                np.hstack((all_obstacles,
                           np.ones((len(all_obstacles), 1))*rad)))
+
+
+def make_polygon(corner_pts, dx, start=0):
+    segs = zip(corner_pts[:], corner_pts[1:] + [corner_pts[0]])
+    nodes = []
+    for x, y in segs:
+        nodes.extend(line_points(x, y, dx)[:-1])
+    edges = round_trip_connect(start, start+len(nodes)-1)
+    return nodes, edges
+
+
+def extended_dolphin(Lx=1., Ly=1., scale=0.75, dx=0.02, do_plot=True):
+    edges = np.loadtxt(os.path.join(MESHES_DIR, "dolphin.edges"),
+                       dtype=int).tolist()
+    nodes = np.loadtxt(os.path.join(MESHES_DIR, "dolphin.nodes"))
+
+    nodes[:, :] -= 0.5
+    nodes[:, :] *= scale
+    nodes[:, 0] += Lx/2
+    nodes[:, 1] += Ly/2
+
+    nodes = nodes.tolist()
+
+    x_min, x_max = 0., Lx
+    y_min, y_max = 0., Ly
+
+    corner_pts = [(x_min, y_min),
+                  (x_max, y_min),
+                  (x_max, y_max),
+                  (x_min, y_max)]
+
+    outer_nodes, outer_edges = make_polygon(corner_pts, dx, len(nodes))
+    nodes.extend(outer_nodes)
+    edges.extend(outer_edges)
+
+    plot_edges(nodes, edges)
+
+    mi = tri.MeshInfo()
+    mi.set_points(nodes)
+    mi.set_facets(edges)
+    mi.set_holes([(Lx/2, Ly/2)])
+
+    max_area = 0.5*dx**2
+
+    mesh = tri.build(mi, max_volume=max_area, min_angle=25,
+                     allow_boundary_steiner=False)
+
+    coords = np.array(mesh.points)
+    faces = np.array(mesh.elements)
+
+    if do_plot:
+        plot_faces(coords, faces)
+
+    mesh = numpy_to_dolfin(coords, faces)
+
+    if do_plot:
+        df.plot(mesh)
+        df.interactive()
+
+    mesh_path = os.path.join(MESHES_DIR,
+                             "dolphin_dx" + str(dx))
+    store_mesh_HDF5(mesh, mesh_path)
+
+
+def plot_edges(pts, edges):
+    nppts = np.array(pts)
+    npedges = np.array(edges)
+    lc = LineCollection(nppts[npedges])
+
+    fig = plt.figure()
+    plt.gca().add_collection(lc)
+    plt.xlim(nppts[:, 0].min(), nppts[:, 0].max())
+    plt.ylim(nppts[:, 1].min(), nppts[:, 1].max())
+    plt.plot(nppts[:, 0], nppts[:, 1], 'ro')
+    plt.show()
+
+
+def plot_faces(coords, faces):
+    fig = plt.figure()
+    colors = np.arange(len(faces))
+    plt.tripcolor(coords[:, 0], coords[:, 1], faces,
+                  facecolors=colors, edgecolors='k')
+    plt.gca().set_aspect('equal')
+    plt.show()
 
 
 def numpy_to_dolfin(nodes, elements):
