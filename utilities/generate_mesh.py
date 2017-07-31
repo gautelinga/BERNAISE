@@ -1,37 +1,37 @@
-__author__ = "Asger J. S Bolet <asgerbolet@gmail.com>"
+__author__ = "Asger J. S Bolet <asgerbolet@gmail.com>, Gaute Linga <gaute.linga@gmail.com>"
 __date__ = "2017-04-28"
 __copyright__ = "Copyright (C) 2017 " + __author__
 __license__ = "MIT"
+"""
+Mesh generating functions in BERNAISE. 
 
-''' "StoreMeshHDF5(mesh, meshpath)",
-"StraightCapilar(res, height, length, usemshr)" and 
-"BarbellCapilar(res, diameter, length)" 
-'''
+Usage:
+python generate_mesh.py mesh={mesh generating function} [+optional arguments]
+
+"""
 import dolfin as df
 import mshr as mshr
-from mpi4py import MPI
 import numpy as np
 import os
 import sys
-extra_path = "/" + os.path.join(*os.path.realpath(__file__).split("/")[:-2])
-sys.path.append(extra_path)
-from common import parse_command_line
+# Find path to the BERNAISE root folder
+bernaise_path = "/" + os.path.join(*os.path.realpath(__file__).split("/")[:-2])
+# ...and append it to sys.path to get functionality from BERNAISE
+sys.path.append(bernaise_path)
+from common import parse_command_line, info, info_blue, info_red, info_on_red
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import meshpy.triangle as tri
 from matplotlib.collections import LineCollection
 
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
+# Directory to store meshes in
+MESHES_DIR = os.path.join(bernaise_path, "meshes/")
 
-MESHES_DIR = "../meshes/"
-
-
-__all__ = ["store_mesh_HDF5", "straight_capilar", "barbell_capilar",
-           "snausen_mesh", "porous_mesh", "periodic_porous_mesh",
-           "rounded_barbell_capilar"]
+__meshes__ = ["straight_capilar", "barbell_capilar",
+              "snausen", "porous", "periodic_porous",
+              "rounded_barbell_capilar"]
+__all__ = ["store_mesh_HDF5"] + __meshes__
 
 
 def store_mesh_HDF5(mesh, meshpath):
@@ -41,27 +41,26 @@ def store_mesh_HDF5(mesh, meshpath):
     '''
     meshpathhdf5 = meshpath + ".h5"
     hdf5 = df.HDF5File(mesh.mpi_comm(), meshpathhdf5, "w")
-    if rank == 0:
-        print "Storing the mesh in " + MESHES_DIR
+    info("Storing the mesh in " + MESHES_DIR)
     hdf5.write(mesh, "mesh")
     hdf5.close()
     meshpathxdmf = meshpath + "_xdmf.xdmf"
     xdmff1 = df.XDMFFile(mesh.mpi_comm(), meshpathxdmf)
     xdmff1.write(mesh)
-    if rank == 0:
-        print 'Done.'
+    info("Done.")
 
 
 def straight_capilar(res=10, height=1, length=5, use_mshr=False):
     '''
-    Function That Generates a mesh for a straight capilar,
-    defualt meshing method is dolfin's "RectangleMesh" but have option for mshr.
-    Note: Should be run form "BERNAISE/utilies/" in order to work.
-    Note: The generarted mesh is storred in "BERNAISE/meshes/".
+    Function that generates a mesh for a straight capilar, default
+    meshing method is dolfin's "RectangleMesh" but has an option for
+    mshr.
+
+    Note: The generated mesh is stored in "BERNAISE/meshes/".
+
     '''
     if use_mshr:  # use mshr for the generation
-        if rank == 0:
-            print "Generating mesh using the mshr tool"
+        info("Generating mesh using the mshr tool")
         # Define coners of Rectangle
         a = df.Point(0, 0)
         b = df.Point(height, length)
@@ -70,11 +69,9 @@ def straight_capilar(res=10, height=1, length=5, use_mshr=False):
         meshpath = os.path.join(MESHES_DIR,
                                 "StraightCapilarMshr_h" + str(height) + "_l" +
                                 str(length) + "_res" + str(res))
-        if rank == 0:
-            print "Done."
+        info("Done.")
     else:  # use the Dolfin built-in function
-        if rank == 0:
-            print "Genrating mesh using the Dolfin built-in function."
+        info("Generating mesh using the Dolfin built-in function.")
         # Define coners of rectangle/capilar
         a = df.Point(0, 0)
         b = df.Point(height, length)
@@ -97,11 +94,10 @@ def barbell_capilar(res=50, diameter=1., length=5.):
     '''
     Function That Generates a mesh for a barbell capilar,
     Meshing method is mshr.
-    Note: Should be run form "BERNAISE/utilies/" in order to work.
-    Note: The generarted mesh is storred in "BERNAISE/meshes/".
+
+    Note: The generarted mesh is stored in "BERNAISE/meshes/".
     '''
-    if rank == 0:
-        print "Generating mesh using the mshr tool."
+    info("Generating mesh using the mshr tool.")
 
     inletdiameter = diameter*5.
     inletlength = diameter*4.
@@ -131,8 +127,7 @@ def rounded_barbell_capilar(L=6., H=2., R=0.3, n_segments=40, res=120):
     """
     Generates barbell capilar with rounded edges.
     """
-    if rank == 0:
-        print "Generating mesh of rounded barbell capilar"
+    info("Generating mesh of rounded barbell capilar")
     
     pt_1 = df.Point(0., 0.)
     pt_2 = df.Point(L, H)
@@ -175,8 +170,7 @@ def snoevsen(L=3., H=1., R=0.3, n_segments=40, res=60):
     """
     Generates mesh of Snausen/Snoevsen.
     """
-    if rank == 0:
-        print "Generating mesh of Snoevsen."
+    info("Generating mesh of Snoevsen.")
 
     # Define points:
     pt_A = df.Point(0., 0.)
@@ -216,8 +210,7 @@ def snoevsen(L=3., H=1., R=0.3, n_segments=40, res=60):
 
 def porous(Lx=4., Ly=4., rad=0.2, R=0.3, N=24, n_segments=40, res=80):
 
-    if rank == 0:
-        print "Generating porous mesh"
+    info("Generating porous mesh")
 
     # x = np.random.rand(N, 2)
 
@@ -425,9 +418,9 @@ def periodic_porous(Lx=4., Ly=3., num_obstacles=12,
     coords = np.array(mesh.points)
     faces = np.array(mesh.elements)
 
-    pp = [tuple(point) for point in mesh.points]
-    print "Number of points:", len(pp)
-    print "Number unique points:", len(set(pp))    
+    # pp = [tuple(point) for point in mesh.points]
+    # print "Number of points:", len(pp)
+    # print "Number unique points:", len(set(pp))
 
     if do_plot:
         fig = plt.figure()
@@ -437,33 +430,7 @@ def periodic_porous(Lx=4., Ly=3., num_obstacles=12,
         plt.gca().set_aspect('equal')
         plt.show()
 
-    with open("tmp.xml", "w") as f:
-        f.write("""
-<?xml version="1.0" encoding="UTF-8"?>
-<dolfin xmlns:dolfin="http://www.fenics.org/dolfin/">
-    <mesh celltype="triangle" dim="2">
-        <vertices size="%d">""" % len(mesh.points))
-
-        for i, pt in enumerate(mesh.points):
-            f.write('<vertex index="%d" x="%g" y="%g"/>' % (
-                i, pt[0], pt[1]))
-
-        f.write("""
-        </vertices>
-        <cells size="%d">
-        """ % len(mesh.elements))
-
-        for i, element in enumerate(mesh.elements):
-            f.write('<triangle index="%d" v0="%d" v1="%d" v2="%d"/>' % (
-                i, element[0], element[1], element[2]))
-
-        f.write("""
-            </cells>
-          </mesh>
-        </dolfin>
-        """)
-
-    msh = df.Mesh("tmp.xml")
+    msh = numpy_to_dolfin(coords, faces)
 
     if do_plot:
         df.plot(msh)
@@ -483,26 +450,59 @@ def periodic_porous(Lx=4., Ly=3., num_obstacles=12,
                           np.ones((len(all_obstacles), 1))*rad)))
 
 
+def numpy_to_dolfin(nodes, elements):
+    tmpfile = "tmp.xml"
+
+    with open(tmpfile, "w") as f:
+        f.write("""
+<?xml version="1.0" encoding="UTF-8"?>
+<dolfin xmlns:dolfin="http://www.fenics.org/dolfin/">
+    <mesh celltype="triangle" dim="2">
+        <vertices size="%d">""" % len(nodes))
+
+        for i, pt in enumerate(nodes):
+            f.write('<vertex index="%d" x="%g" y="%g"/>' % (
+                i, pt[0], pt[1]))
+
+        f.write("""
+        </vertices>
+        <cells size="%d">
+        """ % len(elements))
+
+        for i, element in enumerate(elements):
+            f.write('<triangle index="%d" v0="%d" v1="%d" v2="%d"/>' % (
+                i, element[0], element[1], element[2]))
+
+        f.write("""
+            </cells>
+          </mesh>
+        </dolfin>
+        """)
+
+    mesh = df.Mesh(tmpfile)
+    os.remove(tmpfile)
+    return mesh
+
+
 def main():
     cmd_kwargs = parse_command_line()
 
-    mesh = cmd_kwargs.get("mesh", "straight_capilar")
+    func = cmd_kwargs.get("mesh", "straight_capilar")
 
     args = ""
     for key, arg in cmd_kwargs.items():
         if key != "mesh":
             args += key + "=" + str(arg) + ", "
     args = args[:-2]
-    print args
-    
-    exec("{func}({args})".format(func=mesh, args=args))
-    
-    #straight_capilar()
-    #barbell_capilar()
-    #snoevsen()
-    #porous()
-    #periodic_porous()
-    #rounded_barbell_capilar()
+
+    if func in __meshes__:
+        exec("{func}({args})".format(func=func, args=args))
+    else:
+        info_on_red("Couldn't find the specified mesh generating function.")
+        info("(Developers: Remember to put the names of the implemented functions in __meshes__.)")
+        info("These meshes are available:")
+        for mesh in __meshes__:
+            info("   " + mesh)
 
 
 if __name__ == "__main__":
