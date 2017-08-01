@@ -83,7 +83,7 @@ def save_solution(tstep, t, T, w_, w_1, folder, newfolder,
                   save_intv, checkpoint_intv,
                   parameters, tstepfiles, subproblems, **namespace):
     """ Save solution either to  """
-    if tstep % save_intv == 0:
+    if tstep % save_intv == 0 or tstep == 1:
         # Save snapshot to xdmf
         save_xdmf(t, w_, subproblems, tstepfiles)
 

@@ -568,7 +568,8 @@ def main():
         exec("{func}({args})".format(func=func, args=args))
     else:
         info_on_red("Couldn't find the specified mesh generating function.")
-        info("(Developers: Remember to put the names of the implemented functions in __meshes__.)")
+        info("(Developers: Remember to put the"
+             " names of the implemented functions in __meshes__.)")
         info("These meshes are available:")
         for mesh in __meshes__:
             info("   " + mesh)
