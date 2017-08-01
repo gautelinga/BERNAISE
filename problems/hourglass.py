@@ -40,7 +40,7 @@ class Outer_Narrowing(df.SubDomain):
         df.SubDomain.__init__(self)
 
     def inside(self, x, on_boundary):
-        return bool( ((x[0] < (self.R + 1.) and x[0] >  df.DOLFIN_EPS ) or (x[0] > (self.Lx- self.R - 1.) and x[0] < self.Lx-df.DOLFIN_EPS )) and  on_boundary)
+        return bool( ((x[0] < (self.R + 2.) and x[0] >  df.DOLFIN_EPS ) or (x[0] > (self.Lx- self.R - 2.) and x[0] < self.Lx-df.DOLFIN_EPS )) and  on_boundary)
 
 
 class Inner_Narrowing(df.SubDomain):
@@ -50,7 +50,7 @@ class Inner_Narrowing(df.SubDomain):
         df.SubDomain.__init__(self)
 
     def inside(self, x, on_boundary):
-        return bool((x[0] > (self.R + 1.) and x[0] < (self.Lx- self.R - 1.)) and  on_boundary)
+        return bool((x[0] > (self.R + 2.) and x[0] < (self.Lx- self.R - 2.)) and  on_boundary)
 
 
 def problem():
@@ -75,7 +75,7 @@ def problem():
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
         solver="basic",
-        folder="results_barbell_capilar",
+        folder="results_hourglass",
         restart_folder=False,
         enable_NS=True,
         enable_PF=True,
@@ -87,7 +87,7 @@ def problem():
         dt=factor*0.08,
         t_0=0.,
         T=400.,
-        res=60,
+        res=180,
         interface_thickness=factor*0.080,
         solutes=solutes,
         base_elements=base_elements,
@@ -114,7 +114,7 @@ def problem():
 
 
 def mesh(Lx, Ly, res, **namespace):
-    mesh = load_mesh("meshes/roundet_barbell_res" + str(res) + ".h5")
+    mesh = load_mesh("meshes/hourglass_res" + str(res) + ".h5")
     # Check:
     # coords = mesh.coordinates()[:]
     # assert(np.max(coords[:, 0]) == Lx)
@@ -176,24 +176,31 @@ def create_bcs(Lx, Ly, R,
     if enable_NS:
         bcs["inner_narrowing"]["u"] = noslip
         bcs["outer_narrowing"]["u"] = noslip
+        bcs["left"]["u"] = noslip
+        bcs["right"]["u"] = noslip
         bcs_pointwise["p"] = (0., "x[0] < DOLFIN_EPS && x[1] > {Ly}-DOLFIN_EPS".format(Ly=Ly))
 
     if enable_EC:
         for solute in solutes:
             bcs["left"][solute[0]] = Fixed(concentration_init)
-        bcs["left"]["V"] = ground
+            bcs["right"][solute[0]] = Fixed(concentration_init)
+
+        bcs["left"]["V"] = ground #Charged(0.0)
+        #bcs["right"]["V"] = ground #Charged(0.0)
         bcs["outer_narrowing"]["V"] = Charged(0.0)
         bcs["inner_narrowing"]["V"] = Charged(surface_charge)
+        #bcs_pointwise["V"] = (0., "x[0] < DOLFIN_EPS && x[1] > {Ly}-DOLFIN_EPS".format(Ly=Ly))
     
-    if enable_PF:  
-        bcs["left"]["phi"] = phi_inlet
-        bcs["right"]["phi"] = phi_outlet
+    #if enable_PF:  
+        #bcs["left"]["phi"] = phi_inlet
+        #bcs["right"]["phi"] = phi_outlet
+    
     return boundaries, bcs, bcs_pointwise
 
 
 def initial_phasefield(Lx, R, eps, function_space):
-    #expr_str = "2.*((-tanh((x[0]-(1+2*R))/(sqrt(2)*eps))+tanh((x[0]-(Lx-2*R-1))/(sqrt(2)*eps))) +0.5) "
-    expr_str = "+tanh((x[0]-(1+2*R))/(sqrt(2)*eps))"
+    expr_str = "-2.*((-tanh((x[0]-(2+2*R))/(sqrt(2)*eps))+tanh((x[0]-(Lx-2*R-2))/(sqrt(2)*eps))) +0.5) "
+    #expr_str = "+tanh((x[0]-(2+2*R))/(sqrt(2)*eps))"
     phi_init_expr = df.Expression(expr_str, Lx=Lx, R=R, eps=eps, degree=2)
     phi_init = df.interpolate(phi_init_expr, function_space.collapse())
     return phi_init
