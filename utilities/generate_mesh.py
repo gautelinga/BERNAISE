@@ -1,28 +1,37 @@
-__author__ = "Asger J. S Bolet <asgerbolet@gmail.com>"
+__author__ = "Asger J. S Bolet <asgerbolet@gmail.com>, Gaute Linga <gaute.linga@gmail.com>"
 __date__ = "2017-04-28"
 __copyright__ = "Copyright (C) 2017 " + __author__
 __license__ = "MIT"
+"""
+Mesh generating functions in BERNAISE. 
 
-''' "StoreMeshHDF5(mesh, meshpath)",
-"StraightCapilar(res, height, length, usemshr)" and 
-"BarbellCapilar(res, diameter, length)" 
-'''
+Usage:
+python generate_mesh.py mesh={mesh generating function} [+optional arguments]
+
+"""
 import dolfin as df
 import mshr as mshr
-from mpi4py import MPI
 import numpy as np
 import os
+import sys
+# Find path to the BERNAISE root folder
+bernaise_path = "/" + os.path.join(*os.path.realpath(__file__).split("/")[:-2])
+# ...and append it to sys.path to get functionality from BERNAISE
+sys.path.append(bernaise_path)
+from common import parse_command_line, info, info_blue, info_red, info_on_red
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import meshpy.triangle as tri
 from matplotlib.collections import LineCollection
 
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
+# Directory to store meshes in
+MESHES_DIR = os.path.join(bernaise_path, "meshes/")
 
-MESHES_DIR = "../meshes/"
+__meshes__ = ["straight_capilar", "barbell_capilar",
+              "snausen", "porous", "periodic_porous",
+              "rounded_barbell_capilar", "extended_dolphin"]
+__all__ = ["store_mesh_HDF5"] + __meshes__
 
 
 def store_mesh_HDF5(mesh, meshpath):
@@ -30,29 +39,27 @@ def store_mesh_HDF5(mesh, meshpath):
     Function that stores generated mesh in both "HDMF5"
     (.h5) format and in "XDMF" (.XMDF) format.
     '''
-    meshpathhdf5 = meshpath + ".h5"
-    hdf5 = df.HDF5File(mesh.mpi_comm(), meshpathhdf5, "w")
-    if rank == 0:
-        print "Storing the mesh in " + MESHES_DIR
-    hdf5.write(mesh, "mesh")
-    hdf5.close()
-    meshpathxdmf = meshpath + "_xdmf.xdmf"
-    xdmff1 = df.XDMFFile(mesh.mpi_comm(), meshpathxdmf)
-    xdmff1.write(mesh)
-    if rank == 0:
-        print 'Done.'
+    meshpath_hdf5 = meshpath + ".h5"
+    with df.HDF5File(mesh.mpi_comm(), meshpath_hdf5, "w") as hdf5:
+        info("Storing the mesh in " + MESHES_DIR)
+        hdf5.write(mesh, "mesh")
+    meshpath_xdmf = meshpath + "_xdmf.xdmf"
+    xdmff = df.XDMFFile(mesh.mpi_comm(), meshpath_xdmf)
+    xdmff.write(mesh)
+    info("Done.")
 
 
 def straight_capilar(res=10, height=1, length=5, use_mshr=False):
     '''
-    Function That Generates a mesh for a straight capilar,
-    defualt meshing method is dolfin's "RectangleMesh" but have option for mshr.
-    Note: Should be run form "BERNAISE/utilies/" in order to work.
-    Note: The generarted mesh is storred in "BERNAISE/meshes/".
+    Function that generates a mesh for a straight capilar, default
+    meshing method is dolfin's "RectangleMesh" but has an option for
+    mshr.
+
+    Note: The generated mesh is stored in "BERNAISE/meshes/".
+
     '''
     if use_mshr:  # use mshr for the generation
-        if rank == 0:
-            print "Generating mesh using the mshr tool"
+        info("Generating mesh using the mshr tool")
         # Define coners of Rectangle
         a = df.Point(0, 0)
         b = df.Point(height, length)
@@ -61,11 +68,9 @@ def straight_capilar(res=10, height=1, length=5, use_mshr=False):
         meshpath = os.path.join(MESHES_DIR,
                                 "StraightCapilarMshr_h" + str(height) + "_l" +
                                 str(length) + "_res" + str(res))
-        if rank == 0:
-            print "Done."
+        info("Done.")
     else:  # use the Dolfin built-in function
-        if rank == 0:
-            print "Genrating mesh using the Dolfin built-in function."
+        info("Generating mesh using the Dolfin built-in function.")
         # Define coners of rectangle/capilar
         a = df.Point(0, 0)
         b = df.Point(height, length)
@@ -88,11 +93,10 @@ def barbell_capilar(res=50, diameter=1., length=5.):
     '''
     Function That Generates a mesh for a barbell capilar,
     Meshing method is mshr.
-    Note: Should be run form "BERNAISE/utilies/" in order to work.
-    Note: The generarted mesh is storred in "BERNAISE/meshes/".
+
+    Note: The generarted mesh is stored in "BERNAISE/meshes/".
     '''
-    if rank == 0:
-        print "Generating mesh using the mshr tool."
+    info("Generating mesh using the mshr tool.")
 
     inletdiameter = diameter*5.
     inletlength = diameter*4.
@@ -130,12 +134,11 @@ def AddVerticalBoundaryVertices(l,x,y,n,dr):
             val = y * float(i)/float(n)
         l.append( df.Point(x, val) )
 
-def roundet_barbell_capilar(L=6., H=2., R=0.3, n_segments=40, res=180): 
+def rounded_barbell_capilar(L=6., H=2., R=0.3, n_segments=40, res=120): 
     """
-    Generates barbell capilar with roundet eges.
+    Generates barbell capilar with rounded edges.
     """
-    if rank == 0:
-        print "Generating mesh of roudet barbell capilar"
+    info("Generating mesh of rounded barbell capilar")
     
     pt_1 = df.Point(0., 0.)
     pt_1star = df.Point(1., 0.)
@@ -202,12 +205,12 @@ def roundet_barbell_capilar(L=6., H=2., R=0.3, n_segments=40, res=180):
     df.plot(mesh)
     df.interactive()
 
-def snausen_mesh(L=3., H=1., R=0.3, n_segments=40, res=60):
+
+def snoevsen(L=3., H=1., R=0.3, n_segments=40, res=60):
     """
     Generates mesh of Snausen/Snoevsen.
     """
-    if rank == 0:
-        print "Generating mesh of Snoevsen."
+    info("Generating mesh of Snoevsen.")
 
     # Define points:
     pt_A = df.Point(0., 0.)
@@ -247,10 +250,9 @@ def snausen_mesh(L=3., H=1., R=0.3, n_segments=40, res=60):
     #df.interactive()
 
 
-def porous_mesh(Lx=4., Ly=4., rad=0.2, R=0.3, N=24, n_segments=40, res=80):
+def porous(Lx=4., Ly=4., rad=0.2, R=0.3, N=24, n_segments=40, res=80):
 
-    if rank == 0:
-        print "Generating porous mesh"
+    info("Generating porous mesh")
 
     # x = np.random.rand(N, 2)
 
@@ -291,18 +293,19 @@ def rad_points(x_c, rad, dx, theta_start=0., theta_stop=2*np.pi):
         arc_length = (-theta_stop+theta_start)*rad
     return [(rad * np.cos(theta) + x_c[0], rad * np.sin(theta) + x_c[1])
             for theta in np.linspace(theta_start, theta_stop,
-                                     int(np.ceil(arc_length/dx)))]
+                                     int(np.ceil(arc_length/dx)+1),
+                                     endpoint=True)]
 
 
 def line_points(x_left, x_right, dx):
     N = int(np.ceil(np.sqrt((x_right[0]-x_left[0])**2 +
                             (x_right[1]-x_left[1])**2)/dx))
-    return zip(np.linspace(x_left[0], x_right[0], N).flatten(),
-               np.linspace(x_left[1], x_right[1], N).flatten())
+    return zip(np.linspace(x_left[0], x_right[0], N, endpoint=True).flatten(),
+               np.linspace(x_left[1], x_right[1], N, endpoint=True).flatten())
 
 
-def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
-                         rad=0.3, R=0.45, dx=0.1):
+def periodic_porous(Lx=4., Ly=3., num_obstacles=12,
+                    rad=0.25, R=0.35, dx=0.05, seed=121, do_plot=True):
     N = int(np.ceil(Lx/dx))
 
     x_min, x_max = -Lx/2, Lx/2
@@ -312,9 +315,12 @@ def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
 
     pts = np.zeros((num_obstacles, 2))
     diam2 = 4*R**2
+
+    np.random.seed(seed)
+
     for i in range(num_obstacles):
         while True:
-            pt = (np.random.rand(2)-0.5) * np.array([Lx-2*R, Ly])
+            pt = (np.random.rand(2)-0.5) * np.array([Lx-4*R, Ly])
             if i == 0:
                 break
             dist = pts[:i, :] - np.outer(np.ones(i), pt)
@@ -326,15 +332,9 @@ def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
                 break
         pts[i, :] = pt
 
-    obstacles = [(-Lx/4., y_max-rad/2),
-                 (Lx/4., y_min+rad/2),
-                 (0., 0.),
-                 (Lx/4, 0.),
-                 (-Lx/4, 0.)]
-
+    pts = pts[pts[:, 0].argsort(), :]
+        
     obstacles = [tuple(row) for row in pts]
-
-    print obstacles
 
     line_segments_top = []
     line_segments_btm = []
@@ -345,6 +345,7 @@ def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
     curve_segments_btm = []
 
     interior_obstacles = []
+    exterior_obstacles = []
 
     for x_c in obstacles:
         # Close to the top of the domain
@@ -369,6 +370,9 @@ def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
             curve_segments_top.append(curve_top)
 
             x_prev = x_right
+
+            exterior_obstacles.append(x_c)
+            exterior_obstacles.append((x_c[0], x_c[1]-Ly))
         # Close to the bottom of the domain
         elif x_c[1] < y_min+rad:
             # identify intersection
@@ -391,6 +395,9 @@ def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
             curve_segments_top.append(curve_top)
 
             x_prev = x_right
+
+            exterior_obstacles.append(x_c)
+            exterior_obstacles.append((x_c[0], x_c[1]+Ly))
         else:
             interior_obstacles.append(x_c)
 
@@ -421,22 +428,15 @@ def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
     edges = round_trip_connect(0, len(pts)-1)
 
     for interior_obstacle in interior_obstacles:
-        pts_obstacle = rad_points(interior_obstacle, rad, dx)
+        pts_obstacle = rad_points(interior_obstacle, rad, dx)[1:]
         edges_obstacle = round_trip_connect(len(pts),
                                             len(pts)+len(pts_obstacle)-1)
 
         pts.extend(pts_obstacle)
         edges.extend(edges_obstacle)
 
-    nppts = np.array(pts)
-    npedges = np.array(edges)
-    lc = LineCollection(nppts[npedges])
-    fig = plt.figure()
-    plt.gca().add_collection(lc)
-    plt.xlim(nppts[:, 0].min(), nppts[:, 0].max())
-    plt.ylim(nppts[:, 1].min(), nppts[:, 1].max())
-    plt.plot(nppts[:, 0], nppts[:, 1], 'ro')
-    plt.show()
+    if do_plot:
+        plot_edges(pts, edges)
 
     mi = tri.MeshInfo()
     mi.set_points(pts)
@@ -451,31 +451,137 @@ def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
     coords = np.array(mesh.points)
     faces = np.array(mesh.elements)
 
-    #fig = plt.figure()
-    #plt.triplot(coords[:, 0], coords[:, 1], faces, 'go-')
-    #plt.show()
+    # pp = [tuple(point) for point in mesh.points]
+    # print "Number of points:", len(pp)
+    # print "Number unique points:", len(set(pp))
 
-    #msh = df.UnitSquareMesh(10, 10)
-    #msh.coordinates().array() = coords
-    #msh.cells().array() = faces
+    if do_plot:
+        plot_faces(coords, faces)
 
-    with open("tmp.xml", "w") as f:
+    msh = numpy_to_dolfin(coords, faces)
+
+    if do_plot:
+        df.plot(msh)
+        df.interactive()
+
+    mesh_path = os.path.join(MESHES_DIR,
+                             "periodic_porous_dx" + str(dx))
+    store_mesh_HDF5(msh, mesh_path)
+
+    obstacles_path = os.path.join(MESHES_DIR,
+                                  "periodic_porous_dx" + str(dx) + ".dat")
+
+    all_obstacles = np.vstack((np.array(exterior_obstacles),
+                               np.array(interior_obstacles)))
+    np.savetxt(obstacles_path,
+               np.hstack((all_obstacles,
+                          np.ones((len(all_obstacles), 1))*rad)))
+
+
+def make_polygon(corner_pts, dx, start=0):
+    segs = zip(corner_pts[:], corner_pts[1:] + [corner_pts[0]])
+    nodes = []
+    for x, y in segs:
+        nodes.extend(line_points(x, y, dx)[:-1])
+    edges = round_trip_connect(start, start+len(nodes)-1)
+    return nodes, edges
+
+
+def extended_dolphin(Lx=1., Ly=1., scale=0.75, dx=0.02, do_plot=True):
+    edges = np.loadtxt(os.path.join(MESHES_DIR, "dolphin.edges"),
+                       dtype=int).tolist()
+    nodes = np.loadtxt(os.path.join(MESHES_DIR, "dolphin.nodes"))
+
+    nodes[:, :] -= 0.5
+    nodes[:, :] *= scale
+    nodes[:, 0] += Lx/2
+    nodes[:, 1] += Ly/2
+
+    nodes = nodes.tolist()
+
+    x_min, x_max = 0., Lx
+    y_min, y_max = 0., Ly
+
+    corner_pts = [(x_min, y_min),
+                  (x_max, y_min),
+                  (x_max, y_max),
+                  (x_min, y_max)]
+
+    outer_nodes, outer_edges = make_polygon(corner_pts, dx, len(nodes))
+    nodes.extend(outer_nodes)
+    edges.extend(outer_edges)
+
+    plot_edges(nodes, edges)
+
+    mi = tri.MeshInfo()
+    mi.set_points(nodes)
+    mi.set_facets(edges)
+    mi.set_holes([(Lx/2, Ly/2)])
+
+    max_area = 0.5*dx**2
+
+    mesh = tri.build(mi, max_volume=max_area, min_angle=25,
+                     allow_boundary_steiner=False)
+
+    coords = np.array(mesh.points)
+    faces = np.array(mesh.elements)
+
+    if do_plot:
+        plot_faces(coords, faces)
+
+    mesh = numpy_to_dolfin(coords, faces)
+
+    if do_plot:
+        df.plot(mesh)
+        df.interactive()
+
+    mesh_path = os.path.join(MESHES_DIR,
+                             "dolphin_dx" + str(dx))
+    store_mesh_HDF5(mesh, mesh_path)
+
+
+def plot_edges(pts, edges):
+    nppts = np.array(pts)
+    npedges = np.array(edges)
+    lc = LineCollection(nppts[npedges])
+
+    fig = plt.figure()
+    plt.gca().add_collection(lc)
+    plt.xlim(nppts[:, 0].min(), nppts[:, 0].max())
+    plt.ylim(nppts[:, 1].min(), nppts[:, 1].max())
+    plt.plot(nppts[:, 0], nppts[:, 1], 'ro')
+    plt.show()
+
+
+def plot_faces(coords, faces):
+    fig = plt.figure()
+    colors = np.arange(len(faces))
+    plt.tripcolor(coords[:, 0], coords[:, 1], faces,
+                  facecolors=colors, edgecolors='k')
+    plt.gca().set_aspect('equal')
+    plt.show()
+
+
+def numpy_to_dolfin(nodes, elements):
+    tmpfile = "tmp.xml"
+
+    with open(tmpfile, "w") as f:
         f.write("""
 <?xml version="1.0" encoding="UTF-8"?>
 <dolfin xmlns:dolfin="http://www.fenics.org/dolfin/">
     <mesh celltype="triangle" dim="2">
-        <vertices size="%d">""" % len(mesh.points))
+        <vertices size="%d">""" % len(nodes))
 
-        for i, pt in enumerate(mesh.points):
+        for i, pt in enumerate(nodes):
             f.write('<vertex index="%d" x="%g" y="%g"/>' % (
                 i, pt[0], pt[1]))
 
         f.write("""
         </vertices>
         <cells size="%d">
-        """ % len(mesh.elements))
+        """ % len(elements))
 
-        for i, element in enumerate(mesh.elements):
+        for i, element in enumerate(elements):
             f.write('<triangle index="%d" v0="%d" v1="%d" v2="%d"/>' % (
                 i, element[0], element[1], element[2]))
 
@@ -485,20 +591,31 @@ def periodic_porous_mesh(Lx=4., Ly=4., num_obstacles=12,
         </dolfin>
         """)
 
-    msh = df.Mesh("tmp.xml")
-
-    df.plot(msh)
-    df.interactive()
+    mesh = df.Mesh(tmpfile)
+    os.remove(tmpfile)
+    return mesh
 
 
 def main():
-    #straight_capilar()
-    #barbell_capilar()
-    #snausen_mesh()
-    #porous_mesh()
-    #periodic_porous_mesh()
-    roundet_barbell_capilar()
+    cmd_kwargs = parse_command_line()
+
+    func = cmd_kwargs.get("mesh", "straight_capilar")
+
+    args = ""
+    for key, arg in cmd_kwargs.items():
+        if key != "mesh":
+            args += key + "=" + str(arg) + ", "
+    args = args[:-2]
+
+    if func in __meshes__:
+        exec("{func}({args})".format(func=func, args=args))
+    else:
+        info_on_red("Couldn't find the specified mesh generating function.")
+        info("(Developers: Remember to put the names of the implemented functions in __meshes__.)")
+        info("These meshes are available:")
+        for mesh in __meshes__:
+            info("   " + mesh)
+
 
 if __name__ == "__main__":
     main()
- 

@@ -21,7 +21,8 @@ parameters = dict(
     folder="results",  # default folder to store results in
     info_intv=10,
     use_iterative_solvers=False,
-    use_pressure_stabilization=False
+    use_pressure_stabilization=False,
+    dump_subdomains=False
 )
 
 
