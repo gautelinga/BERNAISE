@@ -21,6 +21,13 @@ It is written in Python and built on the FEniCS project, which in turn effective
     <b>Enhanced oil recovery</b> by application of a surface charge to the pore wall, and ions dissolved in the water phase. The color indicates the charge. The flow is driven by a constant velocity at the top (Couette flow). <b>Left:</b> With (uniform) surface charge, the droplet is released into the bulk. <b>Right:</b> Without surface charge, the droplet stays within the pore. Note that the droplet is slightly asymmetric due to the imposed flow.
 </p>
 
+<p align="center">
+    <img src="http://www.nbi.dk/~linga/bernaise/hourglass/p0cm10.gif" width=250 height=140 alt="Snøvsen."/>
+    <img src="http://www.nbi.dk/~linga/bernaise/hourglass/p5cm10.gif" width=250 height=140 alt="Snøvsen."/>
+    <img src="http://www.nbi.dk/~linga/bernaise/hourglass/p50cm10.gif" width=250 height=140 alt="Snøvsen, neutral."/><br /> 
+    <b>Enhanced oil recovery</b> by application of a surface charge to the pore wall, and ions dissolved in the water phase. The color indicates the charge. The flow is driven by a constant velocity at the top (Couette flow). <b>Left:</b> With (uniform) surface charge, the droplet is released into the bulk. <b>Right:</b> Without surface charge, the droplet stays within the pore. Note that the droplet is slightly asymmetric due to the imposed flow.
+</p>
+
 ### Work plan
 
 * Time dependent EHD
