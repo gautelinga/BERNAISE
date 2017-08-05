@@ -2,7 +2,7 @@ import dolfin as df
 import os
 from . import *
 from common.io import mpi_is_root, load_mesh
-from common.bcs import Fixed, Charged
+from common.bcs import Fixed, Pressure, Charged
 import numpy as np
 __author__ = "Asger Bolet"
 
@@ -40,7 +40,7 @@ class Outer_Narrowing(df.SubDomain):
         df.SubDomain.__init__(self)
 
     def inside(self, x, on_boundary):
-        return bool( ((x[0] < (self.R + 2.) and x[0] >  df.DOLFIN_EPS ) or (x[0] > (self.Lx- self.R - 2.) and x[0] < self.Lx-df.DOLFIN_EPS )) and  on_boundary)
+        return bool( ((x[0] < (2.) and x[0] >  df.DOLFIN_EPS ) or (x[0] > (self.Lx - 2.) and x[0] < self.Lx-df.DOLFIN_EPS )) and  on_boundary)
 
 
 class Inner_Narrowing(df.SubDomain):
@@ -50,7 +50,7 @@ class Inner_Narrowing(df.SubDomain):
         df.SubDomain.__init__(self)
 
     def inside(self, x, on_boundary):
-        return bool((x[0] > (self.R + 2.) and x[0] < (self.Lx- self.R - 2.)) and  on_boundary)
+        return bool((x[0] > (2.) and x[0] < (self.Lx- 2.)) and  on_boundary)
 
 
 def problem():
@@ -86,7 +86,7 @@ def problem():
         tstep=0,
         dt=factor*0.08,
         t_0=0.,
-        T=400.,
+        T=20.,
         res=180,
         interface_thickness=factor*0.080,
         solutes=solutes,
@@ -100,6 +100,10 @@ def problem():
         #
         surface_tension=8.45,
         grav_const=0.0,
+        pressure_left=0.,
+        pressure_right=0.,
+        V_left=0.,
+        V_right=0.,
         #
         pf_mobility_coeff=factor*0.000010,
         density=[10., 10.],
@@ -152,6 +156,8 @@ def initialize(Lx, Ly, R,
 def create_bcs(Lx, Ly, R,
                velocity_top, solutes,
                concentration_init, surface_charge,
+               V_left,V_right,
+               pressure_left, pressure_right,
                enable_NS, enable_PF, enable_EC,
                **namespace):
     """ The boundaries and boundary conditions are defined here. """
@@ -172,28 +178,29 @@ def create_bcs(Lx, Ly, R,
     noslip = Fixed((0., 0.))
     phi_inlet = Fixed(-1.0) 
     phi_outlet = Fixed(1.0) 
-
+    p_inlet = Pressure(pressure_left)
+    p_outlet = Pressure(pressure_right)
     if enable_NS:
         bcs["inner_narrowing"]["u"] = noslip
         bcs["outer_narrowing"]["u"] = noslip
-        bcs["left"]["u"] = noslip
-        bcs["right"]["u"] = noslip
-        bcs_pointwise["p"] = (0., "x[0] < DOLFIN_EPS && x[1] > {Ly}-DOLFIN_EPS".format(Ly=Ly))
+        bcs["left"]["p"] = p_inlet
+        bcs["right"]["p"] = p_outlet
+        #bcs_pointwise["p"] = (0., "x[0] < DOLFIN_EPS && x[1] > {Ly}-DOLFIN_EPS".format(Ly=Ly))
 
     if enable_EC:
         for solute in solutes:
             bcs["left"][solute[0]] = Fixed(concentration_init)
             bcs["right"][solute[0]] = Fixed(concentration_init)
 
-        bcs["left"]["V"] = ground #Charged(0.0)
-        #bcs["right"]["V"] = ground #Charged(0.0)
+        bcs["left"]["V"] = Fixed(V_left)
+        bcs["right"]["V"] = Fixed(V_right)
         bcs["outer_narrowing"]["V"] = Charged(0.0)
         bcs["inner_narrowing"]["V"] = Charged(surface_charge)
         #bcs_pointwise["V"] = (0., "x[0] < DOLFIN_EPS && x[1] > {Ly}-DOLFIN_EPS".format(Ly=Ly))
     
     #if enable_PF:  
-        #bcs["left"]["phi"] = phi_inlet
-        #bcs["right"]["phi"] = phi_outlet
+        bcs["left"]["phi"] = phi_inlet
+        bcs["right"]["phi"] = phi_inlet
     
     return boundaries, bcs, bcs_pointwise
 

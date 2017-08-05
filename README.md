@@ -21,6 +21,18 @@ It is written in Python and built on the FEniCS project, which in turn effective
     <b>Enhanced oil recovery</b> by application of a surface charge to the pore wall, and ions dissolved in the water phase. The color indicates the charge. The flow is driven by a constant velocity at the top (Couette flow). <b>Left:</b> With (uniform) surface charge, the droplet is released into the bulk. <b>Right:</b> Without surface charge, the droplet stays within the pore. Note that the droplet is slightly asymmetric due to the imposed flow.
 </p>
 
+<p align="center">
+    <img src="http://www.nbi.dk/~linga/bernaise/hourglass/p0cm10.gif" width=200 height=100 alt="Hourglass with surface charge and zero bias pressure"/>
+    <img src="http://www.nbi.dk/~linga/bernaise/hourglass/p5cm10.gif" width=200 height=100 alt="Hourglass with surface charge and small bias pressure"/>
+    <img src="http://www.nbi.dk/~linga/bernaise/hourglass/p50cm10.gif" width=200 height=100 alt="Hourglass with surface charge and large bias pressure"/><br />
+</p>
+<p align="center">
+    <img src="http://www.nbi.dk/~linga/bernaise/hourglass/p0c0.gif" width=200 height=100 alt="Hourglass without  surface charge and zero bias pressure"/>
+    <img src="http://www.nbi.dk/~linga/bernaise/hourglass/p5c0.gif" width=200 height=100 alt="Hourglass without surface charge and small bias pressure"/>
+    <img src="http://www.nbi.dk/~linga/bernaise/hourglass/p50c0.gif" width=200 height=100 alt="Hourglass without surface charge and large bias pressure"/><br />
+    <b>Enhanced oil recovery</b> by application of a surface charge to the pore wall, and ions dissolved in the water phase. The color indicates the charge. The flow is driven by a pressure in the four to the right the two to the left there is zero pressure diffence of the two sides. <b>Upper:</b> With (uniform) surface charge in the throat, the droplet is released into the bulk even whitout extreal forcing. <b>Lower:</b> Without surface charge, the droplet stays within the pore, except for large external forcing. Note that the droplet is slightly asymmetric due to the imposed flow.
+</p>
+
 ### Work plan
 
 * Time dependent EHD
