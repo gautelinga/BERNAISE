@@ -183,7 +183,7 @@ def setup_NS(w_NS, u, p, v, q,
     # )
     mom_1 = rho_1*u_1
     if enable_PF:
-        mom_1 += -drho * df.grad(g_)
+        mom_1 += -M_*drho * df.grad(g_)
     F = (
         per_tau * rho_1 * df.dot(u - u_1, v) * dx
         + 2*nu_*df.inner(df.sym(df.nabla_grad(u)),
@@ -195,7 +195,8 @@ def setup_NS(w_NS, u, p, v, q,
         - rho_*df.dot(grav, v) * dx
     )
     for boundary_name, pressure in neumann_bcs["p"].iteritems():
-        F += pressure * df.inner(normal, v) * ds(boundary_to_mark[boundary_name])
+        F += pressure * df.inner(
+            normal, v) * ds(boundary_to_mark[boundary_name])
     if use_pressure_stabilization:
         mesh = w_NS.function_space().mesh()
         cellsize = df.CellSize(mesh)
@@ -208,7 +209,7 @@ def setup_NS(w_NS, u, p, v, q,
         )
 
     if enable_PF:
-        F += - drho*M_*df.inner(df.grad(u), df.outer(df.grad(g_), v))*dx
+        # F += - drho*M_*df.inner(df.grad(u), df.outer(df.grad(g_), v))*dx
         F += - sigma_bar*eps*df.inner(df.outer(
             df.grad(unit_interval_filter(phi_)),
             df.grad(unit_interval_filter(phi_))),

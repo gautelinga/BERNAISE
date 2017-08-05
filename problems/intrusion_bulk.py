@@ -5,7 +5,6 @@ from common.io import mpi_is_root
 from common.bcs import Fixed
 __author__ = "Asger Bolet"
 
-info_cyan("Bulk intrusion of a front of one fluid into another.")
 
 class PeriodicBoundary(df.SubDomain):
     # Left boundary is target domain
@@ -34,6 +33,7 @@ class Right(df.SubDomain):
 
 
 def problem():
+    info_cyan("Bulk intrusion of a front of one fluid into another.")
     #         2, beta in phase 1, beta in phase 2
     solutes = [["c_p",  1, 1., 1., 1., 1.],
                ["c_m", -1, 1., 1., 1., 1.]]
@@ -212,3 +212,7 @@ def pf_mobility(phi, gamma):
 def start_hook(newfolder, **namespace):
     statsfile = os.path.join(newfolder, "Statistics/stats.dat")
     return dict(statsfile=statsfile)
+
+
+def reference():
+    return df.Expression("1.0+t", t=0.)

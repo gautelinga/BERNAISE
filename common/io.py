@@ -25,6 +25,12 @@ def makedirs_safe(folder):
         os.makedirs(folder)
 
 
+def remove_safe(path):
+    """ Remove file in a safe way. """
+    if mpi_is_root() and os.path.exists(path):
+        os.remove(path)
+
+
 def dump_parameters(parameters, settingsfilename):
     """ Dump parameters to file """
     with file(settingsfilename, "w") as settingsfile:
@@ -83,7 +89,7 @@ def save_solution(tstep, t, T, w_, w_1, folder, newfolder,
                   save_intv, checkpoint_intv,
                   parameters, tstepfiles, subproblems, **namespace):
     """ Save solution either to  """
-    if tstep % save_intv == 0 or tstep == 1:
+    if tstep % save_intv == 0:
         # Save snapshot to xdmf
         save_xdmf(t, w_, subproblems, tstepfiles)
 
@@ -102,8 +108,7 @@ def check_if_kill(folder):
         found = 1
     found_all = MPI.sum(mpi_comm_world(), found)
     if found_all > 0:
-        if mpi_is_root():
-            os.remove(os.path.join(folder, "kill"))
+        remove_safe(os.path.join(folder, "kill"))
         info_red("Stopping simulation.")
         return True
     else:
@@ -136,9 +141,9 @@ def save_checkpoint(tstep, t, w_, w_1, newfolder, parameters):
     parameters["num_processes"] = MPI.size(mpi_comm_world())
     parameters["t_0"] = t
     parameters["tstep"] = tstep
+    parametersfile = os.path.join(checkpointfolder, "parameters.dat")
+    parametersfile_old = parametersfile + ".old"
     if mpi_is_root():
-        parametersfile = os.path.join(checkpointfolder, "parameters.dat")
-        parametersfile_old = parametersfile + ".old"
         # In case of failure, keep old file.
         if os.path.exists(parametersfile):
             os.system("mv {0} {1}".format(parametersfile,
@@ -161,12 +166,10 @@ def save_checkpoint(tstep, t, w_, w_1, newfolder, parameters):
             h5file.write(w_1[field], field + "/previous")
         MPI.barrier(mpi_comm_world())
     h5file.close()
-    # Since program is still running, delete the old file.
-    if mpi_is_root() and os.path.exists(h5filename_old):
-        os.system("rm {}".format(h5filename_old))
+    # Since program is still running, delete the old files.
+    remove_safe(h5filename_old)
     MPI.barrier(mpi_comm_world())
-    if mpi_is_root() and os.path.exists(parametersfile_old):
-        os.system("rm {}".format(parametersfile_old))
+    remove_safe(parametersfile_old)
 
 
 def load_checkpoint(checkpointfolder, w_, w_1):

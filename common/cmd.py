@@ -26,6 +26,33 @@ def convert(data):
         return data
 
 
+def str2list(string):
+    if string[0] == "[" and string[-1] == "]":
+        li = string[1:-1].split(",")
+        for i in range(len(li)):
+            li[i] = str2list(li[i])
+        return li
+    else:
+        return parseval(string)
+
+
+def parseval(value):
+    try:
+        value = json.loads(value)
+    except ValueError:
+        # json understands true/false, not True/False
+        if value in ["True", "False"]:
+            value = eval(value)
+        elif "True" in value or "False" in value:
+            value = eval(value)
+
+    if isinstance(value, dict):
+        value = convert(value)
+    elif isinstance(value, list):
+        value = convert(value)
+    return value
+
+
 def parse_command_line():
     cmd_kwargs = dict()
     for s in sys.argv[1:]:
@@ -35,18 +62,11 @@ def parse_command_line():
             key, value = "help", "true"
         else:
             raise TypeError("Only kwargs separated with '=' allowed.")
-        try:
-            value = json.loads(value)
-        except ValueError:
-            # json understands true/false, not True/False
-            if value in ["True", "False"]:
-                value = eval(value)
-            elif "True" in value or "False" in value:
-                value = eval(value)
 
-        if isinstance(value, dict):
-            value = convert(value)
-
+        value = parseval(value)
+        if isinstance(value, str):
+            value = str2list(value)
+        
         cmd_kwargs[key] = value
     return cmd_kwargs
 
@@ -84,13 +104,22 @@ def info_on_red(message, check=True):
     info_style(message, check, ON_RED)
 
 
+def info_split_style(msg_1, msg_2, style_1=BLUE, style_2=NORMAL, check=True):
+    if MPI.rank(mpi_comm_world()) == 0 and check:
+        print style_1.format(s=msg_1) + " " + style_2.format(s=msg_2)
+
+
+def info_split(msg_1, msg_2, check=True):
+    info_split_style(msg_1, msg_2)
+
+
 def print_dir(folder):
     for path in os.listdir(folder):
         filename, ext = os.path.splitext(path)
         if ext == ".py" and filename[0].isalpha():
             info("   " + filename)
-    
-    
+
+
 def help_menu():
     info_yellow("BERNAISE (Binary ElectRohydrodyNAmIc SolvEr)")
     info_red("You called for help! And here are your options:\n")
@@ -106,11 +135,19 @@ def help_menu():
 
     print_dir("solvers")
 
-    q = raw_input("\n...or were you looking for the recipe for Bearnaise sauce? [Y/n] ").lower()
+    rank = mpi_comm_world().rank
 
-    if q in ["y", "yes", ""]:
-        with open("common/recipe.txt") as f:
-            lines = f.read().splitlines()
+    info("\n...or were you looking for the recipe "
+         "for Bearnaise sauce? [y/N] ")
+    try:
+        q = raw_input("").lower()
+    except:
+        pass
 
-        for line in lines:
-            print line
+    if rank == 0:
+        if q in ["y", "yes"]:
+            with open("common/recipe.txt") as f:
+                lines = f.read().splitlines()
+
+            for line in lines:
+                info(line)

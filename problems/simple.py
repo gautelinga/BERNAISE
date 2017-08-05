@@ -51,7 +51,7 @@ def problem():
                          c=["Lagrange", 1, False],
                          V=["Lagrange", 1, False])
 
-    factor = 1./4.
+    factor = 1./2.
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(

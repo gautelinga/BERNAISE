@@ -33,8 +33,8 @@ class Inner(Boundary):
 def problem():
     info_cyan("Cleaning up a dolphin covered in oil spill.")
 
-    solutes = [["c_p",  1, 1e-4, 1e-2, 4., 1.],
-               ["c_m", -1, 1e-4, 1e-2, 4., 1.]]
+    solutes = [["c_p",  1, 1e-4, 5e-3, 4., 1.],
+               ["c_m", -1, 1e-4, 5e-3, 4., 1.]]
 
     # Format: name : (family, degree, is_vector)
     base_elements = dict(u=["Lagrange", 2, True],
@@ -44,7 +44,7 @@ def problem():
                          c=["Lagrange", 1, False],
                          V=["Lagrange", 1, False])
 
-    sigma_e = -5.
+    sigma_e = -10.
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
@@ -58,10 +58,10 @@ def problem():
         stats_intv=5,
         checkpoint_intv=50,
         tstep=0,
-        dt=0.02,
+        dt=0.01,
         t_0=0.,
         T=20.,
-        grid_spacing=0.02,
+        grid_spacing=0.01,
         interface_thickness=0.020,
         solutes=solutes,
         base_elements=base_elements,
@@ -69,8 +69,7 @@ def problem():
         Ly=1.,
         R=0.25,
         surface_charge=sigma_e,
-        concentration_init=20.,
-        velocity_top=.2,
+        concentration_init=5.,
         #
         surface_tension=1.,  # 2.45,
         grav_const=0.0,
@@ -89,6 +88,7 @@ def constrained_domain(**namespace):
 
 def mesh(Lx, Ly, grid_spacing, **namespace):
     mesh = load_mesh("meshes/dolphin_dx" + str(grid_spacing) + ".h5")
+    #mesh = df.Mesh("meshes/dolfin_fine.xml.gz")
     return mesh
 
 
@@ -120,7 +120,7 @@ def initialize(Lx, Ly, R,
 
 
 def create_bcs(Lx, Ly,
-               velocity_top, solutes,
+               solutes,
                concentration_init, surface_charge,
                enable_NS, enable_PF, enable_EC,
                **namespace):

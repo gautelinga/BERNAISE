@@ -19,11 +19,10 @@ bernaise_path = "/" + os.path.join(*os.path.realpath(__file__).split("/")[:-2])
 # ...and append it to sys.path to get functionality from BERNAISE
 sys.path.append(bernaise_path)
 from common import parse_command_line, info, info_blue, info_red, info_on_red
-
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+from mpi4py.MPI import COMM_WORLD
 import meshpy.triangle as tri
-from matplotlib.collections import LineCollection
+from plot import plot_edges, plot_faces
+
 
 # Directory to store meshes in
 MESHES_DIR = os.path.join(bernaise_path, "meshes/")
@@ -32,7 +31,13 @@ __meshes__ = ["straight_capilar", "barbell_capilar",
               "snausen", "porous", "periodic_porous",
               "rounded_barbell_capilar", "extended_dolphin",
               "hourglass"]
-__all__ = ["store_mesh_HDF5"] + __meshes__
+__all__ = ["store_mesh_HDF5", "numpy_to_dolfin", "plot_faces",
+           "plot_edges"] + __meshes__
+
+
+comm = COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
 
 
 def store_mesh_HDF5(mesh, meshpath):
@@ -611,59 +616,42 @@ def extended_dolphin(Lx=1., Ly=1., scale=0.75, dx=0.02, do_plot=True):
     store_mesh_HDF5(mesh, mesh_path)
 
 
-def plot_edges(pts, edges):
-    nppts = np.array(pts)
-    npedges = np.array(edges)
-    lc = LineCollection(nppts[npedges])
-
-    fig = plt.figure()
-    plt.gca().add_collection(lc)
-    plt.xlim(nppts[:, 0].min(), nppts[:, 0].max())
-    plt.ylim(nppts[:, 1].min(), nppts[:, 1].max())
-    plt.plot(nppts[:, 0], nppts[:, 1], 'ro')
-    plt.show()
-
-
-def plot_faces(coords, faces):
-    fig = plt.figure()
-    colors = np.arange(len(faces))
-    plt.tripcolor(coords[:, 0], coords[:, 1], faces,
-                  facecolors=colors, edgecolors='k')
-    plt.gca().set_aspect('equal')
-    plt.show()
-
-
 def numpy_to_dolfin(nodes, elements):
     tmpfile = "tmp.xml"
 
-    with open(tmpfile, "w") as f:
-        f.write("""
+    if rank == 0:
+        with open(tmpfile, "w") as f:
+            f.write("""
 <?xml version="1.0" encoding="UTF-8"?>
 <dolfin xmlns:dolfin="http://www.fenics.org/dolfin/">
     <mesh celltype="triangle" dim="2">
         <vertices size="%d">""" % len(nodes))
 
-        for i, pt in enumerate(nodes):
-            f.write('<vertex index="%d" x="%g" y="%g"/>' % (
-                i, pt[0], pt[1]))
+            for i, pt in enumerate(nodes):
+                f.write('<vertex index="%d" x="%g" y="%g"/>' % (
+                    i, pt[0], pt[1]))
 
-        f.write("""
+            f.write("""
         </vertices>
-        <cells size="%d">
-        """ % len(elements))
+        <cells size="%d">""" % len(elements))
 
-        for i, element in enumerate(elements):
-            f.write('<triangle index="%d" v0="%d" v1="%d" v2="%d"/>' % (
-                i, element[0], element[1], element[2]))
+            for i, element in enumerate(elements):
+                f.write('<triangle index="%d" v0="%d" v1="%d" v2="%d"/>' % (
+                    i, element[0], element[1], element[2]))
 
-        f.write("""
+            f.write("""
             </cells>
           </mesh>
-        </dolfin>
-        """)
+        </dolfin>""")
 
+    comm.Barrier()
+            
     mesh = df.Mesh(tmpfile)
-    os.remove(tmpfile)
+
+    comm.Barrier()
+    
+    if rank == 0 and os.path.exists(tmpfile):
+        os.remove(tmpfile)
     return mesh
 
 

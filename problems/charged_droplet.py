@@ -9,6 +9,7 @@ __author__ = "Gaute Linga"
 class Wall(df.SubDomain):
     def __init__(self, Lx):
         self.Lx = Lx
+        df.SubDomain.__init__(self)
 
     def inside(self, x, on_boundary):
         return bool(x[0] >= df.DOLFIN_EPS and
@@ -34,7 +35,7 @@ def problem():
     
     # Define solutes
     # Format: name, valency, diffusivity in phase 1, diffusivity in phase
-    solutes = [["c_p",  1, 1e-4, 1.e-3, 2., 1.]]
+    solutes = [["c_p",  1, 1e-5, 1e-3, 4., 1.]]
 
     # Format: name : (family, degree, is_vector)
     base_elements = dict(u=["Lagrange", 2, True],
@@ -56,25 +57,26 @@ def problem():
         stats_intv=5,
         checkpoint_intv=50,
         tstep=0,
-        dt=0.02,
+        dt=0.08,  # 0.02,
         t_0=0.,
         T=20.,
-        grid_spacing=1./64,
-        interface_thickness=0.02,
+        grid_spacing=1./32,  # 1./64,
+        interface_thickness=0.03,  # 0.02,
         solutes=solutes,
         base_elements=base_elements,
         Lx=2.,
         Ly=1.,
-        rad_init=0.2,
+        rad_init=0.25,
         #
         V_left=10.,
         V_right=0.,
-        surface_tension=24.5,
+        surface_tension=5.,  # 24.5,
         grav_const=0.,
+        concentration_init=10.,
         #
-        pf_mobility_coeff=0.000010,
-        density=[100., 100.],
-        viscosity=[1., 1.],
+        pf_mobility_coeff=0.00002,  # 0.000010,
+        density=[200., 100.],
+        viscosity=[10., 1.],
         permittivity=[1., 1.],
         #
         use_iterative_solvers=False,
@@ -84,19 +86,24 @@ def problem():
 
 
 def mesh(Lx=1, Ly=5, grid_spacing=1./16, **namespace):
-    return df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly),
-                            int(Lx/grid_spacing), int(Ly/grid_spacing))
+    m = df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly),
+                         int(Lx/(2*grid_spacing)),
+                         int(Ly/(2*grid_spacing)))
+    m = df.refine(m)
+    return m
 
 
 def initialize(Lx, Ly, rad_init,
-               interface_thickness, solutes, restart_folder,
+               interface_thickness, solutes,
+               concentration_init,
+               restart_folder,
                field_to_subspace,
                enable_NS, enable_PF, enable_EC, **namespace):
     """ Create the initial state. """
     x0 = [Lx/4]
     y0 = [Ly/2]
     rad0 = [rad_init]
-    c0 = [1.]
+    c0 = [concentration_init]
 
     w_init_field = dict()
     if not restart_folder:
@@ -176,25 +183,8 @@ def initial_c(x, y, rad, c_init, eps, function_space):
     return df.interpolate(c_init_expr, function_space)
 
 
-def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
-               field_to_subproblem, subproblems, w_, **namespace):
+def tstep_hook(t, tstep, **namespace):
     info_blue("Timestep = {}".format(tstep))
-
-    if False and stats_intv and tstep % stats_intv == 0:
-        # GL: Seems like a rather awkward way of doing this,
-        # but any other way seems to fuck up the simulation.
-        # Anyhow, a better idea could be to move some of this to a post-processing stage.
-        # GL: Move into common/utilities at a certain point.
-        subproblem_name, subproblem_i = field_to_subproblem["phi"]
-        Q = w_[subproblem_name].split(deepcopy=True)[subproblem_i]
-        bubble = df.interpolate(Q, field_to_subspace["phi"].collapse())
-        bubble = 0.5*(1.-df.sign(bubble))
-        mass = df.assemble(bubble*df.dx)
-        massy = df.assemble(
-            bubble*df.Expression("x[1]", degree=1)*df.dx)
-        if mpi_is_root():
-            with file(statsfile, "a") as outfile:
-                outfile.write("{} {} {} \n".format(t, mass, massy))
 
 
 def pf_mobility(phi, gamma):
@@ -202,6 +192,7 @@ def pf_mobility(phi, gamma):
     # return gamma * (phi**2-1.)**2
     func = 1.-phi**2
     return 0.75 * gamma * 0.5 * (1. + df.sign(func)) * func
+    # return gamma
 
 
 def start_hook(newfolder, **namespace):
