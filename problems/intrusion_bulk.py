@@ -70,6 +70,7 @@ def problem():
         Lx=5.,
         Ly=1.,
         rad_init=0.25,
+        front_position_init=1.,
         #
         V_top=1.,
         V_btm=0.,
@@ -99,7 +100,7 @@ def mesh(Lx=1, Ly=5, grid_spacing=1./16, **namespace):
 def initialize(Lx, Ly, rad_init,
                interface_thickness, solutes, restart_folder,
                field_to_subspace,
-               inlet_velocity,
+               inlet_velocity, front_position_init,
                enable_NS, enable_PF, enable_EC, initial_interface, **namespace):
     """ Create the initial state.
     The initial states are specified in a dict indexed by field. The format
@@ -122,7 +123,7 @@ def initialize(Lx, Ly, rad_init,
         # Phase field
         if enable_PF:
             w_init_field["phi"] = initial_phasefield(
-                Lx/5, Lx/2, rad_init, interface_thickness,
+                front_position_init, Lx/2, rad_init, interface_thickness,
                 field_to_subspace["phi"].collapse(), shape=initial_interface)
 
     return w_init_field
@@ -214,5 +215,15 @@ def start_hook(newfolder, **namespace):
     return dict(statsfile=statsfile)
 
 
-def reference():
-    return df.Expression("1.0+t", t=0.)
+def reference(t_0, front_position_init, inlet_velocity, interface_thickness,
+              **namespace):
+    """ This contains the analytical reference for convergence analysis. """
+    expr_str_phi = "tanh((x[0]-x0-u0x*t)/(sqrt(2)*eps))"
+    expr = dict()
+    expr["phi"] = df.Expression(expr_str_phi, t=t_0,
+                                x0=front_position_init, u0x=inlet_velocity,
+                                eps=interface_thickness, degree=2)
+    expr["u"] = df.Expression(("u0x", "0."), u0x=inlet_velocity, degree=2)
+    expr["p"] = df.Expression("0.", degree=2)
+    expr["g"] = df.Expression("0.", degree=2)  # ?
+    return expr
