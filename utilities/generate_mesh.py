@@ -29,7 +29,7 @@ MESHES_DIR = os.path.join(bernaise_path, "meshes/")
 
 __meshes__ = ["straight_capilar", "barbell_capilar",
               "snausen", "porous", "periodic_porous",
-              "rounded_barbell_capilar", "extended_dolphin",
+              "rounded_barbell_capilar", "extended_polygon",
               "hourglass"]
 __all__ = ["store_mesh_HDF5", "numpy_to_dolfin", "plot_faces",
            "plot_edges"] + __meshes__
@@ -563,15 +563,16 @@ def make_polygon(corner_pts, dx, start=0):
     return nodes, edges
 
 
-def extended_dolphin(Lx=1., Ly=1., scale=0.75, dx=0.02, do_plot=True):
-    edges = np.loadtxt(os.path.join(MESHES_DIR, "dolphin.edges"),
+def extended_polygon(Lx=1., Ly=1., scale=0.75, dx=0.02, do_plot=True, polygon="dolphin", center=(0.5, 0.5)):
+    edges = np.loadtxt(os.path.join(MESHES_DIR, polygon + ".edges"),
                        dtype=int).tolist()
-    nodes = np.loadtxt(os.path.join(MESHES_DIR, "dolphin.nodes"))
+    nodes = np.loadtxt(os.path.join(MESHES_DIR, polygon + ".nodes"))
 
-    nodes[:, :] -= 0.5
+    nodes[:, 0] -= 0.5*np.max(nodes[:, 0])
+    nodes[:, 1] -= 0.5*np.max(nodes[:, 1])
     nodes[:, :] *= scale
-    nodes[:, 0] += Lx/2
-    nodes[:, 1] += Ly/2
+    nodes[:, 0] += center[0]*Lx
+    nodes[:, 1] += center[1]*Ly
 
     nodes = nodes.tolist()
 
@@ -592,7 +593,7 @@ def extended_dolphin(Lx=1., Ly=1., scale=0.75, dx=0.02, do_plot=True):
     mi = tri.MeshInfo()
     mi.set_points(nodes)
     mi.set_facets(edges)
-    mi.set_holes([(Lx/2, Ly/2)])
+    mi.set_holes([(center[0]*Lx, center[1]*Ly)])
 
     max_area = 0.5*dx**2
 
@@ -612,7 +613,7 @@ def extended_dolphin(Lx=1., Ly=1., scale=0.75, dx=0.02, do_plot=True):
         df.interactive()
 
     mesh_path = os.path.join(MESHES_DIR,
-                             "dolphin_dx" + str(dx))
+                             polygon + "_dx" + str(dx))
     store_mesh_HDF5(mesh, mesh_path)
 
 
@@ -663,7 +664,10 @@ def main():
     args = ""
     for key, arg in cmd_kwargs.items():
         if key != "mesh":
-            args += key + "=" + str(arg) + ", "
+            if isinstance(arg, str):
+                args += key + "=\"" + arg + "\", "
+            else:
+                args += key + "=" + str(arg) + ", "
     args = args[:-2]
 
     if func in __meshes__:
