@@ -18,17 +18,18 @@ import sys
 bernaise_path = "/" + os.path.join(*os.path.realpath(__file__).split("/")[:-2])
 # ...and append it to sys.path to get functionality from BERNAISE
 sys.path.append(bernaise_path)
-from common import parse_command_line, info, info_blue, info_red, info_on_red
+from common import parse_command_line, info, info_blue, info_red, info_on_red, remove_safe
 from mpi4py.MPI import COMM_WORLD
 import meshpy.triangle as tri
 from plot import plot_edges, plot_faces
+import h5py
 
 
 # Directory to store meshes in
 MESHES_DIR = os.path.join(bernaise_path, "meshes/")
 
 __meshes__ = ["straight_capilar", "barbell_capilar",
-              "snausen", "porous", "periodic_porous",
+              "snoevsen", "porous", "periodic_porous",
               "rounded_barbell_capilar", "extended_polygon",
               "hourglass"]
 __all__ = ["store_mesh_HDF5", "numpy_to_dolfin", "plot_faces",
@@ -281,6 +282,7 @@ def hourglass(L=6., H=2., R=0.3, n_segments=40, res=180):
     store_mesh_HDF5(mesh, mesh_path)
     df.plot(mesh)
     df.interactive()
+
 
 def snoevsen(L=3., H=1., R=0.3, n_segments=40, res=60):
     """
@@ -563,7 +565,8 @@ def make_polygon(corner_pts, dx, start=0):
     return nodes, edges
 
 
-def extended_polygon(Lx=1., Ly=1., scale=0.75, dx=0.02, do_plot=True, polygon="dolphin", center=(0.5, 0.5)):
+def extended_polygon(Lx=1., Ly=1., scale=0.75, dx=0.02, do_plot=True,
+                     polygon="dolphin", center=(0.5, 0.5)):
     edges = np.loadtxt(os.path.join(MESHES_DIR, polygon + ".edges"),
                        dtype=int).tolist()
     nodes = np.loadtxt(os.path.join(MESHES_DIR, polygon + ".nodes"))
@@ -617,7 +620,8 @@ def extended_polygon(Lx=1., Ly=1., scale=0.75, dx=0.02, do_plot=True, polygon="d
     store_mesh_HDF5(mesh, mesh_path)
 
 
-def numpy_to_dolfin(nodes, elements):
+def numpy_to_dolfin_old(nodes, elements):
+    """ Deprecated version of numpy_to_dolfin. To be removed? """
     tmpfile = "tmp.xml"
 
     if rank == 0:
@@ -653,6 +657,35 @@ def numpy_to_dolfin(nodes, elements):
     
     if rank == 0 and os.path.exists(tmpfile):
         os.remove(tmpfile)
+    return mesh
+
+
+def numpy_to_dolfin(nodes, elements):
+    """ Convert nodes and elements to a dolfin mesh object. """
+    tmpfile = "tmp.h5"
+
+    if rank == 0:
+        with h5py.File(tmpfile, "w") as h5f:
+            cell_indices = h5f.create_dataset(
+                "mesh/cell_indices", data=np.arange(len(elements)),
+                dtype='int64')
+            topology = h5f.create_dataset(
+                "mesh/topology", data=elements, dtype='int64')
+            coordinates = h5f.create_dataset(
+                "mesh/coordinates", data=nodes, dtype='float64')
+            topology.attrs["celltype"] = np.string_("triangle")
+            topology.attrs["partition"] = np.array([0], dtype='uint64')
+
+    comm.Barrier()
+
+    mesh = df.Mesh()
+    h5f = df.HDF5File(mesh.mpi_comm(), tmpfile, "r")
+    h5f.read(mesh, "mesh", False)
+    h5f.close()
+
+    comm.Barrier()
+
+    remove_safe(tmpfile)
     return mesh
 
 

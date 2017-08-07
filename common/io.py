@@ -11,7 +11,7 @@ __license__ = "MIT"
 __all__ = ["mpi_is_root", "makedirs_safe", "load_parameters",
            "dump_parameters", "create_initial_folders",
            "save_solution", "save_checkpoint", "load_checkpoint",
-           "load_mesh"]
+           "load_mesh", "remove_safe"]
 
 
 def mpi_is_root():

@@ -22,9 +22,11 @@ def get_middle(string, prefix, suffix):
 
 
 def prep(x_list):
-    M = 1000
-    x_np = np.ceil(np.array(x_list)*M).astype(float)/M
-    return tuple(x_np.tolist())
+    """ Prepare a list representing coordinates to be used as key in a dict. """
+    # M = 10000
+    # x_np = np.ceil(np.array(x_list)*M).astype(float)/M
+    # return tuple(x_np.tolist())
+    return tuple(x_list)
 
 
 def path_length(paths, total_length=True):
@@ -93,8 +95,15 @@ class TimeSeries:
             self.vector_function_space = df.VectorFunctionSpace(
                 self.mesh, "CG", 1)
             self.dim = self.function_space.mesh().topology().dim()
+
+            #self.index = df.Function(self.function_space)
+            #self.index.vector()
+
             self.x = self._make_dof_coords()
             self.xdict = self._make_xdict()
+
+            # print self.x
+            # print self.xdict
         else:
             self.mesh = get_mesh_from.mesh
             self.function_space = get_mesh_from.function_space
@@ -171,7 +180,7 @@ class TimeSeries:
 
     def _make_xdict(self):
         if rank == 0:
-            xdict = dict([(prep(x_list), i) for i, x_list in
+            xdict = dict([(prep(list(x_list)), i) for i, x_list in
                           enumerate(self.nodes.tolist())])
         else:
             xdict = None
