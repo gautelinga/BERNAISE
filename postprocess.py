@@ -1,7 +1,7 @@
 import dolfin as df
 import h5py
 from common import load_parameters, info, parse_command_line, makedirs_safe, \
-    info_blue, info_cyan, info_split, info_on_red
+    info_blue, info_cyan, info_split, info_on_red, info_red, info_yellow
 import os
 import glob
 import numpy as np
@@ -197,10 +197,17 @@ class TimeSeries:
             f_data = self.datasets[field][step][:]
             self.set_val(f, f_data)
 
-    def get_parameter(self, key, time=0.):
-        for t, parameters in self.parameters:
-            if t <= time:
-                return parameters[key]
+    def get_parameter(self, key, time=0., default=False):
+        return self.get_parameters(time).get(key, default)
+
+    def get_parameters(self, time=0.):
+        if len(self.parameters) == 1:
+            return self.parameters[0][1]
+        for i in range(len(self.parameters)-1):
+            time_a = self.parameters[i][0]
+            time_b = self.parameters[i+1][0]
+            if time_a < time <= time_b:
+                return self.parameters[i][1]
 
     def __getitem__(self, key):
         if len(key) == 1:
@@ -217,15 +224,20 @@ class TimeSeries:
         else:
             return df.Function(self.function_space, name=field)
 
-    def functions(self):
+    def functions(self, fields=None):
         """ Returns dolfin functions for all fields. """
         f = dict()
-        for field in self.fields:
+        if fields is None:
+            fields = self.fields
+        for field in fields:
             f[field] = self.function(field)
         return f
 
     def __len__(self):
         return len(self.times)
+
+    def get_time(self, step):
+        return self.times[step]
 
 
 def geometry_in_time(ts):
@@ -270,8 +282,9 @@ def geometry_in_time(ts):
 
 
 def main():
+    info_yellow("BERNAISE: Post-processing tool")
     cmd_kwargs = parse_command_line()
-
+    
     method = cmd_kwargs.get("method", "geometry_in_time")
     folder = cmd_kwargs.get("folder", False)
     sought_fields = cmd_kwargs.get("fields", False)
@@ -282,6 +295,7 @@ def main():
 
     if not folder:
         info("No folder(=[...]) specified.")
+        exit()
 
     sought_fields_str = (", ".join(sought_fields)
                          if sought_fields is not None else "All")
@@ -296,21 +310,44 @@ def main():
 
     step = cmd_kwargs.get("step", 0)
 
-    problem = cmd_kwargs.get("problem", "intrusion_bulk")
+    problem = ts.get_parameter("problem", default="intrusion_bulk")
 
-    # ts2 = TimeSeries(folder, get_mesh_from=ts)
-
-    # f2 = df.Function(ts2.function_space)
-    # ts2.update(f2, "phi", 50)
-
-
-    # ts.update(u, "u", 0)
     if method == "geometry_in_time":
         geometry_in_time(ts)
     elif method == "reference":
         info_on_red("Not implemented yet.")
     elif method == "analytic_reference":
         exec("from problems.{} import reference".format(problem))
+        time = ts.get_time(step)
+        parameters = ts.get_parameters(time=time)
+        ref_exprs = reference(**parameters)
+
+        info("Comparing to analytic solution.")
+        info_split("Problem:", "{}".format(problem))
+        info_split("Time:", "{}".format(time))
+
+        err = ts.functions(ref_exprs.keys())
+        f = ts.functions(ref_exprs.keys())
+        f_ref = ts.functions(ref_exprs.keys())
+        for field, ref_expr in ref_exprs.iteritems():
+            ref_expr.t = time
+            f_ref[field].assign(df.interpolate(
+                ref_expr, f[field].function_space()))
+            ts.update(f[field], field, step)
+
+            err[field].vector()[:] = (f[field].vector()[:] -
+                                      f_ref[field].vector()[:])
+
+        info_red("\nL2 norms")
+        info("\tL2(f-f_ref) \tL2(f_ref)")
+        for field, e in err.iteritems():
+            info("{field} \t{e_L2} \t{f_L2}".format(
+                field=field,
+                e_L2=df.norm(e.vector()),
+                f_L2=df.norm(f_ref[field].vector())))
+            df.plot(e)
+        df.interactive()
+
         info_on_red("Not implemented yet.")
     elif method == "plot":
         for field in fields:
