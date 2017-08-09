@@ -89,7 +89,7 @@ def plot_edges(pts, edges, title=None, clabel=None,
 
 
 def plot_faces(coords, faces, face_values=None, title=None,
-               clabel=None, colorbar=True, save=None):
+               clabel=None, colorbar=True, save=None, show=True):
     """ Plot a mesh with values given at faces. """
     if face_values is None:
         colors = np.arange(len(faces))

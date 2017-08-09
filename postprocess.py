@@ -332,7 +332,6 @@ def geometry_in_time(ts):
 
 
 def line_probe(ts, dx, line_str):
-    from fenicstools import Probes
     x_a, x_b = [tuple(eval(pt)) for pt in line_str.split("--")]
     x = np.array(line_points(x_a, x_b, dx))
 
@@ -340,6 +339,7 @@ def line_probe(ts, dx, line_str):
 
     f = ts.functions()
     probes = dict()
+    from fenicstools import Probes
     for field, func in f.iteritems():
         probes[field] = Probes(x.flatten(), func.function_space())
 
@@ -450,10 +450,10 @@ def analytic_reference(ts, step):
     """ Compare to analytic reference expression at given timestep.
     This is done by importing the function "reference" in the problem module.
     """
-    exec("from problems.{} import reference".format(problem))
     time = ts.get_time(step)
     parameters = ts.get_parameters(time=time)
     problem = parameters.get("problem", "intrusion_bulk")
+    exec("from problems.{} import reference".format(problem))
     ref_exprs = reference(**parameters)
 
     info("Comparing to analytic solution.")
