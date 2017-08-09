@@ -8,9 +8,21 @@ import numpy as np
 from utilities.generate_mesh import numpy_to_dolfin
 from mpi4py.MPI import COMM_WORLD
 from utilities.plot import plot_contour, plot_edges, plot_quiver, plot_faces,\
-    zero_level_set
+    zero_level_set, plot_probes, plot_fancy
 from xml.etree import cElementTree as ET
+from utilities.generate_mesh import line_points
 
+"""
+BERNAISE: Post-processing tool.
+
+This module is used to read, and perform analysis on, simulated data.
+
+"""
+
+__methods__ = ["geometry_in_time", "reference", "plot",
+               "plot_dolfin", "plot_mesh", "line_probe", "make_gif"]
+__all__ = ["get_middle", "prep", "path_length", "parse_xdmf",
+           "index2letter"] + __methods__
 
 comm = COMM_WORLD
 rank = comm.Get_rank()
@@ -22,7 +34,8 @@ def get_middle(string, prefix, suffix):
 
 
 def prep(x_list):
-    """ Prepare a list representing coordinates to be used as key in a dict. """
+    """ Prepare a list representing coordinates to be used as key in a
+    dict. """
     # M = 10000
     # x_np = np.ceil(np.array(x_list)*M).astype(float)/M
     # return tuple(x_np.tolist())
@@ -58,6 +71,10 @@ def parse_xdmf(xml_file):
     return dsets
 
 
+def index2letter(index):
+    return ("x", "y", "z")[index]
+
+
 class TimeSeries:
     """ Class for loading timeseries """
     def __init__(self, folder, sought_fields=None, get_mesh_from=False):
@@ -67,7 +84,8 @@ class TimeSeries:
         self.timeseries_folder = os.path.join(folder, "Timeseries")
         self.statistics_folder = os.path.join(folder, "Statistics")
         self.analysis_folder = os.path.join(folder, "Analysis")
-        makedirs_safe(self.analysis_folder)
+        self.plots_folder = os.path.join(folder, "Plots")
+        self.tmp_folder = os.path.join(folder, ".tmp")
 
         self.params_prefix = os.path.join(self.settings_folder,
                                           "parameters_from_tstep_")
@@ -88,6 +106,10 @@ class TimeSeries:
 
             self.dummy_function = df.Function(self.function_space)
 
+            makedirs_safe(self.analysis_folder)
+            makedirs_safe(self.plots_folder)
+            makedirs_safe(self.tmp_folder)
+
     def _load_mesh(self, get_mesh_from):
         if not get_mesh_from:
             self.mesh = numpy_to_dolfin(self.nodes, self.elems)
@@ -96,14 +118,8 @@ class TimeSeries:
                 self.mesh, "CG", 1)
             self.dim = self.function_space.mesh().topology().dim()
 
-            #self.index = df.Function(self.function_space)
-            #self.index.vector()
-
             self.x = self._make_dof_coords()
             self.xdict = self._make_xdict()
-
-            # print self.x
-            # print self.xdict
         else:
             self.mesh = get_mesh_from.mesh
             self.function_space = get_mesh_from.function_space
@@ -206,17 +222,25 @@ class TimeSeries:
             f_data = self.datasets[field][step][:]
             self.set_val(f, f_data)
 
+    def update_all(self, f, step):
+        """ Set dict f of dolfin functions with values from all fields. """
+        for field in self.fields:
+            self.update(f[field], field, step)
+
     def get_parameter(self, key, time=0., default=False):
         return self.get_parameters(time).get(key, default)
 
     def get_parameters(self, time=0.):
         if len(self.parameters) == 1:
             return self.parameters[0][1]
+        if time <= self.parameters[0][0]:
+            return self.parameters[0][1]
         for i in range(len(self.parameters)-1):
             time_a = self.parameters[i][0]
             time_b = self.parameters[i+1][0]
             if time_a < time <= time_b:
                 return self.parameters[i][1]
+        return self.parameters[-1][1]
 
     def __getitem__(self, key):
         if len(key) == 1:
@@ -247,6 +271,23 @@ class TimeSeries:
 
     def get_time(self, step):
         return self.times[step]
+
+    def _operate(self, function, field):
+        return function([function(self[field, step], 0)
+                         for step in range(len(self))])
+
+    def max(self, field):
+        return self._operate(np.max, field)
+
+    def min(self, field):
+        return self._operate(np.min, field)
+
+    def mean(self, field):
+        return self._operate(np.mean, field)
+
+    def add_field(self, field, datasets):
+        self[field] = datasets
+        self.fields = self.datasets.keys()
 
 
 def geometry_in_time(ts):
@@ -290,11 +331,162 @@ def geometry_in_time(ts):
                                 areas_x[0], areas_x[1])))
 
 
+def line_probe(ts, dx, line_str):
+    from fenicstools import Probes
+    x_a, x_b = [tuple(eval(pt)) for pt in line_str.split("--")]
+    x = np.array(line_points(x_a, x_b, dx))
+
+    plot_probes(ts.nodes, ts.elems, x, colorbar=False, title="Probes")
+
+    f = ts.functions()
+    probes = dict()
+    for field, func in f.iteritems():
+        probes[field] = Probes(x.flatten(), func.function_space())
+
+    for step in range(len(ts)):
+        info("Step " + str(step) + " of " + str(len(ts)))
+        ts.update_all(f, step)
+        for field, probe in probes.iteritems():
+            probe(f[field])
+
+    for step in range(len(ts)):
+        chunks = [x]
+        header_list = [index2letter(d) for d in range(ts.dim)]
+        for field, probe in probes.iteritems():
+            chunk = probe.array()
+            if chunk.ndim == 2:
+                header_list.append(field)
+                chunk = chunk[:, step].reshape(-1, 1)
+            elif chunk.ndim > 2:
+                header_list.extend(
+                    [field + "_" + index2letter(d) for d in range(ts.dim)])
+                chunk = chunk[:, :, step]
+            chunks.append(chunk)
+        data = np.hstack(chunks)
+        header = "\t".join(header_list)
+        np.savetxt(os.path.join(ts.analysis_folder,
+                                "probes_" + str(step) + ".dat"),
+                   data, header=header)
+
+
+def compute_charge_datasets(ts):
+    """ Computing charge datasets by summing over all species.
+    GL: Should it be a member function of TimeSeries?
+    """
+    solutes = ts.get_parameter("solutes")
+    charge_datasets = []
+    for step in range(len(ts)):
+        charge_loc = np.zeros_like(ts["phi", step])
+        for solute in solutes:
+            field = solute[0]
+            z = solute[1]
+            charge_loc[:, :] += z*ts[field, step]
+        charge_datasets.append(charge_loc)
+    return charge_datasets
+
+
+def make_gif(ts, show=False, save=True):
+    """ Make fancy gif animation. """
+    anim_name = "animation"
+    charge_datasets = compute_charge_datasets(ts)
+    ts.add_field("charge", charge_datasets)
+
+    for step in range(len(ts)):
+        phi = ts["phi", step][:, 0]
+        charge = ts["charge", step][:, 0]
+        charge_max = max(ts.max("charge"), -ts.min("charge"))
+
+        if save:
+            save_file = os.path.join(ts.tmp_folder,
+                                     anim_name + "_{:06d}.png".format(step))
+        else:
+            save_file = None
+
+        plot_fancy(ts.nodes, ts.elems, phi, charge,
+                   charge_max=charge_max, show=show,
+                   save=save_file)
+
+    comm.Barrier()
+    if save and rank == 0:
+        tmp_files = os.path.join(ts.tmp_folder, anim_name + "_*.png")
+        anim_file = os.path.join(ts.plots_folder, anim_name + ".gif")
+
+        os.system(("convert {tmp_files} -trim +repage"
+                   " -loop 0 {anim_file}").
+                  format(tmp_files=tmp_files,
+                         anim_file=anim_file))
+        os.system("rm {tmp_files}".format(tmp_files=tmp_files))
+
+
+def plot(ts, step, show=True, save=False):
+    """ Plot at given timestep using matplotlib. """
+    for field in ts.fields:
+        if save:
+            save_file = os.path.join(ts.plots_folder,
+                                     field + "_" + str(step) + ".png")
+        else:
+            save_file = None
+
+        if field == "u":
+            plot_quiver(ts.nodes, ts.elems, ts[field, step],
+                        title=field, clabel=field, save=save_file,
+                        show=show)
+        else:
+            plot_contour(ts.nodes, ts.elems, ts[field, step][:, 0],
+                         title=field, clabel=field, save=save_file,
+                         show=show)
+
+
+def plot_dolfin(ts, step):
+    """ Plot at given timestep using dolfin. """
+    f = ts.functions()
+    for field in ts.fields:
+        ts.update(f[field], field, step)
+        df.plot(f[field])
+    df.interactive()
+
+
+def analytic_reference(ts, step):
+    """ Compare to analytic reference expression at given timestep.
+    This is done by importing the function "reference" in the problem module.
+    """
+    exec("from problems.{} import reference".format(problem))
+    time = ts.get_time(step)
+    parameters = ts.get_parameters(time=time)
+    problem = parameters.get("problem", "intrusion_bulk")
+    ref_exprs = reference(**parameters)
+
+    info("Comparing to analytic solution.")
+    info_split("Problem:", "{}".format(problem))
+    info_split("Time:", "{}".format(time))
+
+    err = ts.functions(ref_exprs.keys())
+    f = ts.functions(ref_exprs.keys())
+    f_ref = ts.functions(ref_exprs.keys())
+    for field, ref_expr in ref_exprs.iteritems():
+        ref_expr.t = time
+        f_ref[field].assign(df.interpolate(
+            ref_expr, f[field].function_space()))
+        ts.update(f[field], field, step)
+
+        err[field].vector()[:] = (f[field].vector()[:] -
+                                  f_ref[field].vector()[:])
+
+    info_red("\nL2 norms")
+    info("\tL2(f-f_ref) \tL2(f_ref)")
+    for field, e in err.iteritems():
+        info("{field} \t{e_L2} \t{f_L2}".format(
+            field=field,
+            e_L2=df.norm(e.vector()),
+            f_L2=df.norm(f_ref[field].vector())))
+        df.plot(e)
+    df.interactive()
+
+
 def main():
     info_yellow("BERNAISE: Post-processing tool")
     cmd_kwargs = parse_command_line()
-    
-    method = cmd_kwargs.get("method", "geometry_in_time")
+
     folder = cmd_kwargs.get("folder", False)
     sought_fields = cmd_kwargs.get("fields", False)
     if not sought_fields:
@@ -313,63 +505,34 @@ def main():
 
     ts = TimeSeries(folder, sought_fields=sought_fields)
 
-    fields = ts.fields
-
-    info_split("Found fields:", ", ".join(fields))
+    info_split("Found fields:", ", ".join(ts.fields))
 
     step = cmd_kwargs.get("step", 0)
 
-    problem = ts.get_parameter("problem", default="intrusion_bulk")
+    method = cmd_kwargs.get("method", "geometry_in_time")
 
     if method == "geometry_in_time":
         geometry_in_time(ts)
     elif method == "reference":
         info_on_red("Not implemented yet.")
     elif method == "analytic_reference":
-        exec("from problems.{} import reference".format(problem))
-        time = ts.get_time(step)
-        parameters = ts.get_parameters(time=time)
-        ref_exprs = reference(**parameters)
-
-        info("Comparing to analytic solution.")
-        info_split("Problem:", "{}".format(problem))
-        info_split("Time:", "{}".format(time))
-
-        err = ts.functions(ref_exprs.keys())
-        f = ts.functions(ref_exprs.keys())
-        f_ref = ts.functions(ref_exprs.keys())
-        for field, ref_expr in ref_exprs.iteritems():
-            ref_expr.t = time
-            f_ref[field].assign(df.interpolate(
-                ref_expr, f[field].function_space()))
-            ts.update(f[field], field, step)
-
-            err[field].vector()[:] = (f[field].vector()[:] -
-                                      f_ref[field].vector()[:])
-
-        info_red("\nL2 norms")
-        info("\tL2(f-f_ref) \tL2(f_ref)")
-        for field, e in err.iteritems():
-            info("{field} \t{e_L2} \t{f_L2}".format(
-                field=field,
-                e_L2=df.norm(e.vector()),
-                f_L2=df.norm(f_ref[field].vector())))
-            df.plot(e)
-        df.interactive()
-
-        info_on_red("Not implemented yet.")
+        analytic_reference(ts, step)
     elif method == "plot":
-        for field in fields:
-            if field == "u":
-                plot_quiver(ts.nodes, ts.elems, ts["u", step])
-            else:
-                plot_contour(ts.nodes, ts.elems, ts[field, step][:, 0])
+        show = bool(cmd_kwargs.get("show", True))
+        save = bool(cmd_kwargs.get("save", False))
+        plot(ts, step, show=show, save=save)
     elif method == "plot_dolfin":
-        f = ts.functions()
-        for field in fields:
-            ts.update(f[field], field, step)
-            df.plot(f[field])
-        df.interactive()
+        plot_dolfin(ts, step)
+    elif method == "plot_mesh":
+        plot_faces(ts.nodes, ts.elems, title="Mesh")
+    elif method == "line_probe":
+        dx = cmd_kwargs.get("dx", 0.1)
+        line_str = cmd_kwargs.get("line", "[0.,0.]--[1.,1.]")
+        line_probe(ts, dx, line_str)
+    elif method == "make_gif":
+        show = bool(cmd_kwargs.get("show", False))
+        save = bool(cmd_kwargs.get("save", True))
+        make_gif(ts, show=show, save=save)
     else:
         info_on_red("The specified analysis method doesn't exist.")
 
