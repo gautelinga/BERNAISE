@@ -18,6 +18,8 @@ def plot_edges(pts, edges):
 
     fig = plt.figure()
     plt.gca().add_collection(lc)
+    plt.gca().set_aspect('equal')
+
     plt.xlim(nppts[:, 0].min(), nppts[:, 0].max())
     plt.ylim(nppts[:, 1].min(), nppts[:, 1].max())
     plt.plot(nppts[:, 0], nppts[:, 1], 'ro')

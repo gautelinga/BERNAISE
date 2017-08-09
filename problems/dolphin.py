@@ -24,6 +24,29 @@ class Outer(Boundary):
     def inside(self, x, on_boundary):
         return bool(not self.inside_box(x) and on_boundary)
 
+class Left(df.SubDomain):
+    def inside(self, x, on_boundary):
+        return bool(df.near(x[0],0.0) and on_boundary)
+
+class Right(df.SubDomain):
+    def __init__(self, Lx):
+        self.Lx = Lx
+        df.SubDomain.__init__(self)
+
+    def inside(self, x, on_boundary):
+        return bool(df.near(x[0], self.Lx) and on_boundary )
+
+class Bottom(df.SubDomain):
+    def inside(self, x, on_boundary):
+        return bool(df.near(x[1],0.0) and on_boundary)
+
+class Top(df.SubDomain):
+    def __init__(self, Ly):
+        self.Ly = Ly
+        df.SubDomain.__init__(self)
+
+    def inside(self, x, on_boundary):
+        return bool(df.near(x[1], self.Ly) and on_boundary )
 
 class Inner(Boundary):
     def inside(self, x, on_boundary):
@@ -58,21 +81,23 @@ def problem():
         stats_intv=5,
         checkpoint_intv=50,
         tstep=0,
-        dt=0.01,
+        dt=0.02,
         t_0=0.,
         T=20.,
-        grid_spacing=0.01,
+        grid_spacing=0.02,
         interface_thickness=0.020,
         solutes=solutes,
         base_elements=base_elements,
-        Lx=1.,
+        Lx=2.,
         Ly=1.,
-        R=0.25,
+        R=0.35,
         surface_charge=sigma_e,
         concentration_init=5.,
         #
         surface_tension=1.,  # 2.45,
         grav_const=0.0,
+        pressure_left=50.,
+        pressure_right=0.,
         #
         pf_mobility_coeff=0.000010,
         density=[10., 10.],
@@ -87,7 +112,8 @@ def constrained_domain(**namespace):
 
 
 def mesh(Lx, Ly, grid_spacing, **namespace):
-    mesh = load_mesh("meshes/dolphin_dx" + str(grid_spacing) + ".h5")
+    mesh = load_mesh("meshes/flipper2_dx" + str(grid_spacing) + ".h5")
+    #mesh = load_mesh("meshes/flipper_dx" + str(grid_spacing) + ".h5")
     #mesh = df.Mesh("meshes/dolfin_fine.xml.gz")
     return mesh
 
@@ -104,12 +130,12 @@ def initialize(Lx, Ly, R,
         # Phase field
         if enable_PF:
             w_init_field["phi"] = initial_phasefield(
-                Lx/2., Ly/2., R, interface_thickness,
+                Lx*3./10., Ly/2., R, interface_thickness,
                 field_to_subspace["phi"])
         if enable_EC:
             for solute in solutes:
                 c_init = initial_phasefield(
-                    Lx/2., Ly/2., R, interface_thickness,
+                    Lx*3./10., Ly/2., R, interface_thickness,
                     field_to_subspace["phi"])
                 # Only have ions in phase 2 (phi=-1)
                 c_init.vector()[:] = concentration_init*0.5*(
@@ -122,11 +148,16 @@ def initialize(Lx, Ly, R,
 def create_bcs(Lx, Ly,
                solutes,
                concentration_init, surface_charge,
+               pressure_left, pressure_right,
                enable_NS, enable_PF, enable_EC,
                **namespace):
     """ The boundaries and boundary conditions are defined here. """
     boundaries = dict(
         inner=[Inner(Lx, Ly)],
+        bottom=[Bottom()],
+        top=[Top(Ly)],
+        left=[Left()],
+        right=[Right(Lx)],
         outer=[Outer(Lx, Ly)]
     )
 
@@ -138,18 +169,29 @@ def create_bcs(Lx, Ly,
     bcs_pointwise = dict()
 
     noslip = Fixed((0., 0.))
+    phi_inlet = Fixed(-1.0)
+    p_inlet = Pressure(pressure_left)
+    p_outlet = Pressure(pressure_right)
 
     if enable_NS:
+        bcs["top"]["u"] = noslip
+        bcs["bottom"]["u"] = noslip
         bcs["inner"]["u"] = noslip
-        bcs["outer"]["u"] = noslip
-        bcs_pointwise["p"] = (0., "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS")
+        bcs["left"]["p"] = p_inlet
+        bcs["right"]["p"] = p_outlet
+        #bcs_pointwise["p"] = (0., "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS")
         # bcs["outer"]["p"] = Pressure(0.)
 
     if enable_EC:
         for solute in solutes:
-            bcs["outer"][solute[0]] = Fixed(concentration_init)
+            bcs["left"][solute[0]] = Fixed(concentration_init)
+            bcs["right"][solute[0]] = Fixed(concentration_init)
         bcs["outer"]["V"] = Fixed(0.)
         bcs["inner"]["V"] = Charged(surface_charge)
+
+    if enable_PF:  
+        bcs["left"]["phi"] = phi_inlet
+        #bcs["right"]["phi"] = phi_inlet
 
     return boundaries, bcs, bcs_pointwise
 
