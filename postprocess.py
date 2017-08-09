@@ -2,7 +2,7 @@ import dolfin as df
 import h5py
 from common import load_parameters, info, parse_command_line, makedirs_safe, \
     info_blue, info_cyan, info_split, info_on_red, info_red, info_yellow, \
-    parse_xdmf
+    parse_xdmf, info_warning
 import os
 import glob
 import numpy as np
@@ -257,6 +257,17 @@ class TimeSeries:
     def get_time(self, step):
         return self.times[step]
 
+    def get_nearest_step(self, time):
+        if time < self.times[0]:
+            return 0
+        for step in range(len(self)-1):
+            if time < self.times[step+1]:
+                if self.times[step+1]-time > time-self.times[step]:
+                    return step
+                else:
+                    return step+1
+        return len(self)-1
+
     def _operate(self, function, field):
         return function([function(self[field, step], 0)
                          for step in range(len(self))])
@@ -289,7 +300,9 @@ class TimeSeries:
 
 
 def geometry_in_time(ts, **kwargs):
-    """ Analyze geometry in time. """
+    """ Analyze geometry in time.
+    No parallel support.
+    """
     info_cyan("Analyzing the evolution of the geometry through time.")
     f_mask = df.Function(ts.function_space)
     f_mask_x = []
@@ -302,7 +315,7 @@ def geometry_in_time(ts, **kwargs):
     for d in range(ts.dim):
         areas_x.append(np.zeros(len(ts)))
 
-    for step in range(rank, len(ts), size):
+    for step in range(len(ts)):
         info("Step " + str(step) + " of " + str(len(ts)))
 
         phi = ts["phi", step][:, 0]
@@ -311,12 +324,11 @@ def geometry_in_time(ts, **kwargs):
         for d in range(ts.dim):
             ts.set_val(f_mask_x[d], mask*ts.nodes[:, d])
 
-        # plot_contour(ts.nodes, ts.elems, phi)
         contour_file = os.path.join(ts.analysis_folder,
-                                    "contour_" + str(step) + ".dat")
+                                    "contour_{:06d}.dat".format(step))
         paths = zero_level_set(ts.nodes, ts.elems, phi,
                                save_file=contour_file)
-        # paths = zero_level_set(ts.nodes, ts.elems, phi)
+
         lengths[step] = path_length(paths)
 
         areas[step] = df.assemble(f_mask*df.dx)
@@ -449,6 +461,41 @@ def plot_dolfin(ts, step=0, **kwargs):
     df.interactive()
 
 
+def reference(ts, ref=None, time=1., **kwargs):
+    """Compare to numerical reference at given timestep.
+
+    The reference solution is assumed to be on a finer mesh, so the
+    reference solution is interpolated to the coarser mesh, where the
+    comparison is made.
+    """
+    info_cyan("Comparing to numerical reference.")
+    if not isinstance(ref, str):
+        info_on_red("No reference specified. Use ref=(path).")
+        exit()
+
+    ts_ref = TimeSeries(ref, sought_fields=ts.fields)
+    info_split("Reference fields:", ", ".join(ts_ref.fields))
+
+    step = ts.get_nearest_step(time)
+    time_0 = ts.get_time(step)
+    if abs(time-time_0) > df.DOLFIN_EPS:
+        info_warning("Could not find dataset "
+                     "at time={}. Using time={} instead.".format(
+                         time, time_0))
+
+    step_ref = ts_ref.get_nearest_step(time)
+    time_ref = ts_ref.get_time(step_ref)
+    if abs(time-time_ref) > df.DOLFIN_EPS:
+        info_warning("Could not find reference dataset "
+                     "at time={}. Using time={} instead.".format(
+                         time, time_ref))
+
+    info("Dataset:   Time = {}, timestep = {}.".format(time_0, step))
+    info("Reference: Time = {}, timestep = {}.".format(time_ref, step_ref))
+
+    info_on_red("Not implemented yet.")
+
+
 def analytic_reference(ts, step=0, **kwargs):
     """ Compare to analytic reference expression at given timestep.
     This is done by importing the function "reference" in the problem module.
@@ -491,11 +538,38 @@ def plot_mesh(ts, **kwargs):
     plot_faces(ts.nodes, ts.elems, title="Mesh")
 
 
+def get_help():
+    info("Usage:\n   python postprocessing.py"
+         " method=... [optional arguments]\n")
+    info_cyan("{:<18} {}".format(
+        "Method", "Optional arguments (=default value)"))
+    for method in __methods__:
+        func = globals()[method]
+        opt_args_str = ""
+        argcount = func.__code__.co_argcount
+        if argcount > 1:
+            opt_args = zip(func.__code__.co_varnames[1:argcount],
+                           func.__defaults__)
+
+            opt_args_str = ", ".join(["=".join([str(item)
+                                                for item in pair])
+                                      for pair in opt_args])
+        info("{method:<18} {opt_args_str}".format(
+            method=method, opt_args_str=opt_args_str))
+    exit()
+
+
 def main():
     info_yellow("BERNAISE: Post-processing tool")
     cmd_kwargs = parse_command_line()
 
+    # Get help if it was called for.
+    if cmd_kwargs.get("help", False):
+        get_help()
+
     folder = cmd_kwargs.get("folder", False)
+
+    # Get sought fields
     sought_fields = cmd_kwargs.get("fields", False)
     if not sought_fields:
         sought_fields = None
@@ -513,6 +587,7 @@ def main():
     info_split("Found fields:", ", ".join(ts.fields))
     method = cmd_kwargs.get("method", "geometry_in_time")
 
+    # Call the specified method
     if method in __methods__:
         globals()[method](ts, **cmd_kwargs)
     else:
