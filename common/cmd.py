@@ -27,7 +27,9 @@ def convert(data):
 
 
 def str2list(string):
-    if string[0] == "[" and string[-1] == "]":
+    if bool(string[0] == "[" and string[-1] == "]" and
+            "--" not in string):
+        # Avoid parsing line specification as list.
         li = string[1:-1].split(",")
         for i in range(len(li)):
             li[i] = str2list(li[i])

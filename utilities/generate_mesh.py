@@ -378,8 +378,10 @@ def rad_points(x_c, rad, dx, theta_start=0., theta_stop=2*np.pi):
 def line_points(x_left, x_right, dx):
     N = int(np.ceil(np.sqrt((x_right[0]-x_left[0])**2 +
                             (x_right[1]-x_left[1])**2)/dx))
-    return zip(np.linspace(x_left[0], x_right[0], N, endpoint=True).flatten(),
-               np.linspace(x_left[1], x_right[1], N, endpoint=True).flatten())
+    return zip(np.linspace(x_left[0], x_right[0], N+1,
+                           endpoint=True).flatten(),
+               np.linspace(x_left[1], x_right[1], N+1,
+                           endpoint=True).flatten())
 
 
 def periodic_porous(Lx=4., Ly=3., num_obstacles=12,
@@ -650,7 +652,7 @@ def numpy_to_dolfin_old(nodes, elements):
         </dolfin>""")
 
     comm.Barrier()
-            
+
     mesh = df.Mesh(tmpfile)
 
     comm.Barrier()
