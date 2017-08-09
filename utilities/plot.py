@@ -12,7 +12,7 @@ size = comm.Get_size()
 
 
 __all__ = ["plot_edges", "plot_faces", "plot_contour", "plot_quiver",
-           "zero_level_set"]
+           "zero_level_set", "plot_fancy"]
 
 
 class Figure:
@@ -73,6 +73,8 @@ class Figure:
 
         if self.show:
             plt.show()
+        else:
+            plt.close()
 
 
 def plot_edges(pts, edges, title=None, clabel=None,

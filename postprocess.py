@@ -1,7 +1,8 @@
 import dolfin as df
 import h5py
 from common import load_parameters, info, parse_command_line, makedirs_safe, \
-    info_blue, info_cyan, info_split, info_on_red, info_red, info_yellow
+    info_blue, info_cyan, info_split, info_on_red, info_red, info_yellow, \
+    parse_xdmf
 import os
 import glob
 import numpy as np
@@ -9,7 +10,6 @@ from utilities.generate_mesh import numpy_to_dolfin
 from mpi4py.MPI import COMM_WORLD
 from utilities.plot import plot_contour, plot_edges, plot_quiver, plot_faces,\
     zero_level_set, plot_probes, plot_fancy
-from xml.etree import cElementTree as ET
 from utilities.generate_mesh import line_points
 
 """
@@ -20,8 +20,9 @@ This module is used to read, and perform analysis on, simulated data.
 """
 
 __methods__ = ["geometry_in_time", "reference", "plot",
-               "plot_dolfin", "plot_mesh", "line_probe", "make_gif"]
-__all__ = ["get_middle", "prep", "path_length", "parse_xdmf",
+               "plot_dolfin", "plot_mesh", "line_probe", "make_gif",
+               "plot_mesh"]
+__all__ = ["get_middle", "prep", "path_length",
            "index2letter"] + __methods__
 
 comm = COMM_WORLD
@@ -52,23 +53,6 @@ def path_length(paths, total_length=True):
         return sum(lengths)
     else:
         return lengths
-
-
-def parse_xdmf(xml_file):
-    tree = ET.parse(xml_file)
-    root = tree.getroot()
-
-    dsets = []
-    for step in root[0][0]:
-        timestamp = None
-        dset_address = None
-        for prop in step:
-            if prop.tag == "Time":
-                timestamp = float(prop.attrib["Value"])
-            elif prop.tag == "Attribute":
-                dset_address = prop[0].text.split(":")[1]
-        dsets.append((timestamp, dset_address))
-    return dsets
 
 
 def index2letter(index):
@@ -133,7 +117,8 @@ class TimeSeries:
                 os.path.exists(self.timeseries_folder)):
             info_split("Opening folder:", self.folder)
         else:
-            info("Folder does not contain Settings or Timeseries folders.")
+            info_on_red("Folder does not contain "
+                        "Settings or Timeseries folders.")
             exit()
 
         data = dict()
@@ -289,9 +274,23 @@ class TimeSeries:
         self[field] = datasets
         self.fields = self.datasets.keys()
 
+    def compute_charge_datasets(self):
+        """ Computing charge datasets by summing over all species. """
+        solutes = self.get_parameter("solutes")
+        charge_datasets = []
+        for step in range(len(self)):
+            charge_loc = np.zeros_like(self["phi", step])
+            for solute in solutes:
+                field = solute[0]
+                z = solute[1]
+                charge_loc[:, :] += z*self[field, step]
+            charge_datasets.append(charge_loc)
+        self.add_field("charge", charge_datasets)
 
-def geometry_in_time(ts):
+
+def geometry_in_time(ts, **kwargs):
     """ Analyze geometry in time. """
+    info_cyan("Analyzing the evolution of the geometry through time.")
     f_mask = df.Function(ts.function_space)
     f_mask_x = []
     for d in range(ts.dim):
@@ -303,7 +302,7 @@ def geometry_in_time(ts):
     for d in range(ts.dim):
         areas_x.append(np.zeros(len(ts)))
 
-    for step in range(len(ts)):
+    for step in range(rank, len(ts), size):
         info("Step " + str(step) + " of " + str(len(ts)))
 
         phi = ts["phi", step][:, 0]
@@ -328,12 +327,29 @@ def geometry_in_time(ts):
         np.savetxt(os.path.join(ts.analysis_folder,
                                 "time_data.dat"),
                    np.array(zip(ts.times, lengths, areas,
-                                areas_x[0], areas_x[1])))
+                                areas_x[0]/areas, areas_x[1]/areas)),
+                   header="Time\tCirc.\tArea\tCoM_x\tCoM_y")
 
 
-def line_probe(ts, dx, line_str):
-    x_a, x_b = [tuple(eval(pt)) for pt in line_str.split("--")]
+def line_probe(ts, dx=0.1, line="[0.,0.]--[1.,1.]",
+               **kwargs):
+    """ Probe along a line. """
+    info_cyan("Probe along a line.")
+    try:
+        x_a, x_b = [tuple(eval(pt)) for pt in line.split("--")]
+        assert(len(x_a) == ts.dim)
+        assert(len(x_b) == ts.dim)
+        assert(all([bool(isinstance(xd, float) or
+                         isinstance(xd, int))
+                    for xd in list(x_a)+list(x_b)]))
+    except:
+        info_on_red("Faulty line format. Use 'line=[x1,y1]--[x2,y2]'.")
+        exit()
+
     x = np.array(line_points(x_a, x_b, dx))
+
+    info("Probes {num} points from {a} to {b}".format(
+        num=len(x), a=x_a, b=x_b))
 
     plot_probes(ts.nodes, ts.elems, x, colorbar=False, title="Probes")
 
@@ -369,29 +385,14 @@ def line_probe(ts, dx, line_str):
                    data, header=header)
 
 
-def compute_charge_datasets(ts):
-    """ Computing charge datasets by summing over all species.
-    GL: Should it be a member function of TimeSeries?
-    """
-    solutes = ts.get_parameter("solutes")
-    charge_datasets = []
-    for step in range(len(ts)):
-        charge_loc = np.zeros_like(ts["phi", step])
-        for solute in solutes:
-            field = solute[0]
-            z = solute[1]
-            charge_loc[:, :] += z*ts[field, step]
-        charge_datasets.append(charge_loc)
-    return charge_datasets
-
-
-def make_gif(ts, show=False, save=True):
+def make_gif(ts, show=False, save=True, **kwargs):
     """ Make fancy gif animation. """
+    info_cyan("Making a fancy gif animation.")
     anim_name = "animation"
-    charge_datasets = compute_charge_datasets(ts)
-    ts.add_field("charge", charge_datasets)
+    ts.compute_charge()
 
-    for step in range(len(ts)):
+    for step in range(rank, len(ts), size):
+        info("Step " + str(step) + " of " + str(len(ts)))
         phi = ts["phi", step][:, 0]
         charge = ts["charge", step][:, 0]
         charge_max = max(ts.max("charge"), -ts.min("charge"))
@@ -418,8 +419,9 @@ def make_gif(ts, show=False, save=True):
         os.system("rm {tmp_files}".format(tmp_files=tmp_files))
 
 
-def plot(ts, step, show=True, save=False):
+def plot(ts, step=0, show=True, save=False, **kwargs):
     """ Plot at given timestep using matplotlib. """
+    info_cyan("Plotting at timestep {} using Matplotlib.".format(step))
     for field in ts.fields:
         if save:
             save_file = os.path.join(ts.plots_folder,
@@ -437,8 +439,9 @@ def plot(ts, step, show=True, save=False):
                          show=show)
 
 
-def plot_dolfin(ts, step):
+def plot_dolfin(ts, step=0, **kwargs):
     """ Plot at given timestep using dolfin. """
+    info_cyan("Plotting at timestep {} using Dolfin.".format(step))
     f = ts.functions()
     for field in ts.fields:
         ts.update(f[field], field, step)
@@ -446,10 +449,11 @@ def plot_dolfin(ts, step):
     df.interactive()
 
 
-def analytic_reference(ts, step):
+def analytic_reference(ts, step=0, **kwargs):
     """ Compare to analytic reference expression at given timestep.
     This is done by importing the function "reference" in the problem module.
     """
+    info_cyan("Comparing to analytic reference at timestep {}.".format(step))
     time = ts.get_time(step)
     parameters = ts.get_parameters(time=time)
     problem = parameters.get("problem", "intrusion_bulk")
@@ -483,6 +487,10 @@ def analytic_reference(ts, step):
     df.interactive()
 
 
+def plot_mesh(ts, **kwargs):
+    plot_faces(ts.nodes, ts.elems, title="Mesh")
+
+
 def main():
     info_yellow("BERNAISE: Post-processing tool")
     cmd_kwargs = parse_command_line()
@@ -500,39 +508,13 @@ def main():
 
     sought_fields_str = (", ".join(sought_fields)
                          if sought_fields is not None else "All")
-
     info_split("Sought fields:", sought_fields_str)
-
     ts = TimeSeries(folder, sought_fields=sought_fields)
-
     info_split("Found fields:", ", ".join(ts.fields))
-
-    step = cmd_kwargs.get("step", 0)
-
     method = cmd_kwargs.get("method", "geometry_in_time")
 
-    if method == "geometry_in_time":
-        geometry_in_time(ts)
-    elif method == "reference":
-        info_on_red("Not implemented yet.")
-    elif method == "analytic_reference":
-        analytic_reference(ts, step)
-    elif method == "plot":
-        show = bool(cmd_kwargs.get("show", True))
-        save = bool(cmd_kwargs.get("save", False))
-        plot(ts, step, show=show, save=save)
-    elif method == "plot_dolfin":
-        plot_dolfin(ts, step)
-    elif method == "plot_mesh":
-        plot_faces(ts.nodes, ts.elems, title="Mesh")
-    elif method == "line_probe":
-        dx = cmd_kwargs.get("dx", 0.1)
-        line_str = cmd_kwargs.get("line", "[0.,0.]--[1.,1.]")
-        line_probe(ts, dx, line_str)
-    elif method == "make_gif":
-        show = bool(cmd_kwargs.get("show", False))
-        save = bool(cmd_kwargs.get("save", True))
-        make_gif(ts, show=show, save=save)
+    if method in __methods__:
+        globals()[method](ts, **cmd_kwargs)
     else:
         info_on_red("The specified analysis method doesn't exist.")
 
