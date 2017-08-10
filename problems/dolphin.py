@@ -55,7 +55,9 @@ class Inner(Boundary):
 
 def problem():
     info_cyan("Cleaning up a dolphin covered in oil spill.")
-
+    # Define solutes
+    # Format: name, valency, diffusivity in phase 1, diffusivity in phase
+    #         2, beta in phase 1, beta in phase 2
     solutes = [["c_p",  1, 1e-4, 5e-3, 4., 1.],
                ["c_m", -1, 1e-4, 5e-3, 4., 1.]]
 
@@ -158,8 +160,7 @@ def create_bcs(Lx, Ly,
         top=[Top(Ly)],
         left=[Left()],
         right=[Right(Lx)],
-        outer=[Outer(Lx, Ly)]
-    )
+        )
 
     bcs = dict()
     for boundary_name in boundaries.keys():
@@ -186,7 +187,10 @@ def create_bcs(Lx, Ly,
         for solute in solutes:
             bcs["left"][solute[0]] = Fixed(concentration_init)
             bcs["right"][solute[0]] = Fixed(concentration_init)
-        bcs["outer"]["V"] = Fixed(0.)
+        bcs["top"]["V"] = Fixed(0.)
+        bcs["bottom"]["V"] = Fixed(0.)
+        bcs["left"]["V"] = Fixed(0.)
+        bcs["right"]["V"] = Fixed(0.)
         bcs["inner"]["V"] = Charged(surface_charge)
 
     if enable_PF:  

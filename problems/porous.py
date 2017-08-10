@@ -59,7 +59,8 @@ class Obstacles(df.SubDomain):
 
 def problem():
     info_cyan("Intrusion of one fluid into another in a porous medium.")
-
+    # Define solutes
+    # Format: name, valency, diffusivity in phase 1, diffusivity in phase
     #         2, beta in phase 1, beta in phase 2
     solutes = [["c_p",  1, 1e-4, 1e-2, 4., 1.],
                ["c_m", -1, 1e-4, 1e-2, 4., 1.]]
@@ -108,6 +109,7 @@ def problem():
         surface_charge=sigma_e,
         concentration_init=1.,
         front_position_init=0.1,  # percentage "filled" initially
+        ions_in_olie=False, 
         #
         pf_mobility_coeff=factor*0.000040,
         density=[1000., 1000.],
@@ -169,10 +171,20 @@ def initialize(Lx, Ly, rad_init,
                     x_0, Ly/2, rad_init, interface_thickness,
                     field_to_subspace["phi"].collapse(),
                     shape=initial_interface)
+                
                 # Only have ions in phase 1 (phi=1)
-                c_init.vector()[:] = concentration_init*0.5*(
-                    1.-c_init.vector().array())
-                w_init_field[solute[0]] = c_init
+                if ions_in_olie:
+                    if (solutes[0][4]==solutes[1][4] || solutes[0][5]==solutes[1][5]):
+                        info_red("Warnig! The beta of the two ions is differant, not supported for initializion" )
+                    exp_beta = np.exp(-solutes[0][4]+solutes[0][5])
+                    c_init.vector()[:] = concentration_init*((1-exp_beta)*0.5*(
+                        1.-c_init.vector().array())+exp_beta)  
+                    w_init_field[solute[0]] = c_init
+                else:
+                    c_init.vector()[:] = concentration_init*0.5*(
+                        1.-c_init.vector().array())
+                    w_init_field[solute[0]] = c_init
+                
     return w_init_field
 
 
