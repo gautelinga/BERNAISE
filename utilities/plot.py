@@ -12,7 +12,7 @@ size = comm.Get_size()
 
 
 __all__ = ["plot_edges", "plot_faces", "plot_contour", "plot_quiver",
-           "zero_level_set", "plot_fancy"]
+           "zero_level_set", "plot_fancy", "plot_any_field"]
 
 
 class Figure:
@@ -178,6 +178,20 @@ def plot_fancy(nodes, elems, phi, charge, u=None, charge_max=None,
                       color=colormap(norm(colors)))
 
     return fig
+
+
+def plot_any_field(nodes, elems, values, save=None, show=True, label=None):
+    """ Plot using quiver plot or contour plot depending on field. """
+    if label is None:
+        label = ""
+    if values.shape[1] == 2:
+        plot_quiver(nodes, elems, values,
+                    title=label, clabel=label, save=save,
+                    show=show)
+    else:
+        plot_contour(nodes, elems, values[:, 0],
+                     title=label, clabel=label, save=save,
+                     show=show)
 
 
 def zero_level_set(nodes, elems, vals, show=False, save_file=False):

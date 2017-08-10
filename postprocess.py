@@ -7,9 +7,9 @@ import os
 import glob
 import numpy as np
 from utilities.generate_mesh import numpy_to_dolfin
-from mpi4py.MPI import COMM_WORLD
+from mpi4py import MPI
 from utilities.plot import plot_contour, plot_edges, plot_quiver, plot_faces,\
-    zero_level_set, plot_probes, plot_fancy
+    zero_level_set, plot_probes, plot_fancy, plot_any_field
 from utilities.generate_mesh import line_points
 
 """
@@ -20,12 +20,12 @@ This module is used to read, and perform analysis on, simulated data.
 """
 
 __methods__ = ["geometry_in_time", "reference", "plot",
-               "plot_dolfin", "plot_mesh", "line_probe", "make_gif",
-               "plot_mesh"]
+               "plot_dolfin", "line_probe", "make_gif",
+               "mesh", "analytic_reference"]
 __all__ = ["get_middle", "prep", "path_length",
            "index2letter"] + __methods__
 
-comm = COMM_WORLD
+comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
@@ -104,6 +104,11 @@ class TimeSeries:
 
             self.x = self._make_dof_coords()
             self.xdict = self._make_xdict()
+
+            indices_function = df.Function(self.function_space)
+            self.set_val(indices_function, np.arange(len(self.nodes)))
+            self.indices = np.asarray(indices_function.vector().array(),
+                                      dtype=int)
         else:
             self.mesh = get_mesh_from.mesh
             self.function_space = get_mesh_from.function_space
@@ -111,6 +116,7 @@ class TimeSeries:
             self.dim = get_mesh_from.dim
             self.x = get_mesh_from.x
             self.xdict = get_mesh_from.xdict
+            self.indices = get_mesh_from.indices
 
     def _load_timeseries(self, sought_fields=None):
         if bool(os.path.exists(self.settings_folder) and
@@ -268,6 +274,15 @@ class TimeSeries:
                     return step+1
         return len(self)-1
 
+    def get_nearest_step_and_time(self, time, dataset_str="dataset"):
+        step = self.get_nearest_step(time)
+        time_0 = self.get_time(step)
+        if abs(time-time_0) > df.DOLFIN_EPS:
+            info_warning("Could not find {} "
+                         "at time={}. Using time={} instead.".format(
+                             dataset_str, time, time_0))
+        return step, time_0
+
     def _operate(self, function, field):
         return function([function(self[field, step], 0)
                          for step in range(len(self))])
@@ -285,7 +300,7 @@ class TimeSeries:
         self[field] = datasets
         self.fields = self.datasets.keys()
 
-    def compute_charge_datasets(self):
+    def compute_charge(self):
         """ Computing charge datasets by summing over all species. """
         solutes = self.get_parameter("solutes")
         charge_datasets = []
@@ -298,10 +313,23 @@ class TimeSeries:
             charge_datasets.append(charge_loc)
         self.add_field("charge", charge_datasets)
 
+    def nodal_values(self, f):
+        """ Convert dolfin function to nodal values. """
+        farray = f.vector().array()
+        fdim = len(farray)/len(self.indices)
+        farray = farray.reshape((len(self.indices), fdim))
+
+        arr = np.zeros((len(self.nodes), fdim))
+        arr_loc = np.zeros_like(arr)
+        for i, fval in zip(self.indices, farray):
+            arr_loc[i, :] = fval
+        comm.Allreduce(arr_loc, arr, op=MPI.SUM)
+
+        return arr
+
 
 def geometry_in_time(ts, **kwargs):
     """ Analyze geometry in time.
-    No parallel support.
     """
     info_cyan("Analyzing the evolution of the geometry through time.")
     f_mask = df.Function(ts.function_space)
@@ -309,12 +337,11 @@ def geometry_in_time(ts, **kwargs):
     for d in range(ts.dim):
         f_mask_x.append(df.Function(ts.function_space))
 
-    lengths = np.zeros(len(ts))
-    areas = np.zeros(len(ts))
-    areas_x = []
-    for d in range(ts.dim):
-        areas_x.append(np.zeros(len(ts)))
+    length = np.zeros(len(ts))
+    area = np.zeros(len(ts))
+    com = np.zeros((len(ts), ts.dim))
 
+    makedirs_safe(os.path.join(ts.analysis_folder, "contour"))
     for step in range(len(ts)):
         info("Step " + str(step) + " of " + str(len(ts)))
 
@@ -324,23 +351,26 @@ def geometry_in_time(ts, **kwargs):
         for d in range(ts.dim):
             ts.set_val(f_mask_x[d], mask*ts.nodes[:, d])
 
-        contour_file = os.path.join(ts.analysis_folder,
+        contour_file = os.path.join(ts.analysis_folder, "contour",
                                     "contour_{:06d}.dat".format(step))
         paths = zero_level_set(ts.nodes, ts.elems, phi,
                                save_file=contour_file)
 
-        lengths[step] = path_length(paths)
+        length[step] = path_length(paths)
 
-        areas[step] = df.assemble(f_mask*df.dx)
+        area[step] = df.assemble(f_mask*df.dx)
         for d in range(ts.dim):
-            areas_x[d][step] = df.assemble(f_mask_x[d]*df.dx)
+            com[step, d] = df.assemble(f_mask_x[d]*df.dx)
+
+    for d in range(ts.dim):
+        com[:, d] /= area
 
     if rank == 0:
         np.savetxt(os.path.join(ts.analysis_folder,
                                 "time_data.dat"),
-                   np.array(zip(ts.times, lengths, areas,
-                                areas_x[0]/areas, areas_x[1]/areas)),
-                   header="Time\tCirc.\tArea\tCoM_x\tCoM_y")
+                   np.array(zip(np.arange(len(ts)), ts.times, length, area,
+                                com[:, 0], com[:, 1])),
+                   header="Timestep\tTime\tLength\tCoM_x\tCoM_y")
 
 
 def line_probe(ts, dx=0.1, line="[0.,0.]--[1.,1.]",
@@ -363,7 +393,9 @@ def line_probe(ts, dx=0.1, line="[0.,0.]--[1.,1.]",
     info("Probes {num} points from {a} to {b}".format(
         num=len(x), a=x_a, b=x_b))
 
-    plot_probes(ts.nodes, ts.elems, x, colorbar=False, title="Probes")
+    if rank == 0:
+        plot_probes(ts.nodes, ts.elems, x,
+                    colorbar=False, title="Probes")
 
     f = ts.functions()
     probes = dict()
@@ -377,24 +409,31 @@ def line_probe(ts, dx=0.1, line="[0.,0.]--[1.,1.]",
         for field, probe in probes.iteritems():
             probe(f[field])
 
-    for step in range(len(ts)):
-        chunks = [x]
-        header_list = [index2letter(d) for d in range(ts.dim)]
-        for field, probe in probes.iteritems():
-            chunk = probe.array()
-            if chunk.ndim == 2:
-                header_list.append(field)
-                chunk = chunk[:, step].reshape(-1, 1)
-            elif chunk.ndim > 2:
-                header_list.extend(
-                    [field + "_" + index2letter(d) for d in range(ts.dim)])
-                chunk = chunk[:, :, step]
-            chunks.append(chunk)
-        data = np.hstack(chunks)
-        header = "\t".join(header_list)
-        np.savetxt(os.path.join(ts.analysis_folder,
-                                "probes_" + str(step) + ".dat"),
-                   data, header=header)
+    probe_arr = dict()
+    for field, probe in probes.iteritems():
+        probe_arr[field] = probe.array()
+
+    if rank == 0:
+        for step in range(len(ts)):
+            chunks = [x]
+            header_list = [index2letter(d) for d in range(ts.dim)]
+            for field, chunk in probe_arr.iteritems():
+                if chunk.ndim == 2:
+                    header_list.append(field)
+                    chunk = chunk[:, step].reshape(-1, 1)
+                elif chunk.ndim > 2:
+                    header_list.extend(
+                        [field + "_" + index2letter(d)
+                         for d in range(ts.dim)])
+                    chunk = chunk[:, :, step]
+                chunks.append(chunk)
+
+            data = np.hstack(chunks)
+            header = "\t".join(header_list)
+            makedirs_safe(os.path.join(ts.analysis_folder, "probes"))
+            np.savetxt(os.path.join(ts.analysis_folder, "probes",
+                                    "probes_{:06d}.dat".format(step)),
+                       data, header=header)
 
 
 def make_gif(ts, show=False, save=True, **kwargs):
@@ -431,29 +470,26 @@ def make_gif(ts, show=False, save=True, **kwargs):
         os.system("rm {tmp_files}".format(tmp_files=tmp_files))
 
 
-def plot(ts, step=0, show=True, save=False, **kwargs):
+def plot(ts, time=None, step=0, show=True, save=False, **kwargs):
     """ Plot at given timestep using matplotlib. """
-    info_cyan("Plotting at timestep {} using Matplotlib.".format(step))
-    for field in ts.fields:
-        if save:
-            save_file = os.path.join(ts.plots_folder,
-                                     field + "_" + str(step) + ".png")
-        else:
-            save_file = None
+    info_cyan("Plotting at given time/step using Matplotlib.")
+    step, time = get_step_and_info(ts, time)
+    if rank == 0:
+        for field in ts.fields:
+            if save:
+                save_fig_file = os.path.join(
+                    ts.plots_folder, "{}_{:06d}.png".format(field, step))
+            else:
+                save_fig_file = None
 
-        if field == "u":
-            plot_quiver(ts.nodes, ts.elems, ts[field, step],
-                        title=field, clabel=field, save=save_file,
-                        show=show)
-        else:
-            plot_contour(ts.nodes, ts.elems, ts[field, step][:, 0],
-                         title=field, clabel=field, save=save_file,
-                         show=show)
+            plot_any_field(ts.nodes, ts.elems, ts[field, step],
+                           save=save_fig_file, show=show, label=field)
 
 
-def plot_dolfin(ts, step=0, **kwargs):
-    """ Plot at given timestep using dolfin. """
-    info_cyan("Plotting at timestep {} using Dolfin.".format(step))
+def plot_dolfin(ts, time=None, step=0, **kwargs):
+    """ Plot at given time/step using dolfin. """
+    info_cyan("Plotting at given timestep using Dolfin.")
+    step, time = get_step_and_info(ts, time)
     f = ts.functions()
     for field in ts.fields:
         ts.update(f[field], field, step)
@@ -461,7 +497,16 @@ def plot_dolfin(ts, step=0, **kwargs):
     df.interactive()
 
 
-def reference(ts, ref=None, time=1., **kwargs):
+def get_step_and_info(ts, time):
+    if time is not None:
+        time, step = ts.get_nearest_step_and_time(time)
+    else:
+        time = ts.get_time(step)
+    info("Time = {}, timestep = {}.".format(time, step))
+    return step
+
+
+def reference(ts, ref=None, time=1., show=False, save_fig=False, **kwargs):
     """Compare to numerical reference at given timestep.
 
     The reference solution is assumed to be on a finer mesh, so the
@@ -476,32 +521,63 @@ def reference(ts, ref=None, time=1., **kwargs):
     ts_ref = TimeSeries(ref, sought_fields=ts.fields)
     info_split("Reference fields:", ", ".join(ts_ref.fields))
 
-    step = ts.get_nearest_step(time)
-    time_0 = ts.get_time(step)
-    if abs(time-time_0) > df.DOLFIN_EPS:
-        info_warning("Could not find dataset "
-                     "at time={}. Using time={} instead.".format(
-                         time, time_0))
+    # Compute a 'reference ID' for storage purposes
+    ref_id = os.path.relpath(ts_ref.folder,
+                             os.path.join(ts.folder, "../")).replace(
+                                 "../", "-").replace("/", "+")
 
-    step_ref = ts_ref.get_nearest_step(time)
-    time_ref = ts_ref.get_time(step_ref)
-    if abs(time-time_ref) > df.DOLFIN_EPS:
-        info_warning("Could not find reference dataset "
-                     "at time={}. Using time={} instead.".format(
-                         time, time_ref))
+    step, time_0 = ts.get_nearest_step_and_time(time)
+
+    step_ref, time_ref = ts_ref.get_nearest_step_and_time(
+        time, dataset_str="reference")
 
     info("Dataset:   Time = {}, timestep = {}.".format(time_0, step))
     info("Reference: Time = {}, timestep = {}.".format(time_ref, step_ref))
 
-    info_on_red("Not implemented yet.")
+    from fenicstools import interpolate_nonmatching_mesh
+
+    f = ts.functions()
+    err = ts.functions()
+    f_ref = ts_ref.functions()
+
+    ts.update_all(f, step=step)
+    ts_ref.update_all(f_ref, step=step)
+
+    for field in ts_ref.fields:
+        F = interpolate_nonmatching_mesh(
+            f_ref[field], f[field].function_space())
+        err[field].vector()[:] = f[field].vector()[:] - F.vector()[:]
+
+        if show or save_fig:
+            err_arr = ts.nodal_values(err[field])
+            label = "Error in " + field
+
+            if rank == 0:
+                save_fig_file = None
+                if save_fig:
+                    save_fig_file = os.path.join(
+                        ts.plots_folder, "error_{}_time{}_ref{}.png".format(
+                            field, time, ref_id))
+
+                plot_any_field(ts.nodes, ts.elems, err_arr,
+                               save=save_fig_file, show=show, label=label)
+
+    save_file = os.path.join(ts.analysis_folder,
+                             "errornorms_time{}_ref{}.dat".format(
+                                 time, ref_id))
+
+    compute_norms(err, f_ref, save=save_file)
+
+    # info_on_red("Not implemented yet.")
 
 
-def analytic_reference(ts, step=0, **kwargs):
+def analytic_reference(ts, time=None, step=0, show=False,
+                       save_fig=False, **kwargs):
     """ Compare to analytic reference expression at given timestep.
     This is done by importing the function "reference" in the problem module.
     """
-    info_cyan("Comparing to analytic reference at timestep {}.".format(step))
-    time = ts.get_time(step)
+    info_cyan("Comparing to analytic reference at given time or step.")
+    step, time = get_step_and_info(ts, time)
     parameters = ts.get_parameters(time=time)
     problem = parameters.get("problem", "intrusion_bulk")
     exec("from problems.{} import reference".format(problem))
@@ -523,23 +599,79 @@ def analytic_reference(ts, step=0, **kwargs):
         err[field].vector()[:] = (f[field].vector()[:] -
                                   f_ref[field].vector()[:])
 
-    info_red("\nL2 norms")
-    info("\tL2(f-f_ref) \tL2(f_ref)")
-    for field, e in err.iteritems():
-        info("{field} \t{e_L2} \t{f_L2}".format(
-            field=field,
-            e_L2=df.norm(e.vector()),
-            f_L2=df.norm(f_ref[field].vector())))
-        df.plot(e)
-    df.interactive()
+        if show or save_fig:
+            err_arr = ts.nodal_values(err[field])
+            label = "Error in " + field
+
+            if rank == 0:
+                save_fig_file = None
+                if save_fig:
+                    save_fig_file = os.path.join(
+                        ts.plots_folder, "error_{}_time{}_analytic.png".format(
+                            field, time))
+
+                plot_any_field(ts.nodes, ts.elems, err_arr,
+                               save=save_fig_file, show=show, label=label)
+
+    save_file = os.path.join(ts.analysis_folder,
+                             "errornorms_time{}_analytic.dat".format(
+                                 time))
+    compute_norms(err, f_ref, save=save_file)
 
 
-def plot_mesh(ts, **kwargs):
-    plot_faces(ts.nodes, ts.elems, title="Mesh")
+def compute_norms(err, f_ref, vector_norms=["l2", "linf"],
+                  function_norms=["L2", "H1"], show=True,
+                  tablefmt="simple", save=False):
+    """ Compute norms, output to terminal, etc. """
+    info_split("Vector norms:", ", ".join(vector_norms))
+    info_split("Function norms:", ", ".join(function_norms))
+
+    headers = ["Fields"] + vector_norms + function_norms
+
+    table = []
+    for field in err.keys():
+        row = [field]
+        for norm_type in vector_norms:
+            row.append(df.norm(err[field].vector(), norm_type=norm_type))
+        for norm_type in function_norms:
+            row.append(df.norm(err[field], norm_type=norm_type))
+        table.append(row)
+
+    from tabulate import tabulate
+    tab_string = tabulate(table, headers, tablefmt=tablefmt, floatfmt="e")
+    if show:
+        info("\n" + tab_string + "\n")
+
+    if save and rank == 0:
+        info_split("Saving to file:", save)
+        with open(save, "w") as outfile:
+            outfile.write(tab_string)
+
+
+def mesh(ts, show=True, save_fig=False, **kwargs):
+    """ Mesh info and plot. """
+    info_cyan("Mesh info and plot.")
+    f = df.Function(ts.function_space)
+    f.vector()[:] = 1.
+    area = df.assemble(f*df.dx)
+
+    info("Number of nodes:    {}".format(len(ts.nodes)))
+    info("Number of elements: {}".format(len(ts.elems)))
+    info("Total mesh area:    {}".format(area))
+    info("Mean element size:  {}".format(area/len(ts.elems)))
+
+    if rank == 0:
+        save_fig_file = None
+        if save_fig:
+            save_fig_file = os.path.join(ts.plots_folder,
+                                         "mesh.png")
+
+        plot_faces(ts.nodes, ts.elems, title="Mesh",
+                   save=save_fig_file, show=show)
 
 
 def get_help():
-    info("Usage:\n   python postprocessing.py"
+    info("Usage:\n   python " + os.path.basename(__file__) +
          " method=... [optional arguments]\n")
     info_cyan("{:<18} {}".format(
         "Method", "Optional arguments (=default value)"))
@@ -586,6 +718,10 @@ def main():
     ts = TimeSeries(folder, sought_fields=sought_fields)
     info_split("Found fields:", ", ".join(ts.fields))
     method = cmd_kwargs.get("method", "geometry_in_time")
+
+    if len(ts.fields) == 0:
+        info_on_red("Found no data.")
+        exit()
 
     # Call the specified method
     if method in __methods__:

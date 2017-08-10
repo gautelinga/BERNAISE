@@ -210,6 +210,7 @@ def setup_NS(w_NS, u, p, v, q,
 
     if enable_PF:
         # F += - drho*M_*df.inner(df.grad(u), df.outer(df.grad(g_), v))*dx
+        # GL: Wasn't filter applied outside?
         F += - sigma_bar*eps*df.inner(df.outer(
             df.grad(unit_interval_filter(phi_)),
             df.grad(unit_interval_filter(phi_))),
