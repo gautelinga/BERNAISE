@@ -658,7 +658,7 @@ def mesh(ts, show=True, save_fig=False, **kwargs):
     info("Number of nodes:    {}".format(len(ts.nodes)))
     info("Number of elements: {}".format(len(ts.elems)))
     info("Total mesh area:    {}".format(area))
-    info("Mean element size:  {}".format(area/len(ts.elems)))
+    info("Mean element area:  {}".format(area/len(ts.elems)))
 
     if rank == 0:
         save_fig_file = None

@@ -31,8 +31,8 @@ class Right(df.SubDomain):
 
 
 def problem():
-    info_cyan("Charged droplet in an electric field")
-    
+    info_cyan("Charged droplet in an electric field.")
+
     # Define solutes
     # Format: name, valency, diffusivity in phase 1, diffusivity in phase
     solutes = [["c_p",  1, 1e-5, 1e-3, 4., 1.]]
@@ -59,7 +59,7 @@ def problem():
         tstep=0,
         dt=0.08,  # 0.02,
         t_0=0.,
-        T=20.,
+        T=8.,
         grid_spacing=1./32,  # 1./64,
         interface_thickness=0.03,  # 0.02,
         solutes=solutes,
