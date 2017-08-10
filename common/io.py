@@ -2,6 +2,7 @@ import os
 from dolfin import MPI, mpi_comm_world, XDMFFile, HDF5File, Mesh
 from cmd import info_red, info_cyan
 import simplejson as json
+from xml.etree import cElementTree as ET
 
 __author__ = "Gaute Linga"
 __date__ = "2017-05-26"
@@ -11,7 +12,7 @@ __license__ = "MIT"
 __all__ = ["mpi_is_root", "makedirs_safe", "load_parameters",
            "dump_parameters", "create_initial_folders",
            "save_solution", "save_checkpoint", "load_checkpoint",
-           "load_mesh", "remove_safe"]
+           "load_mesh", "remove_safe", "parse_xdmf"]
 
 
 def mpi_is_root():
@@ -191,3 +192,20 @@ def load_mesh(filename):
     h5file.read(mesh, "mesh", False)
     h5file.close()
     return mesh
+
+
+def parse_xdmf(xml_file):
+    tree = ET.parse(xml_file)
+    root = tree.getroot()
+
+    dsets = []
+    for step in root[0][0]:
+        timestamp = None
+        dset_address = None
+        for prop in step:
+            if prop.tag == "Time":
+                timestamp = float(prop.attrib["Value"])
+            elif prop.tag == "Attribute":
+                dset_address = prop[0].text.split(":")[1]
+        dsets.append((timestamp, dset_address))
+    return dsets

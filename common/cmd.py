@@ -68,7 +68,7 @@ def parse_command_line():
         value = parseval(value)
         if isinstance(value, str):
             value = str2list(value)
-        
+
         cmd_kwargs[key] = value
     return cmd_kwargs
 
@@ -112,7 +112,11 @@ def info_split_style(msg_1, msg_2, style_1=BLUE, style_2=NORMAL, check=True):
 
 
 def info_split(msg_1, msg_2, check=True):
-    info_split_style(msg_1, msg_2)
+    info_split_style(msg_1, msg_2, check=check)
+
+
+def info_warning(message, check=True):
+    info_split_style("Warning:", message, style_1=ON_RED, check=check)
 
 
 def print_dir(folder):

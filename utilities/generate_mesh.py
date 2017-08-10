@@ -656,7 +656,7 @@ def numpy_to_dolfin_old(nodes, elements):
     mesh = df.Mesh(tmpfile)
 
     comm.Barrier()
-    
+
     if rank == 0 and os.path.exists(tmpfile):
         os.remove(tmpfile)
     return mesh
