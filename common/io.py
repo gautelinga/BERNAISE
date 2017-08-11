@@ -199,13 +199,21 @@ def parse_xdmf(xml_file):
     root = tree.getroot()
 
     dsets = []
-    for step in root[0][0]:
-        timestamp = None
-        dset_address = None
-        for prop in step:
-            if prop.tag == "Time":
-                timestamp = float(prop.attrib["Value"])
-            elif prop.tag == "Attribute":
-                dset_address = prop[0].text.split(":")[1]
-        dsets.append((timestamp, dset_address))
+    timestamps = []
+    for i, step in enumerate(root[0][0]):
+        if step.tag == "Time":
+            # Support for earlier dolfin formats
+            timestamps = [float(time) for time in
+                          step[0].text.strip().split(" ")]
+        elif step.tag == "Grid":
+            timestamp = None
+            dset_address = None
+            for prop in step:
+                if prop.tag == "Time":
+                    timestamp = float(prop.attrib["Value"])
+                elif prop.tag == "Attribute":
+                    dset_address = prop[0].text.split(":")[1]
+            if timestamp is None:
+                timestamp = timestamps[i-1]
+            dsets.append((timestamp, dset_address))
     return dsets

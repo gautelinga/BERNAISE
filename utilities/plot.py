@@ -184,8 +184,8 @@ def plot_any_field(nodes, elems, values, save=None, show=True, label=None):
     """ Plot using quiver plot or contour plot depending on field. """
     if label is None:
         label = ""
-    if values.shape[1] == 2:
-        plot_quiver(nodes, elems, values,
+    if values.shape[1] >= 2:
+        plot_quiver(nodes, elems, values[:, :2],
                     title=label, clabel=label, save=save,
                     show=show)
     else:

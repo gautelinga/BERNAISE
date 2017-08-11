@@ -499,11 +499,11 @@ def plot_dolfin(ts, time=None, step=0, **kwargs):
 
 def get_step_and_info(ts, time):
     if time is not None:
-        time, step = ts.get_nearest_step_and_time(time)
+        step, time = ts.get_nearest_step_and_time(time)
     else:
         time = ts.get_time(step)
     info("Time = {}, timestep = {}.".format(time, step))
-    return step
+    return step, time
 
 
 def reference(ts, ref=None, time=1., show=False, save_fig=False, **kwargs):
