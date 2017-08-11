@@ -37,22 +37,67 @@ class LoadSettings:
     def __init__(self, folder):
         self.folder = folder
         self.settings_folder = os.path.join(folder, "Settings")
-
         self.params_prefix = os.path.join(self.settings_folder,
                                           "parameters_from_tstep_")
         self.params_suffix = ".dat"
 
         self.parameters = dict()
+        self._get_model_parameters()
 
     
-    def _get_model_parameters():
+    def _get_model_parameters(self):
+           
             for params_file in glob.glob(
                 self.params_prefix + "*" + self.params_suffix):
                 parameters = dict()
                 load_parameters(parameters, params_file)
             self.parameters = parameters
             
+            # The active parts of the solvers
+            self.enable_NS = self.parameters[enable_NS]
+            self.enable_PF = self.parameters[enable_PF]
+            self.enable_EC = self.parameters[enable_EC]
+            # estrackting importen Parmetors        
+            
+            self.Lx = self.parameters["Lx"]
+            self.Ly = self.parameters["Ly"]
+            
+            self.temperatur = 1
+            self.k_b = 1
+            self.varcum_permittivity = 1
+            self.q_e = 1
 
+
+            if self.enable_PF:
+                self.interface_thickness = self.parameters["interface_thickness"]
+                self.pf_mobility_coeff = self.parameters["pf_mobility_coeff"]
+                self.surface_tension = self.parameters["surface_tension"]    
+            
+            if self.enable_EC:
+                self.permittivity = self.parameters["permittivity"]
+                self.solutes = self.parameters["solutes"]
+            if self.enable_NS
+                self.density = self.parameters["density"]
+                self.viscosity = self.parameters["viscosity"]
+
+            '''
+
+
+            interface_thickness
+            solutes=solutes
+            Lx=1.,
+            Ly=2.,
+            surface_tension
+            pf_mobility_coeff=factor*0.000010,
+            density=[10., 10.],
+            viscosity=[1., 1.],
+            permittivity=[1., 1.],
+        
+            model_k_b = 1
+            model_T = 1
+            model_Vacuum permittivity = 1
+            model_electron_charge = 1
+            '''
     
     #SimulationParameters
 
