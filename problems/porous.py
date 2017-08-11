@@ -134,7 +134,7 @@ def mesh(Lx=4., Ly=3., grid_spacing=0.04, **namespace):
 
 def initialize(Lx, Ly, rad_init,
                interface_thickness, solutes, restart_folder,
-               field_to_subspace,  # inlet_velocity,
+               field_to_subspace, ions_in_olie, # inlet_velocity,
                front_position_init, concentration_init,
                pressure_left, pressure_right,
                enable_NS, enable_PF, enable_EC, initial_interface,
@@ -174,7 +174,7 @@ def initialize(Lx, Ly, rad_init,
                 
                 # Only have ions in phase 1 (phi=1)
                 if ions_in_olie:
-                    if (solutes[0][4]==solutes[1][4] || solutes[0][5]==solutes[1][5]):
+                    if (solutes[0][4]==solutes[1][4] or solutes[0][5]==solutes[1][5]):
                         info_red("Warnig! The beta of the two ions is differant, not supported for initializion" )
                     exp_beta = np.exp(-solutes[0][4]+solutes[0][5])
                     c_init.vector()[:] = concentration_init*((1-exp_beta)*0.5*(
