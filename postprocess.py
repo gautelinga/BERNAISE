@@ -322,10 +322,12 @@ class TimeSeries:
                                      field + ".h5")
             self[field] = [(data_file, field + "/" + str(step))
                            for step in range(len(datasets))]
-            with h5py.File(data_file, "w") as h5f:
-                for step, dataset in enumerate(datasets):
-                    dset_address = field + "/" + str(step)
-                    h5f.create_dataset(dset_address, data=dataset)
+            if rank == 0:
+                with h5py.File(data_file, "w") as h5f:
+                    for step, dataset in enumerate(datasets):
+                        dset_address = field + "/" + str(step)
+                        h5f.create_dataset(dset_address, data=dataset)
+            comm.Barrier()
         else:
             self[field] = datasets
         self.fields = self.datasets.keys()
