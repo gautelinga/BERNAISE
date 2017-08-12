@@ -15,7 +15,7 @@ from utilities.generate_mesh import line_points
 """
 BERNAISE: Post-processing tool.
 
-This module is used to read, and perform analysis on, simulated data.
+This module is used to read and analyze simulated data.
 
 """
 
@@ -61,7 +61,8 @@ def index2letter(index):
 
 class TimeSeries:
     """ Class for loading timeseries """
-    def __init__(self, folder, sought_fields=None, get_mesh_from=False):
+    def __init__(self, folder, sought_fields=None, get_mesh_from=False,
+                 memory_modest=True):
         self.folder = folder
 
         self.settings_folder = os.path.join(folder, "Settings")
@@ -70,6 +71,8 @@ class TimeSeries:
         self.analysis_folder = os.path.join(folder, "Analysis")
         self.plots_folder = os.path.join(folder, "Plots")
         self.tmp_folder = os.path.join(folder, ".tmp")
+
+        self.memory_modest = memory_modest
 
         self.params_prefix = os.path.join(self.settings_folder,
                                           "parameters_from_tstep_")
@@ -162,14 +165,20 @@ class TimeSeries:
                         if self.nodes is None or self.elems is None:
                             self.elems = np.array(h5f["Mesh/0/mesh/topology"])
                             self.nodes = np.array(h5f["Mesh/0/mesh/geometry"])
-                        for time, dset_address in dsets:
-                            data[field][time] = np.array(h5f[dset_address])
 
-        for i, key in enumerate(data.keys()):
-            tmps = sorted(data[key].items())
+                        for time, dset_address in dsets:
+                            # If in memory saving mode, only store
+                            # address for later use.
+                            if self.memory_modest:
+                                data[field][time] = (data_file, dset_address)
+                            else:
+                                data[field][time] = np.array(h5f[dset_address])
+
+        for i, field in enumerate(data.keys()):
+            tmps = sorted(data[field].items())
             if i == 0:
                 self.times = [tmp[0] for tmp in tmps]
-            self.datasets[key] = [tmp[1] for tmp in tmps]
+            self[field] = [tmp[1] for tmp in tmps]
         self.parameters = sorted(self.parameters.items())
         self.fields = self.datasets.keys()
 
@@ -205,12 +214,12 @@ class TimeSeries:
     def update(self, f, field, step):
         """ Set dolfin vector f with values from field. """
         if field == "u":
-            u_data = self.datasets["u"][step][:, :self.dim]
+            u_data = self["u", step][:, :self.dim]
             for i in range(self.dim):
                 self.set_val(self.dummy_function, u_data[:, i])
                 df.assign(f.sub(i), self.dummy_function)
         else:
-            f_data = self.datasets[field][step][:]
+            f_data = self[field, step][:]
             self.set_val(f, f_data)
 
     def update_all(self, f, step):
@@ -219,9 +228,11 @@ class TimeSeries:
             self.update(f[field], field, step)
 
     def get_parameter(self, key, time=0., default=False):
+        """ Get a certain parameter at certain time. """
         return self.get_parameters(time).get(key, default)
 
     def get_parameters(self, time=0.):
+        """ Get parameter set at a certain time. """
         if len(self.parameters) == 1:
             return self.parameters[0][1]
         if time <= self.parameters[0][0]:
@@ -235,9 +246,18 @@ class TimeSeries:
 
     def __getitem__(self, key):
         if len(key) == 1:
+            if self.memory_modest:
+                info_warning("TimeSeries[key]: len(key)==1 doesn't work "
+                             "in memory_modest mode!")
             return self.datasets[key]
         if len(key) == 2:
-            return self.datasets[key[0]][key[1]]
+            field, step = key
+            if self.memory_modest:
+                data_file, dset_address = self.datasets[field][step]
+                with h5py.File(data_file, "r") as h5f:
+                    return np.array(h5f[dset_address])
+            else:
+                return self.datasets[field][step]
 
     def __setitem__(self, key, val):
         self.datasets[key] = val
@@ -277,7 +297,7 @@ class TimeSeries:
     def get_nearest_step_and_time(self, time, dataset_str="dataset"):
         step = self.get_nearest_step(time)
         time_0 = self.get_time(step)
-        if abs(time-time_0) > df.DOLFIN_EPS:
+        if abs(time-time_0) > 1e-10:
             info_warning("Could not find {} "
                          "at time={}. Using time={} instead.".format(
                              dataset_str, time, time_0))
@@ -297,7 +317,17 @@ class TimeSeries:
         return self._operate(np.mean, field)
 
     def add_field(self, field, datasets):
-        self[field] = datasets
+        if self.memory_modest:
+            data_file = os.path.join(self.tmp_folder,
+                                     field + ".h5")
+            self[field] = [(data_file, field + "/" + str(step))
+                           for step in range(len(datasets))]
+            with h5py.File(data_file, "w") as h5f:
+                for step, dataset in enumerate(datasets):
+                    dset_address = field + "/" + str(step)
+                    h5f.create_dataset(dset_address, data=dataset)
+        else:
+            self[field] = datasets
         self.fields = self.datasets.keys()
 
     def compute_charge(self):
@@ -328,7 +358,7 @@ class TimeSeries:
         return arr
 
 
-def geometry_in_time(ts, **kwargs):
+def geometry_in_time(ts, dt=None, **kwargs):
     """ Analyze geometry in time.
     """
     info_cyan("Analyzing the evolution of the geometry through time.")
@@ -342,7 +372,10 @@ def geometry_in_time(ts, **kwargs):
     com = np.zeros((len(ts), ts.dim))
 
     makedirs_safe(os.path.join(ts.analysis_folder, "contour"))
-    for step in range(len(ts)):
+
+    steps = get_steps(ts, dt)
+
+    for step in steps:
         info("Step " + str(step) + " of " + str(len(ts)))
 
         phi = ts["phi", step][:, 0]
@@ -373,7 +406,7 @@ def geometry_in_time(ts, **kwargs):
                    header="Timestep\tTime\tLength\tCoM_x\tCoM_y")
 
 
-def line_probe(ts, dx=0.1, line="[0.,0.]--[1.,1.]",
+def line_probe(ts, dx=0.1, line="[0.,0.]--[1.,1.]", time=None, dt=None,
                **kwargs):
     """ Probe along a line. """
     info_cyan("Probe along a line.")
@@ -403,7 +436,9 @@ def line_probe(ts, dx=0.1, line="[0.,0.]--[1.,1.]",
     for field, func in f.iteritems():
         probes[field] = Probes(x.flatten(), func.function_space())
 
-    for step in range(len(ts)):
+    steps = get_steps(ts, dt, time)
+
+    for step in steps:
         info("Step " + str(step) + " of " + str(len(ts)))
         ts.update_all(f, step)
         for field, probe in probes.iteritems():
@@ -414,7 +449,7 @@ def line_probe(ts, dx=0.1, line="[0.,0.]--[1.,1.]",
         probe_arr[field] = probe.array()
 
     if rank == 0:
-        for step in range(len(ts)):
+        for step in steps:
             chunks = [x]
             header_list = [index2letter(d) for d in range(ts.dim)]
             for field, chunk in probe_arr.iteritems():
@@ -436,13 +471,33 @@ def line_probe(ts, dx=0.1, line="[0.,0.]--[1.,1.]",
                        data, header=header)
 
 
-def make_gif(ts, show=False, save=True, **kwargs):
+def get_steps(ts, dt=None, time=None):
+    """ Get steps sampled at equidistant times. """
+    if time is not None:
+        step, _ = get_step_and_info(ts, time)
+        steps = [step]
+    elif dt is not None and dt > 0.:
+        steps = []
+        time_max = ts.times[-1]
+        time = ts.times[0]
+        while time <= time_max:
+            step, _ = get_step_and_info(ts, time)
+            steps.append(step)
+            time += dt
+    else:
+        steps = range(len(ts))
+    return steps
+
+
+def make_gif(ts, show=False, save=True, dt=None, fps=25, **kwargs):
     """ Make fancy gif animation. """
     info_cyan("Making a fancy gif animation.")
     anim_name = "animation"
     ts.compute_charge()
 
-    for step in range(rank, len(ts), size):
+    steps = get_steps(ts, dt)
+
+    for step in steps[rank::size]:
         info("Step " + str(step) + " of " + str(len(ts)))
         phi = ts["phi", step][:, 0]
         charge = ts["charge", step][:, 0]
@@ -463,17 +518,18 @@ def make_gif(ts, show=False, save=True, **kwargs):
         tmp_files = os.path.join(ts.tmp_folder, anim_name + "_*.png")
         anim_file = os.path.join(ts.plots_folder, anim_name + ".gif")
 
-        os.system(("convert {tmp_files} -trim +repage"
+        os.system(("convert -delay {delay} {tmp_files} -trim +repage"
                    " -loop 0 {anim_file}").
                   format(tmp_files=tmp_files,
-                         anim_file=anim_file))
+                         anim_file=anim_file, delay=int(100./fps)))
         os.system("rm {tmp_files}".format(tmp_files=tmp_files))
 
 
 def plot(ts, time=None, step=0, show=True, save=False, **kwargs):
     """ Plot at given timestep using matplotlib. """
     info_cyan("Plotting at given time/step using Matplotlib.")
-    step, time = get_step_and_info(ts, time)
+    if time is not None:
+        step, time = get_step_and_info(ts, time)
     if rank == 0:
         for field in ts.fields:
             if save:
