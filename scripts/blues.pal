@@ -1,0 +1,4 @@
+# palette
+set palette defined ( 0 '#C6DBEF',\
+		      1 '#4292C6',\
+		      2 '#000000' )
