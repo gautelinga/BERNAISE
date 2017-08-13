@@ -596,28 +596,18 @@ def reference(ts, ref=None, time=1., show=False, save_fig=False, **kwargs):
 
     f = ts.functions()
     f_ref = ts_ref.functions()
-    err = dict()
-    for field in ts_ref.fields:
-        el = f[field].function_space().ufl_element()
-        degree = el.degree()
-        if bool(el.value_size() != 1):
-            W = df.VectorFunctionSpace(ts.mesh, "CG", degree+3)
-        else:
-            W = df.FunctionSpace(ts.mesh, "CG", degree+3)
-        err[field] = df.Function(W)
+    err = ts_ref.functions()
 
     ts.update_all(f, step=step)
     ts_ref.update_all(f_ref, step=step)
 
     for field in ts_ref.fields:
+        # Interpolate solution to the reference mesh.
         f_int = df.interpolate(
             f[field], err[field].function_space())
 
-        f_ref_int = df.interpolate(
-            f_ref[field], err[field].function_space())
-
         err[field].vector()[:] = (f_int.vector().array() -
-                                  f_ref_int.vector().array())
+                                  f_ref[field].vector().array())
 
         if show or save_fig:
             err_arr = ts.nodal_values(err[field])
