@@ -555,7 +555,7 @@ def plot_dolfin(ts, time=None, step=0, **kwargs):
     df.interactive()
 
 
-def get_step_and_info(ts, time):
+def get_step_and_info(ts, time, step=0):
     if time is not None:
         step, time = ts.get_nearest_step_and_time(time)
     else:
@@ -592,19 +592,32 @@ def reference(ts, ref=None, time=1., show=False, save_fig=False, **kwargs):
     info("Dataset:   Time = {}, timestep = {}.".format(time_0, step))
     info("Reference: Time = {}, timestep = {}.".format(time_ref, step_ref))
 
-    from fenicstools import interpolate_nonmatching_mesh
+    # from fenicstools import interpolate_nonmatching_mesh
 
     f = ts.functions()
-    err = ts.functions()
     f_ref = ts_ref.functions()
+    err = dict()
+    for field in ts_ref.fields:
+        el = f[field].function_space().ufl_element()
+        degree = el.degree()
+        if bool(el.value_size() != 1):
+            W = df.VectorFunctionSpace(ts.mesh, "CG", degree+3)
+        else:
+            W = df.FunctionSpace(ts.mesh, "CG", degree+3)
+        err[field] = df.Function(W)
 
     ts.update_all(f, step=step)
     ts_ref.update_all(f_ref, step=step)
 
     for field in ts_ref.fields:
-        F = interpolate_nonmatching_mesh(
-            f_ref[field], f[field].function_space())
-        err[field].vector()[:] = f[field].vector()[:] - F.vector()[:]
+        f_int = df.interpolate(
+            f[field], err[field].function_space())
+
+        f_ref_int = df.interpolate(
+            f_ref[field], err[field].function_space())
+
+        err[field].vector()[:] = (f_int.vector().array() -
+                                  f_ref_int.vector().array())
 
         if show or save_fig:
             err_arr = ts.nodal_values(err[field])
@@ -624,9 +637,7 @@ def reference(ts, ref=None, time=1., show=False, save_fig=False, **kwargs):
                              "errornorms_time{}_ref{}.dat".format(
                                  time, ref_id))
 
-    compute_norms(err, f_ref, save=save_file)
-
-    # info_on_red("Not implemented yet.")
+    compute_norms(err, save=save_file)
 
 
 def analytic_reference(ts, time=None, step=0, show=False,
@@ -635,7 +646,7 @@ def analytic_reference(ts, time=None, step=0, show=False,
     This is done by importing the function "reference" in the problem module.
     """
     info_cyan("Comparing to analytic reference at given time or step.")
-    step, time = get_step_and_info(ts, time)
+    step, time = get_step_and_info(ts, time, step)
     parameters = ts.get_parameters(time=time)
     problem = parameters.get("problem", "intrusion_bulk")
     exec("from problems.{} import reference".format(problem))
@@ -645,20 +656,42 @@ def analytic_reference(ts, time=None, step=0, show=False,
     info_split("Problem:", "{}".format(problem))
     info_split("Time:", "{}".format(time))
 
-    err = ts.functions(ref_exprs.keys())
     f = ts.functions(ref_exprs.keys())
-    f_ref = ts.functions(ref_exprs.keys())
+
+    err = dict()
+    f_int = dict()
+    f_ref = dict()
+    for field in ref_exprs.keys():
+        el = f[field].function_space().ufl_element()
+        degree = el.degree()
+        if bool(el.value_size() != 1):
+            W = df.VectorFunctionSpace(ts.mesh, "CG", degree+3)
+        else:
+            W = df.FunctionSpace(ts.mesh, "CG", degree+3)
+        err[field] = df.Function(W)
+        f_int[field] = df.Function(W)
+        f_ref[field] = df.Function(W)
+
     for field, ref_expr in ref_exprs.iteritems():
         ref_expr.t = time
-        f_ref[field].assign(df.interpolate(
-            ref_expr, f[field].function_space()))
+        # Update numerical solution f
         ts.update(f[field], field, step)
 
-        err[field].vector()[:] = (f[field].vector()[:] -
-                                  f_ref[field].vector()[:])
+        # Interpolate f to higher space
+        f_int[field].assign(df.interpolate(
+            f[field], f_int[field].function_space()))
+
+        # Interpolate f_ref to higher space
+        f_ref[field].assign(df.interpolate(
+            ref_expr, f_ref[field].function_space()))
+
+        err[field].vector()[:] = (f_int[field].vector().array() -
+                                  f_ref[field].vector().array())
 
         if show or save_fig:
-            err_arr = ts.nodal_values(err[field])
+            # Interpolate the error to low order space for visualisation.
+            err_int = df.interpolate(err[field], f[field].function_space())
+            err_arr = ts.nodal_values(err_int)
             label = "Error in " + field
 
             if rank == 0:
@@ -674,10 +707,10 @@ def analytic_reference(ts, time=None, step=0, show=False,
     save_file = os.path.join(ts.analysis_folder,
                              "errornorms_time{}_analytic.dat".format(
                                  time))
-    compute_norms(err, f_ref, save=save_file)
+    compute_norms(err, save=save_file)
 
 
-def compute_norms(err, f_ref, vector_norms=["l2", "linf"],
+def compute_norms(err, vector_norms=["l2", "linf"],
                   function_norms=["L2", "H1"], show=True,
                   tablefmt="simple", save=False):
     """ Compute norms, output to terminal, etc. """
