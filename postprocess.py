@@ -451,18 +451,21 @@ def line_probe(ts, dx=0.1, line="[0.,0.]--[1.,1.]", time=None, dt=None,
         probe_arr[field] = probe.array()
 
     if rank == 0:
-        for step in steps:
+        for i, step in enumerate(steps):
             chunks = [x]
             header_list = [index2letter(d) for d in range(ts.dim)]
             for field, chunk in probe_arr.iteritems():
-                if chunk.ndim == 2:
+                if chunk.ndim == 1:
                     header_list.append(field)
-                    chunk = chunk[:, step].reshape(-1, 1)
+                    chunk = chunk[:].reshape(-1, 1)
+                elif chunk.ndim == 2:
+                    header_list.append(field)
+                    chunk = chunk[:, i].reshape(-1, 1)
                 elif chunk.ndim > 2:
                     header_list.extend(
                         [field + "_" + index2letter(d)
                          for d in range(ts.dim)])
-                    chunk = chunk[:, :, step]
+                    chunk = chunk[:, :, i]
                 chunks.append(chunk)
 
             data = np.hstack(chunks)
