@@ -145,7 +145,7 @@ def plot_fancy(nodes, elems, phi, charge, u=None, charge_max=None,
                  xlabel="", ylabel="", save=save, ticks=False)
 
     if charge_max is None:
-        charge_max = np.max(np.abs(charge))
+        charge_max = max(np.max(np.abs(charge)), 1e-10)
 
     cmap = plt.cm.get_cmap('Greys')
     cmap._init()

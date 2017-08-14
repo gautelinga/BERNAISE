@@ -613,7 +613,7 @@ def reference(ts, ref=None, time=1., show=False, save_fig=False, **kwargs):
                                   f_ref[field].vector().array())
 
         if show or save_fig:
-            err_arr = ts.nodal_values(err[field])
+            err_arr = ts_ref.nodal_values(err[field])
             label = "Error in " + field
 
             if rank == 0:
@@ -623,7 +623,7 @@ def reference(ts, ref=None, time=1., show=False, save_fig=False, **kwargs):
                         ts.plots_folder, "error_{}_time{}_ref{}.png".format(
                             field, time, ref_id))
 
-                plot_any_field(ts.nodes, ts.elems, err_arr,
+                plot_any_field(ts_ref.nodes, ts_ref.elems, err_arr,
                                save=save_fig_file, show=show, label=label)
 
     save_file = os.path.join(ts.analysis_folder,
