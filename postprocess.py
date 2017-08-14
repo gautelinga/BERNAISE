@@ -599,7 +599,7 @@ def reference(ts, ref=None, time=1., show=False, save_fig=False, **kwargs):
     err = ts_ref.functions()
 
     ts.update_all(f, step=step)
-    ts_ref.update_all(f_ref, step=step)
+    ts_ref.update_all(f_ref, step=step_ref)
 
     for field in ts_ref.fields:
         # Interpolate solution to the reference mesh.
