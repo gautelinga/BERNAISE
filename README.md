@@ -48,21 +48,26 @@ It is written in Python and built on the FEniCS project, which in turn effective
     Red: positive charge, blue: negative charge.
 </p>
 
-### Work plan
+### Features
+* Simulates time-dependent two-phase electrohydrodynamics in 2D using a phase-field approach.
+* Supports complex geometries represented by unstructured meshes.
+* Easy implementation of new problems and solvers.
 
-* Time dependent EHD
-* Time dependent PF for the two-phase flow  
-* Add the two above together
-* More complicated geometries
+### Planned features (but currently not supported)
+* Adaptive time-stepping.
+* Two-phase EHD in 3D.
 * **Nobel Prize!!!** ***(only non-optional)***
 
-### Folder plan
+### Folder structure
 ```
 * BERNAISE
   * common
     * __init__.py
-    * io.py
+    * bcs.py
     * cmd.py
+    * functions.py
+    * io.py
+    * recipe.txt
   * problems
     * __init__.py
     * simple.py
@@ -76,15 +81,18 @@ It is written in Python and built on the FEniCS project, which in turn effective
   * meshes
     * ...
   * utilities
-    * meshgeneration.py
-    * meshload.py
-    * ...
+    * extract_polygon.py
+    * generate_mesh.py
+    * load_mesh.py
+    * plot.py
+    * units.py
   * documentation
     * ...
   * articles
     * ...
   * README.md
   * sauce.py
+  * postprocess.py
 ```
 
 ### Master Minds: 
