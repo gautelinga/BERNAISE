@@ -95,6 +95,16 @@ It is written in Python and built on the FEniCS project, which in turn effective
   * postprocess.py
 ```
 
+### Dependencies
+* FEniCS/Dolfin
+* fenicstools (for post-processing)
+* simplejson
+* mpi4py
+* h5py (parallel)
+* numpy
+* skimage (for polygon extraction tool)
+* tabulate (for post-processing)
+
 ### Master Minds: 
 * **Gaute** er en ***nordmand***.
 * **Asger** er ***dansk***.
