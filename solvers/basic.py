@@ -197,16 +197,6 @@ def setup_NS(w_NS, u, p, v, q,
     for boundary_name, pressure in neumann_bcs["p"].iteritems():
         F += pressure * df.inner(
             normal, v) * ds(boundary_to_mark[boundary_name])
-    if use_pressure_stabilization:
-        mesh = w_NS.function_space().mesh()
-        cellsize = df.CellSize(mesh)
-        beta = 0.0008
-        delta = beta*cellsize*cellsize
-
-        F += (
-            delta*df.inner(df.grad(q), df.grad(p))*dx
-            - delta*df.dot(rho_*grav, df.grad(q))*dx
-        )
 
     if enable_PF:
         # F += - drho*M_*df.inner(df.grad(u), df.outer(df.grad(g_), v))*dx
@@ -218,7 +208,7 @@ def setup_NS(w_NS, u, p, v, q,
     if enable_EC and rho_e_ != 0:
         F += rho_e_*df.dot(df.grad(V_), v)*dx
     if enable_PF and enable_EC:
-        F += dveps * df.dot(df.grad(
+        F += 0.5 * dveps * df.dot(df.grad(
             unit_interval_filter(phi_)), v)*df.dot(df.grad(V_),
                                                    df.grad(V_))*dx
 
