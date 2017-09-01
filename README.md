@@ -56,6 +56,7 @@ It is written in Python and built on the FEniCS project, which in turn effective
 ### Planned features (but currently not supported)
 * Adaptive time-stepping.
 * Two-phase EHD in 3D.
+* For planed work look in PLAN.md 
 * **Nobel Prize!!!** ***(only non-optional)***
 
 ### Folder structure
