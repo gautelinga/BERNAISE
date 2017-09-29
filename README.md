@@ -106,8 +106,8 @@ It is written in Python and built on the FEniCS project, which in turn effective
 * skimage (for polygon extraction tool)
 * tabulate (for post-processing)
 
-### Master Minds: 
-* **Gaute** er en ***nordmand***.
-* **Asger** er ***dansk***.
-* **Joachim** er *også* ***dansk***.
-* **Alfred** *var* en ***svensker***.
+### Contributors
+* Asger Bolet
+* Gaute Linga
+* Joachim Mathiesen
+* Marek Misztal
