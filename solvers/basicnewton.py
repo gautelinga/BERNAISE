@@ -39,7 +39,8 @@ def get_subproblems(base_elements, solutes,
     return subproblems
 
 
-def setup(test_functions, trial_functions, w_, w_1, dirichlet_bcs, permittivity,
+def setup(test_functions, trial_functions, w_, w_1,
+          dirichlet_bcs, permittivity,
           density, viscosity,
           solutes, enable_PF, enable_EC, enable_NS,
           surface_tension, dt, interface_thickness,
@@ -55,7 +56,7 @@ def setup(test_functions, trial_functions, w_, w_1, dirichlet_bcs, permittivity,
     eps = interface_thickness
 
     # Set up the feilds
-    
+
     funs_ = df.split(w_["NSPFEC"])
     funs_1 = df.split(w_1["NSPFEC"])
     field_number = 0
@@ -90,7 +91,7 @@ def setup(test_functions, trial_functions, w_, w_1, dirichlet_bcs, permittivity,
         V_ = funs_[num_solutes+field_number]
         V_1 = funs_1[num_solutes+field_number]
     else:
-        b = c_ = c_1 = U = V_ = V_1 = rho_e_ =0
+        b = c_ = c_1 = U = V_ = V_1 = rho_e_ = 0
 
     M_ = pf_mobility(phi_, gamma)
     nu_ = ramp(phi_, viscosity)

@@ -44,3 +44,7 @@ def min_value(a, b):
 
 def unit_interval_filter(phi):
     return min_value(max_value(phi, -1.), 1.)
+
+
+def absolute(q):
+    return df.sign(q)*q
