@@ -162,9 +162,12 @@ for boundary_name, bcs_fields in bcs.iteritems():
 for field, (value, c_code) in bcs_pointwise.iteritems():
     subproblem_name = field_to_subproblem[field][0]
     subspace = field_to_subspace[field]
+    if isinstance(value, float):
+        value = df.Constant(value)
+    else:
+        value = df.Expression(value, degree=2)
     dirichlet_bcs[subproblem_name].append(
-        df.DirichletBC(subspace, df.Constant(value),
-                       c_code, "pointwise"))
+        df.DirichletBC(subspace, value, c_code, "pointwise"))
 
 # Compute some mesh related stuff
 dx = df.dx

@@ -33,7 +33,7 @@ class PeriodicBoundary(df.SubDomain):
 
 
 def problem():
-    info_cyan("Taylor-Green vortex flow with electrohydrodynamics.")
+    info_cyan("Flow in a cell with single-phase electrohydrodynamics.")
 
     solutes = [["c_p",  1, 2., 2., 0., 0.],
                ["c_m", -1, 2., 2., 0., 0.]]
@@ -163,73 +163,3 @@ def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
 def start_hook(newfolder, **namespace):
     statsfile = os.path.join(newfolder, "Statistics/stats.dat")
     return dict(statsfile=statsfile)
-
-
-def rhs_source(t, solutes, viscosity, permittivity,
-               concentration_init, concentration_init_dev,
-               **namespace):
-    """ Source term on the right hand side of ion transport. """
-    C_str, U_str = reference_prefactors()
-    code_string = ("-0.5*K*pow(c0*{C_str}, 2)/veps*"
-                   "(cos(2*x[0])+cos(2*x[1])"
-                   "+2*cos(2*x[0])*cos(2*x[1]))").format(C_str=C_str)
-
-    nu = viscosity[0]
-    K = solutes[0][2]
-    c0 = concentration_init
-    chi = concentration_init_dev
-    veps = permittivity[0]
-
-    q = []
-    for solute in solutes:
-        q.append(df.Expression(code_string, t=t,
-                               nu=nu, K=K, c0=c0, chi=chi, veps=veps,
-                               degree=2))
-    return q
-
-
-def reference(t, viscosity,
-              concentration_init, concentration_init_dev,
-              solutes, permittivity, **namespace):
-    """ This contains the analytical reference for convergence analysis. """
-    nu = viscosity[0]
-    K = solutes[0][2]  # Same diffusivity for both species
-    c0 = concentration_init
-    chi = concentration_init_dev
-    veps = permittivity[0]
-
-    code_strings = reference_code(solutes)
-    expr = dict()
-    for key, code_string in code_strings.iteritems():
-        expr[key] = df.Expression(code_string, t=t,
-                                  nu=nu, chi=chi, c0=c0, veps=veps, K=K,
-                                  degree=2)
-    return expr
-
-
-def reference_code(solutes):
-    """ Returns reference code strings. """
-    U_str, C_str = reference_prefactors()
-    factor_str = "pow(c0*{C_str}, 2)/veps".format(C_str=C_str)
-
-    code_strings = dict()
-    code_strings["u"] = ("{U_str}*cos(x[0])*sin(x[1])".format(U_str=U_str),
-                         "-{U_str}*sin(x[0])*cos(x[1])".format(U_str=U_str))
-    code_strings["p"] = ("0.25*((-pow({U_str}, 2)+{factor_str})"
-                         "*(cos(2*x[0])+cos(2*x[1]))"
-                         "+{factor_str}*cos(2*x[0])*cos(2*x[1]))").format(
-                             U_str=U_str, factor_str=factor_str)
-    for solute in solutes:
-        code_strings[solute[0]] = ("c0*(1+{z}*cos(x[0])"
-                                   "*cos(x[1])*{C_str})").format(
-                                       C_str=C_str, z=solute[1])
-    code_strings["V"] = ("-c0/veps*cos(x[0])*cos(x[1])"
-                         "*{C_str}").format(C_str=C_str)
-
-    return code_strings
-
-
-def reference_prefactors():
-    U_str = "(exp(-2*nu*t))"
-    C_str = "(chi*exp(-2*K*(1-c0/veps)*t))"
-    return U_str, C_str

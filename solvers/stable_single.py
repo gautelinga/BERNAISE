@@ -38,6 +38,7 @@ def setup(test_functions, trial_functions, w_, w_1,
           EC_scheme,
           rhs_source,
           c_cutoff,
+          concentration_init, concentration_init_dev,
           **namespace):
     """ Set up problem. """
     # Constant
@@ -98,7 +99,7 @@ def setup(test_functions, trial_functions, w_, w_1,
     else:
         rho_e_ = None
 
-    q_rhs = rhs_source(solutes)
+    q_rhs = rhs_source(t=0., **vars())
     if enable_EC:
         grad_g_c = []
         grad_g_c_ = []
