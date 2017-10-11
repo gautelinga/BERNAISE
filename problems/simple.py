@@ -160,6 +160,7 @@ def create_bcs(Ly, V_top, V_btm,
 
     return boundaries, bcs, bcs_pointwise
 
+
 def initial_phasefield(x0, y0, rad, eps, function_space, shape="circle"):
     if shape == "flat":
         expr_str = "tanh((x[1]-y0)/(sqrt(2)*eps))"

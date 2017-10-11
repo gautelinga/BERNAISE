@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod~]
 *$py.class
+*~
 
 # C extensions
 *.so
@@ -123,3 +124,7 @@ ENV/
 *.h5
 *.xdmf
 results_*
+*.avi
+*.mpg
+meshes/*
+*#
