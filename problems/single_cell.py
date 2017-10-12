@@ -7,29 +7,32 @@ from common.bcs import Fixed, Charged
 __author__ = "Gaute Linga"
 
 
-class PeriodicBoundary(df.SubDomain):
-    # Left boundary is target domain
-    def __init__(self, Lx, Ly):
+class Left(df.SubDomain):
+    def inside(self, x, on_boundary):
+        return bool(df.near(x[0], 0.0) and on_boundary)
+
+
+class Right(df.SubDomain):
+    def __init__(self, Lx):
         self.Lx = Lx
+        df.SubDomain.__init__(self)
+
+    def inside(self, x, on_boundary):
+        return bool(df.near(x[0], self.Lx) and on_boundary)
+
+
+class Bottom(df.SubDomain):
+    def inside(self, x, on_boundary):
+        return bool(df.near(x[1], 0.0) and on_boundary)
+
+
+class Top(df.SubDomain):
+    def __init__(self, Ly):
         self.Ly = Ly
         df.SubDomain.__init__(self)
 
     def inside(self, x, on_boundary):
-        return bool((df.near(x[0], 0.) or df.near(x[1], 0.)) and
-                    (not ((df.near(x[0], 0.) and df.near(x[1], self.Ly)) or
-                          (df.near(x[0], self.Lx) and df.near(x[1], 0.))))
-                    and on_boundary)
-
-    def map(self, x, y):
-        if df.near(x[0], self.Lx) and df.near(x[1], self.Ly):
-            y[0] = x[0] - self.Lx
-            y[1] = x[1] - self.Ly
-        elif df.near(x[0], self.Lx):
-            y[0] = x[0] - self.Lx
-            y[1] = x[1]
-        else:
-            y[0] = x[0]
-            y[1] = x[1] - self.Ly
+        return bool(df.near(x[1], self.Ly) and on_boundary)
 
 
 def problem():
@@ -47,7 +50,7 @@ def problem():
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
         solver="stable_single",
-        folder="results_taylorgreen",
+        folder="results_single_cell",
         restart_folder=False,
         enable_NS=True,
         enable_PF=False,
@@ -56,19 +59,20 @@ def problem():
         stats_intv=5,
         checkpoint_intv=50,
         tstep=0,
-        dt=0.002,
+        dt=0.0002,
         t_0=0.,
-        T=1.,
-        N=32,
+        T=.1,
+        grid_spacing=1./32,
         solutes=solutes,
         base_elements=base_elements,
-        Lx=2.*np.pi,
-        Ly=2.*np.pi,
+        Lx=1.,
+        Ly=2.,
         concentration_init=1.,
-        concentration_init_dev=0.5,
+        rad=0.25,
+        surface_charge=20.,
         #
         density=[1., 1.],
-        viscosity=[1., 1.],
+        viscosity=[0.04, 0.04],
         permittivity=[2., 2.],
         EC_scheme="L1",
         use_iterative_solvers=True,
@@ -78,79 +82,72 @@ def problem():
     return parameters
 
 
-def constrained_domain(Lx, Ly, **namespace):
-    return PeriodicBoundary(Lx, Ly)
-
-
-def mesh(Lx=2.*np.pi, Ly=2.*np.pi, N=16, **namespace):
-    return df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly), N, N)
+def mesh(Lx=1., Ly=2., grid_spacing=1./16., **namespace):
+    return df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly),
+                            int(Lx/grid_spacing), int(Ly/grid_spacing))
 
 
 def initialize(Lx, Ly,
                solutes, restart_folder,
                field_to_subspace,
-               concentration_init,
-               concentration_init_dev,
-               permittivity,
+               concentration_init, rad,
                enable_NS, enable_EC,
                **namespace):
     """ Create the initial state. """
-    veps = permittivity[0]
     w_init_field = dict()
     if not restart_folder:
         if enable_EC:
             for solute in solutes:
                 c_init_expr = df.Expression(
-                    "c0*(1 + zi*chi*cos(x[0])*cos(x[1]))",
+                    "c0*1./(2*DOLFIN_PI*rad*rad)*exp("
+                    "- (pow(x[0]-0.5*Lx+0.5*zi*rad, 2)"
+                    "+ pow(x[1]-0.5*Ly+0.5*zi*rad, 2))/(2*rad*rad))",
+                    Lx=Lx,
+                    Ly=Ly,
                     c0=concentration_init,
+                    rad=rad,
                     zi=solute[1],
-                    chi=concentration_init_dev,
                     degree=2)
                 c_init = df.interpolate(
                     c_init_expr,
                     field_to_subspace[solute[0]].collapse())
                 w_init_field[solute[0]] = c_init
-        if enable_NS:
-            u_init_expr = df.Expression(
-                ("cos(x[0])*sin(x[1])", "-sin(x[0])*cos(x[1])"),
-                degree=2)
-            w_init_field["u"] = df.interpolate(
-                u_init_expr, field_to_subspace["u"].collapse())
-            p_init_expr = df.Expression(
-                "(-0.25+factor)*(cos(2*x[0]) + cos(2*x[1]))"
-                "+ factor*cos(2*x[0])*cos(2*x[1])",
-                factor=concentration_init**2*concentration_init_dev**2/veps,
-                degree=2)
-            w_init_field["p"] = df.interpolate(
-                p_init_expr, field_to_subspace["p"].collapse())
     return w_init_field
 
 
 def create_bcs(Lx, Ly, mesh,
+               surface_charge,
                enable_NS, enable_EC,
                **namespace):
     """ The boundaries and boundary conditions are defined here. """
-    boundaries = dict()
+    boundaries = dict(
+        right=[Right(Lx)],
+        left=[Left(0)],
+        bottom=[Bottom(0)],
+        top=[Top(Ly)]
+    )
+
     bcs = dict()
+    for boundary_name in boundaries.keys():
+        bcs[boundary_name] = dict()
 
     # Apply pointwise BCs e.g. to pin pressure.
     bcs_pointwise = dict()
 
+    noslip = Fixed((0., 0.))
+
     if enable_NS:
+        bcs["left"]["u"] = noslip
+        bcs["right"]["u"] = noslip
+        bcs["top"]["u"] = noslip
+        bcs["bottom"]["u"] = noslip
         bcs_pointwise["p"] = (
             0.,
-            ("DOLFIN_PI/4 - DOLFIN_EPS < x[0] && "
-             "DOLFIN_PI/4 - DOLFIN_EPS < x[0] && "
-             "x[0] < DOLFIN_PI/4 + DOLFIN_EPS && "
-             "x[1] < DOLFIN_PI/4 + DOLFIN_EPS"))
+            "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS")
 
     if enable_EC:
-        bcs_pointwise["V"] = (
-            0.,
-            ("DOLFIN_PI/2 - DOLFIN_EPS < x[0] && "
-             "DOLFIN_PI/2 - DOLFIN_EPS < x[1] && "
-             "x[0] < DOLFIN_PI/2 + DOLFIN_EPS && "
-             "x[1] < DOLFIN_PI/2 + DOLFIN_EPS"))
+        bcs["top"]["V"] = Fixed(0.)
+        bcs["bottom"]["V"] = Charged(surface_charge)
 
     return boundaries, bcs, bcs_pointwise
 

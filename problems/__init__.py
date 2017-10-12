@@ -79,3 +79,7 @@ def import_problem_hook(parameters, mesh, cmd_kwargs, **namespace):
     namespace_dict = dict(mesh=mesh)
     namespace_dict.update(parameters)
     return namespace_dict
+
+
+def rhs_source(**namespace):
+    return dict()

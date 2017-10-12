@@ -209,6 +209,9 @@ if w_init_fields:
         w_[name].interpolate(w_init)
         w_1[name].interpolate(w_init)
 
+# Get rhs source terms (if any)
+q_rhs = rhs_source(t=t_0, **vars())
+
 # Setup problem
 vars().update(setup(**vars()))
 

@@ -36,9 +36,8 @@ def setup(test_functions, trial_functions, w_, w_1,
           grav_const,
           use_iterative_solvers,
           EC_scheme,
-          rhs_source,
           c_cutoff,
-          concentration_init, concentration_init_dev,
+          q_rhs,
           **namespace):
     """ Set up problem. """
     # Constant
@@ -99,7 +98,6 @@ def setup(test_functions, trial_functions, w_, w_1,
     else:
         rho_e_ = None
 
-    q_rhs = rhs_source(t=0., **vars())
     if enable_EC:
         grad_g_c = []
         grad_g_c_ = []
@@ -124,7 +122,7 @@ def setup(test_functions, trial_functions, w_, w_1,
         w_NS = w_["NS"]
         dirichlet_bcs_NS = dirichlet_bcs["NS"]
         solvers["NS"] = setup_NS(**vars())
-    return dict(solvers=solvers, q_rhs=q_rhs)
+    return dict(solvers=solvers)
 
 
 def setup_NS(w_NS, u, p, v, q,
@@ -219,9 +217,9 @@ def setup_EC(w_EC, c, V, b, U, rho_e, grad_g_c, c_reg,
              dx, ds,
              dirichlet_bcs_EC, neumann_bcs, boundary_to_mark,
              c_1, u_1, K, veps,
-             dt, z, q_rhs,
+             dt, q_rhs,
              enable_NS,
-             rhs_source,
+             solutes,
              use_iterative_solvers,
              nonlinear_EC,
              **namespace):
@@ -231,8 +229,13 @@ def setup_EC(w_EC, c, V, b, U, rho_e, grad_g_c, c_reg,
     u_star = u_1 - dt*sum([ci_1*grad_g_ci
                            for ci_1, grad_g_ci in zip(c_1, grad_g_c)])
 
+    q_rhs_solutes = []
+    for solute in solutes:
+        q_rhs_solutes.append(q_rhs.get(solute[0], None))
+
     F_c = []
-    for ci, ci_1, bi, Ki, grad_g_ci, qi in zip(c, c_1, b, K, grad_g_c, q_rhs):
+    for ci, ci_1, bi, Ki, grad_g_ci, qi in zip(
+            c, c_1, b, K, grad_g_c, q_rhs_solutes):
         F_ci = (1./dt*(ci-ci_1)*bi*dx +
                 Ki*c_reg*df.dot(grad_g_ci, df.grad(bi))*dx)
         if enable_NS:
@@ -270,7 +273,7 @@ def solve(w_, t, q_rhs, solvers, enable_EC, enable_NS, **namespace):
     """ Solve equations. """
     if enable_EC:
         # Update the time-dependent source terms
-        for qi in q_rhs:
+        for qi in q_rhs.items():
             if qi is not None:
                 qi.t = t
 
@@ -279,9 +282,6 @@ def solve(w_, t, q_rhs, solvers, enable_EC, enable_NS, **namespace):
         if enable:
             timer_inner = df.Timer("Solve subproblem " + subproblem)
             df.mpi_comm_world().barrier()
-            #if subproblem == "EC":
-            #    print "Randomizing"
-            #    w_["EC"].vector()[:] = 1+0.0*(np.random.rand(len(w_["EC"].vector().array()))-0.5)
             solvers[subproblem].solve()
             timer_inner.stop()
 
