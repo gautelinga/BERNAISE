@@ -6,6 +6,7 @@ import os
 import glob
 import numpy as np
 from mpi4py import MPI
+from utilities import get_methods, get_help
 
 
 """
@@ -92,35 +93,17 @@ def get_step_and_info(ts, time, step=0):
     return step, time
 
 
-def get_help(methods):
-    info("Usage:\n   python " + os.path.basename(__file__) +
-         " method=... [optional arguments]\n")
-    info_cyan("{:<18} {}".format(
-        "Method", "Optional arguments (=default value)"))
-    for method in methods:
-        m = __import__("analysis_scripts.{}".format(method))
-        func = m.__dict__[method].method
-        opt_args_str = ""
-        argcount = func.__code__.co_argcount
-        if argcount > 1:
-            opt_args = zip(func.__code__.co_varnames[1:argcount],
-                           func.__defaults__)
-
-            opt_args_str = ", ".join(["=".join([str(item)
-                                                for item in pair])
-                                      for pair in opt_args])
-        info("{method:<18} {opt_args_str}".format(
-            method=method, opt_args_str=opt_args_str))
-    exit()
-
-
-def get_methods(methods_folder="analysis_scripts"):
-    methods = []
-    for f in glob.glob(os.path.join(methods_folder, "*.py")):
-        name = f.split(methods_folder)[1][1:].split(".py")[0]
-        if name[0] != "_":
-            methods.append((name, f))
-    return dict(methods)
+def call_method(method, methods, scripts_folder, ts, cmd_kwargs):
+    # Call the specified method
+    if method[-1] == "?" and method[:-1] in methods:
+        m = __import__("{}.{}".format(scripts_folder,
+                                      method[:-1])).__dict__[method[:-1]]
+        m.description(ts, **cmd_kwargs)
+    elif method in methods:
+        m = __import__("{}.{}".format(scripts_folder, method)).__dict__[method]
+        m.method(ts, **cmd_kwargs)
+    else:
+        info_on_red("The specified analysis method doesn't exist.")
 
 
 def main():
@@ -133,7 +116,7 @@ def main():
 
     # Get help if it was called for.
     if cmd_kwargs.get("help", False):
-        get_help(methods)
+        get_help(methods, scripts_folder, __file__)
 
     # Get sought fields
     sought_fields = cmd_kwargs.get("fields", False)
@@ -157,16 +140,7 @@ def main():
         info_on_red("Found no data.")
         exit()
 
-    # Call the specified method
-    if method[-1] == "?" and method[:-1] in methods:
-        m = __import__("{}.{}".format(scripts_folder,
-                                      method[:-1])).__dict__[method[:-1]]
-        m.description(ts, **cmd_kwargs)
-    elif method in methods:
-        m = __import__("{}.{}".format(scripts_folder, method)).__dict__[method]
-        m.method(ts, **cmd_kwargs)
-    else:
-        info_on_red("The specified analysis method doesn't exist.")
+    call_method(method, methods, scripts_folder, ts, cmd_kwargs)
 
 
 if __name__ == "__main__":

@@ -1,9 +1,10 @@
 """ line_probe script """
 from common import info, info_cyan, info_on_red, makedirs_safe
 import numpy as np
-from postprocess import line_points, get_steps, index2letter, rank
+from postprocess import get_steps, index2letter, rank
 from utilities.plot import plot_probes
 import os
+from utilities.generate_mesh import line_points
 
 
 def description(ts, **kwargs):

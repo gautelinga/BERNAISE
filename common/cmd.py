@@ -126,6 +126,24 @@ def print_dir(folder):
             info("   " + filename)
 
 
+def print_recipe(lines, len_max=80):
+    for i, line in enumerate(lines):
+        if len(line) > len_max:
+            words = line.split(" ")
+            part_line = ""
+            for word in words:
+                part_line += word
+                if len(part_line) > len_max:
+                    info(part_line)
+                    part_line = ""
+                else:
+                    part_line += " "
+            if len(part_line) > 1:
+                info(part_line)
+        else:
+            info(line)
+
+
 def help_menu():
     info_yellow("BERNAISE (Binary ElectRohydrodyNAmIc SolvEr)")
     info_red("You called for help! And here are your options:\n")
@@ -155,5 +173,4 @@ def help_menu():
             with open("common/recipe.txt") as f:
                 lines = f.read().splitlines()
 
-            for line in lines:
-                info(line)
+                print_recipe(lines)
