@@ -1,13 +1,11 @@
-"""This module implements the solver described in the paper.
+"""This module implements the NS-coupled solver described in the paper.
 
 GL, 2017
 
 """
 import dolfin as df
-import math
-import numpy as np
-from common.functions import ramp, dramp, diff_pf_potential_linearised, \
-    unit_interval_filter, max_value
+from common.functions import max_value, alpha, alpha_c, alpha_cc, \
+    alpha_reg, alpha_c_reg
 from . import *
 from . import __all__
 
@@ -38,6 +36,7 @@ def setup(test_functions, trial_functions, w_, w_1,
           EC_scheme,
           c_cutoff,
           q_rhs,
+          mesh,
           **namespace):
     """ Set up problem. """
     # Constant
@@ -131,7 +130,9 @@ def setup_NS(w_NS, u, p, v, q,
              u_1, nu, c_1, grad_g_c_,
              dt, grav,
              enable_EC,
-             use_iterative_solvers, **namespace):
+             trial_functions,
+             use_iterative_solvers,
+             mesh, **namespace):
     """ Set up the Navier-Stokes subproblem. """
     F = (1./dt * df.dot(u - u_1, v) * dx
          + df.inner(df.grad(u), df.outer(u_1, v)) * dx
@@ -149,48 +150,16 @@ def setup_NS(w_NS, u, p, v, q,
                   for ci_1, grad_g_ci_ in zip(c_1, grad_g_c_)])
 
     a, L = df.lhs(F), df.rhs(F)
+    if not use_iterative_solvers:
+        problem = df.LinearVariationalProblem(a, L, w_NS, dirichlet_bcs_NS)
+        solver = df.LinearVariationalSolver(problem)
 
-    problem = df.LinearVariationalProblem(a, L, w_NS, dirichlet_bcs_NS)
-    solver = df.LinearVariationalSolver(problem)
-
-    # if use_iterative_solvers:
-        # solver.parameters["linear_solver"] = "gmres"
-        # solver.parameters["preconditioner"] = "ilu"
+    else:
+        solver = df.LUSolver("mumps")
+        # solver.set_operator(A)
+        return solver, a, L, dirichlet_bcs_NS
 
     return solver
-
-
-def alpha(c):
-    return c*(df.ln(c)-1)
-
-
-def alpha_c(c):
-    return df.ln(c)
-
-
-def alpha_cc(c):
-    return 1./c
-
-
-def alpha_cc_reg(c, c_cutoff):
-    return alpha_cc(max_value(c, c_cutoff))
-
-
-def alpha_c_reg(c, c_cutoff):
-    c_max = max_value(c, c_cutoff)
-    dc = c_max - c_cutoff
-    return (alpha_c(c_max) - alpha_c(c_cutoff)
-            + alpha_cc(c_cutoff)*c
-            - alpha_cc(c_cutoff)*dc)
-
-
-def alpha_reg(c, c_cutoff):
-    c_max = max_value(c, c_cutoff)
-    dc = c_max-c_cutoff
-    return (alpha(c_max) - alpha(c_cutoff)
-            + 0.5*alpha_cc(c_cutoff)*c**2
-            - alpha_c(c_cutoff)*dc
-            - 0.5*alpha_cc(c_cutoff)*dc**2, c_cutoff)
 
 
 def alpha_prime_approx(ci, ci_1, EC_scheme, c_cutoff):
@@ -269,7 +238,9 @@ def setup_EC(w_EC, c, V, b, U, rho_e, grad_g_c, c_reg,
     return solver
 
 
-def solve(w_, t, q_rhs, solvers, enable_EC, enable_NS, **namespace):
+def solve(w_, t, q_rhs, solvers, enable_EC, enable_NS,
+          use_iterative_solvers,
+          **namespace):
     """ Solve equations. """
     if enable_EC:
         # Update the time-dependent source terms
@@ -282,7 +253,17 @@ def solve(w_, t, q_rhs, solvers, enable_EC, enable_NS, **namespace):
         if enable:
             timer_inner = df.Timer("Solve subproblem " + subproblem)
             df.mpi_comm_world().barrier()
-            solvers[subproblem].solve()
+            if subproblem == "NS" and use_iterative_solvers:
+                solver, a, L, bcs = solvers[subproblem]
+                A = df.assemble(a)
+                b = df.assemble(L)
+                for bc in bcs:
+                    bc.apply(A)
+                    bc.apply(b)
+                solver.set_operator(A)
+                solver.solve(w_["NS"].vector(), b)
+            else:
+                solvers[subproblem].solve()
             timer_inner.stop()
 
     timer_outer.stop()
@@ -293,3 +274,26 @@ def update(w_, w_1, t, enable_EC, enable_NS, **namespace):
     for subproblem, enable in zip(["EC", "NS"], [enable_EC, enable_NS]):
         if enable:
             w_1[subproblem].assign(w_[subproblem])
+
+
+def alpha_generalized(c, c_cutoff, EC_scheme):
+    if EC_scheme == "L2":
+        return alpha_reg(c, c_cutoff)
+    else:
+        return alpha(c)
+
+
+def discrete_energy(x_, solutes, permittivity,
+                    c_cutoff, EC_scheme, **namespace):
+    if x_ is None:
+        return ["E_kin"] + ["E_{}".format(solute[0])
+                            for solute in solutes] + ["E_V"]
+
+    u = x_["u"]
+    grad_V = df.grad(x_["V"])
+    veps = permittivity[0]
+
+    alpha_list = [alpha_generalized(x_[solute[0]], c_cutoff, EC_scheme)
+                  for solute in solutes]
+
+    return [0.5*df.dot(u, u)] + alpha_list + [0.5*veps*df.dot(grad_V, grad_V)]

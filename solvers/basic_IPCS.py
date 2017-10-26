@@ -340,7 +340,6 @@ def solve_initial_pressure(w_NSp, p, q, u, v, bcs_NSp,
             phi_), v)*df.dot(df.grad(V_),
                              df.grad(V_))*df.dx
 
-
     info_red("Solving initial grad_p...")
     df.solve(df.lhs(F_grad_p) == df.rhs(F_grad_p), grad_p_out)
 

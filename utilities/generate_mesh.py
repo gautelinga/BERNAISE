@@ -9,8 +9,8 @@ Usage:
 python generate_mesh.py mesh={mesh generating function} [+optional arguments]
 
 """
+import mshr  # must be imported before dolfin!
 import dolfin as df
-import mshr as mshr
 import numpy as np
 import os
 import sys
@@ -128,6 +128,7 @@ def barbell_capilar(res=50, diameter=1., length=5.):
                             str(length) + "_res" + str(res))
     store_mesh_HDF5(mesh, meshpath)
 
+
 def AddVerticalBoundaryVertices(l,x,y,n,dr):
     """
     A function to make a 'polygon'-srightline in order to make a periodig domain.
@@ -140,6 +141,7 @@ def AddVerticalBoundaryVertices(l,x,y,n,dr):
         elif dr == 1: # values go from (near) 0 to y with n points
             val = y * float(i)/float(n)
         l.append( df.Point(x, val) )
+
 
 def rounded_barbell_capilar(L=6., H=2., R=0.3, n_segments=40, res=120): 
     """
@@ -211,6 +213,7 @@ def rounded_barbell_capilar(L=6., H=2., R=0.3, n_segments=40, res=120):
     store_mesh_HDF5(mesh, mesh_path)
     df.plot(mesh)
     df.interactive()
+
 
 def hourglass(L=6., H=2., R=0.3, n_segments=40, res=180): 
     """
@@ -413,7 +416,7 @@ def periodic_porous(Lx=4., Ly=3., num_obstacles=12,
         pts[i, :] = pt
 
     pts = pts[pts[:, 0].argsort(), :]
-        
+
     obstacles = [tuple(row) for row in pts]
 
     line_segments_top = []
