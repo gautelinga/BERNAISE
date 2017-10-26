@@ -84,6 +84,7 @@ def plot_edges(pts, edges, title=None, clabel=None,
     lc = LineCollection(nppts[npedges])
 
     fig = Figure(title=title, clabel=clabel, save=save, show=show)
+    fig.ax.add_collection(lc)
     plt.xlim(nppts[:, 0].min(), nppts[:, 0].max())
     plt.ylim(nppts[:, 1].min(), nppts[:, 1].max())
     plt.plot(nppts[:, 0], nppts[:, 1], 'ro')
