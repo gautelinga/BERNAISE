@@ -19,7 +19,7 @@ def get_help(methods, methods_folder, caller=__file__):
         opt_args_str = ""
         argcount = func.__code__.co_argcount
         if argcount > 1:
-            opt_args = zip(func.__code__.co_varnames[1:argcount],
+            opt_args = zip(func.__code__.co_varnames,
                            func.__defaults__)
 
             opt_args_str = ", ".join(["=".join([str(item)
