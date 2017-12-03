@@ -108,6 +108,16 @@ w_1 = dict((subproblem, df.Function(space, name=subproblem+"_1"))
 w_tmp = dict((subproblem, df.Function(space, name=subproblem+"_tmp"))
              for subproblem, space in spaces.iteritems())
 
+# Shortcuts to the fields
+x_ = dict()
+for name, subproblem in subproblems.iteritems():
+    if len(subproblem) > 1:
+        w_loc = df.split(w_[name])
+        for i, field in enumerate(subproblem):
+            x_[field["name"]] = w_loc[i]
+    else:
+        x_[subproblem[0]["name"]] = w_[name]
+
 # If continuing from previously, restart from checkpoint
 load_checkpoint(restart_folder, w_, w_1)
 

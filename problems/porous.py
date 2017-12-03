@@ -52,8 +52,6 @@ class Obstacles(df.SubDomain):
         dx = self.centroids - np.outer(np.ones(len(self.centroids)), x)
         dist = np.sqrt(dx[:, 0]**2 + dx[:, 1]**2)
         return bool(on_boundary
-                    and x[0] > -self.Lx/2 + df.DOLFIN_EPS
-                    and x[0] < self.Lx/2 - df.DOLFIN_EPS
                     and any(dist < self.rad + 0.1*self.grid_spacing))
 
 
@@ -109,7 +107,7 @@ def problem():
         surface_charge=sigma_e,
         concentration_init=1.,
         front_position_init=0.1,  # percentage "filled" initially
-        ions_in_olie=False, 
+        solutes_in_oil=False,
         #
         pf_mobility_coeff=factor*0.000040,
         density=[1000., 1000.],
@@ -134,7 +132,7 @@ def mesh(Lx=4., Ly=3., grid_spacing=0.04, **namespace):
 
 def initialize(Lx, Ly, rad_init,
                interface_thickness, solutes, restart_folder,
-               field_to_subspace, ions_in_olie, # inlet_velocity,
+               field_to_subspace, solutes_in_oil, # inlet_velocity,
                front_position_init, concentration_init,
                pressure_left, pressure_right,
                enable_NS, enable_PF, enable_EC, initial_interface,
@@ -169,22 +167,25 @@ def initialize(Lx, Ly, rad_init,
             for solute in solutes:
                 c_init = initial_phasefield(
                     x_0, Ly/2, rad_init, interface_thickness,
-                    field_to_subspace["phi"].collapse(),
+                    field_to_subspace[solute[0]].collapse(),
                     shape=initial_interface)
-                
+
                 # Only have ions in phase 1 (phi=1)
-                if ions_in_olie:
-                    if (solutes[0][4]==solutes[1][4] or solutes[0][5]==solutes[1][5]):
-                        info_red("Warnig! The beta of the two ions is differant, not supported for initializion" )
-                    exp_beta = np.exp(-solutes[0][4]+solutes[0][5])
+                if solutes_in_oil:
+                    if bool(solutes[0][4] == solutes[1][4] or
+                            solutes[0][5] == solutes[1][5]):
+                        info_red("Warning! The beta values of the two "
+                                 "ions are different; not supported for "
+                                 "initialization")
+                    exp_beta = np.exp(-solutes[0][4] + solutes[0][5])
                     c_init.vector()[:] = concentration_init*((1-exp_beta)*0.5*(
-                        1.-c_init.vector().array())+exp_beta)  
+                        1. - c_init.vector().array()) + exp_beta)
                     w_init_field[solute[0]] = c_init
                 else:
                     c_init.vector()[:] = concentration_init*0.5*(
                         1.-c_init.vector().array())
                     w_init_field[solute[0]] = c_init
-                
+
     return w_init_field
 
 
@@ -266,9 +267,11 @@ def initial_velocity(inlet_velocity, function_space):
 
 
 def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
-               field_to_subproblem, subproblems, w_, **namespace):
+               field_to_subproblem, subproblems, w_,
+               enable_PF,
+               **namespace):
     info_blue("Timestep = {}".format(tstep))
-    if stats_intv and tstep % stats_intv == 0:
+    if enable_PF and stats_intv and tstep % stats_intv == 0:
         # GL: Seems like a rather awkward way of doing this,
         # but any other way seems to fuck up the simulation.
         # Anyhow, a better idea could be to move some of this to a post-processing stage.

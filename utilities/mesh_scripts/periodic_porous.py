@@ -13,8 +13,8 @@ def description(**kwargs):
     info("")
 
 
-def method(Lx=4., Ly=3., num_obstacles=12,
-           rad=0.25, R=0.35, dx=0.05, seed=121, do_plot=True, **kwargs):
+def method(Lx=6., Ly=4., Lx_inner=4., num_obstacles=32,
+           rad=0.2, R=0.3, dx=0.05, seed=121, do_plot=True, **kwargs):
     N = int(np.ceil(Lx/dx))
 
     x_min, x_max = -Lx/2, Lx/2
@@ -29,7 +29,7 @@ def method(Lx=4., Ly=3., num_obstacles=12,
 
     for i in range(num_obstacles):
         while True:
-            pt = (np.random.rand(2)-0.5) * np.array([Lx-4*R, Ly])
+            pt = (np.random.rand(2)-0.5) * np.array([Lx_inner, Ly])
             if i == 0:
                 break
             dist = pts[:i, :] - np.outer(np.ones(i), pt)
@@ -169,19 +169,23 @@ def method(Lx=4., Ly=3., num_obstacles=12,
 
     msh = numpy_to_dolfin(coords, faces)
 
-    if do_plot:
-        df.plot(msh)
-        df.interactive()
-
-    mesh_path = os.path.join(MESHES_DIR,
-                             "periodic_porous_dx" + str(dx))
+    mesh_path = os.path.join(
+        MESHES_DIR,
+        "periodic_porous_Lx{}_Ly{}_rad{}_N{}_dx{}".format(
+            Lx, Ly, rad, num_obstacles, dx))
     store_mesh_HDF5(msh, mesh_path)
 
-    obstacles_path = os.path.join(MESHES_DIR,
-                                  "periodic_porous_dx" + str(dx) + ".dat")
+    obstacles_path = os.path.join(
+        MESHES_DIR,
+        "periodic_porous_Lx{}_Ly{}_rad{}_N{}_dx{}.dat".format(
+            Lx, Ly, rad, num_obstacles, dx))
 
     all_obstacles = np.vstack((np.array(exterior_obstacles),
                                np.array(interior_obstacles)))
     np.savetxt(obstacles_path,
                np.hstack((all_obstacles,
                           np.ones((len(all_obstacles), 1))*rad)))
+
+    if do_plot:
+        df.plot(msh)
+        df.interactive()

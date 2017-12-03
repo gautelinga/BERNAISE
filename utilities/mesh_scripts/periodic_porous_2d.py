@@ -266,25 +266,21 @@ def construct_segments(curve_start, curve_stop, x_min, x_max, y_min, y_max):
         pt_a = (x_min, y_a)
         pt_b = (x_min, y_b)
         segments.append((pt_a, pt_b))
-        #segments.append((pt_b, pt_a))
 
     for y_a, y_b in y_right:
         pt_a = (x_max, y_a)
         pt_b = (x_max, y_b)
         segments.append((pt_b, pt_a))
-        #segments.append((pt_a, pt_b))
 
     for x_a, x_b in x_top:
         pt_a = (x_a, y_max)
         pt_b = (x_b, y_max)
         segments.append((pt_a, pt_b))
-        #segments.append((pt_b, pt_a))
 
     for x_a, x_b in x_bottom:
         pt_a = (x_a, y_min)
         pt_b = (x_b, y_min)
         segments.append((pt_b, pt_a))
-        #segments.append((pt_a, pt_b))
 
     segments = dict(segments)
     return segments
@@ -405,13 +401,14 @@ def method(Lx=4., Ly=4., num_obstacles=25,
     msh = numpy_to_dolfin(coords, faces)
 
     mesh_path = os.path.join(MESHES_DIR,
-                             "periodic_porous_dx{}_rad{}_N{}".format(
-                                 dx, rad, num_obstacles))
+                             "periodic_porous_Lx{}_Ly{}_rad{}_N{}_dx{}".format(
+                                 Lx, Ly, rad, num_obstacles, dx))
     store_mesh_HDF5(msh, mesh_path)
 
     obstacles_path = os.path.join(
         MESHES_DIR,
-        "periodic_porous_dx{}_rad{}_N{}.dat".format(dx, rad, num_obstacles))
+        "periodic_porous_Lx{}_Ly{}_dx{}_rad{}_N{}.dat".format(
+            Lx, Ly, dx, rad, num_obstacles))
 
     if len(obst) and len(interior_obstacles):
         all_obstacles = np.vstack((np.array(obst),

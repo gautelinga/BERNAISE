@@ -39,19 +39,19 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 
-def store_mesh_HDF5(mesh, meshpath):
+def store_mesh_HDF5(mesh, meshpath, save_xdmf=False):
     '''
     Function that stores generated mesh in both "HDMF5"
     (.h5) format and in "XDMF" (.XMDF) format.
     '''
     meshpath_hdf5 = meshpath + ".h5"
     with df.HDF5File(mesh.mpi_comm(), meshpath_hdf5, "w") as hdf5:
-        info("Storing the mesh in " + MESHES_DIR)
+        info("Storing mesh: {}".format(meshpath_hdf5))
         hdf5.write(mesh, "mesh")
-    meshpath_xdmf = meshpath + "_xdmf.xdmf"
-    xdmff = df.XDMFFile(mesh.mpi_comm(), meshpath_xdmf)
-    xdmff.write(mesh)
-    info("Done.")
+    if save_xdmf:
+        meshpath_xdmf = meshpath + "_xdmf.xdmf"
+        xdmff = df.XDMFFile(mesh.mpi_comm(), meshpath_xdmf)
+        xdmff.write(mesh)
 
 
 def add_vertical_boundary_vertices(l, x, y, n, dr):

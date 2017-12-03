@@ -8,20 +8,26 @@ from common.functions import max_value, alpha, alpha_c, alpha_cc, \
     alpha_reg, alpha_c_reg
 from . import *
 from . import __all__
+import numpy as np
 
 
 def get_subproblems(base_elements, solutes,
                     enable_NS, enable_EC,
+                    V_lagrange, p_lagrange,
                     **namespace):
     """ Returns dict of subproblems the solver splits the problem into. """
     subproblems = dict()
     if enable_NS:
         subproblems["NS"] = [dict(name="u", element="u"),
                              dict(name="p", element="p")]
+        if p_lagrange:
+            subproblems["NS"].append(dict(name="p0", element="p0"))
     if enable_EC:
         subproblems["EC"] = ([dict(name=solute[0], element="c")
                               for solute in solutes]
                              + [dict(name="V", element="V")])
+        if V_lagrange:
+            subproblems["EC"].append(dict(name="V0", element="V0"))
     return subproblems
 
 
@@ -32,15 +38,17 @@ def setup(test_functions, trial_functions, w_, w_1,
           solutes, enable_EC, enable_NS,
           dt,
           grav_const,
+          grav_dir,
           use_iterative_solvers,
           EC_scheme,
           c_cutoff,
           q_rhs,
           mesh,
+          V_lagrange, p_lagrange,
           **namespace):
     """ Set up problem. """
     # Constant
-    grav = df.Constant((0., -grav_const))
+    grav = df.Constant(tuple(grav_const*np.array(grav_dir)))
     nu = viscosity[0]
     veps = permittivity[0]
     rho = density[0]
@@ -51,36 +59,54 @@ def setup(test_functions, trial_functions, w_, w_1,
         nonlinear_EC = False
 
     # Navier-Stokes
+    u_ = p_ = None
+    u_1 = p_1 = None
+    p0 = q0 = p0_ = p0_1 = None
     if enable_NS:
-        u, p = trial_functions["NS"]
-        v, q = test_functions["NS"]
+        u, p = trial_functions["NS"][:2]
+        v, q = test_functions["NS"][:2]
 
-        u_, p_ = df.split(w_["NS"])
-        u_1, p_1 = df.split(w_1["NS"])
-    else:
-        u_ = p_ = None
-        u_1 = p_1 = None
+        up_ = df.split(w_["NS"])
+        up_1 = df.split(w_1["NS"])
+        u_, p_ = up_[:2]
+        u_1, p_1 = up_1[:2]
+        if p_lagrange:
+            p0 = trial_functions["NS"][-1]
+            q0 = test_functions["NS"][-1]
+            p0_ = up_[-1]
+            p0_1 = up_1[-1]
 
     # Electrochemistry
+    c_ = V_ = c_1 = V_1 = V0 = V0_ = V0_1 = b = U = U0 = None
     if enable_EC:
         num_solutes = len(trial_functions["EC"])-1
+        if V_lagrange:
+            num_solutes -= 1
         assert(num_solutes == len(solutes))
 
         cV_ = df.split(w_["EC"])
         cV_1 = df.split(w_1["EC"])
         c_, V_ = cV_[:num_solutes], cV_[num_solutes]
         c_1, V_1 = cV_1[:num_solutes], cV_1[num_solutes]
+        if V_lagrange:
+            V0_ = cV_[-1]
+            V0_1 = cV_1[-1]
 
         if not nonlinear_EC:
             c = trial_functions["EC"][:num_solutes]
             V = trial_functions["EC"][num_solutes]
+            if V_lagrange:
+                V0 = trial_functions["EC"][-1]
         else:
             c = c_
             V = V_
+            if V_lagrange:
+                V0 = V0_
+
         b = test_functions["EC"][:num_solutes]
         U = test_functions["EC"][num_solutes]
-    else:
-        c_ = V_ = c_1 = V_1 = None
+        if V_lagrange:
+            U0 = test_functions["EC"][-1]
 
     z = []  # Charge z[species]
     K = []  # Diffusivity K[species]
@@ -100,12 +126,13 @@ def setup(test_functions, trial_functions, w_, w_1,
     if enable_EC:
         grad_g_c = []
         grad_g_c_ = []
+        c_reg = []
         for ci, ci_, ci_1, zi in zip(c, c_, c_1, z):
             grad_g_c.append(df.grad(
                 alpha_prime_approx(ci, ci_1, EC_scheme, c_cutoff) + zi*V))
             grad_g_c_.append(df.grad(
                 alpha_prime_approx(ci_, ci_1, EC_scheme, c_cutoff) + zi*V_))
-        c_reg = regulate(ci, ci_1, EC_scheme, c_cutoff)
+            c_reg.append(regulate(ci, ci_1, EC_scheme, c_cutoff))
     else:
         grad_g_c = None
         grad_g_c_ = None
@@ -124,7 +151,7 @@ def setup(test_functions, trial_functions, w_, w_1,
     return dict(solvers=solvers)
 
 
-def setup_NS(w_NS, u, p, v, q,
+def setup_NS(w_NS, u, p, v, q, p0, q0,
              dx, ds, normal,
              dirichlet_bcs_NS, neumann_bcs, boundary_to_mark,
              u_1, nu, c_1, grad_g_c_,
@@ -132,6 +159,7 @@ def setup_NS(w_NS, u, p, v, q,
              enable_EC,
              trial_functions,
              use_iterative_solvers,
+             p_lagrange,
              mesh, **namespace):
     """ Set up the Navier-Stokes subproblem. """
     F = (1./dt * df.dot(u - u_1, v) * dx
@@ -148,6 +176,9 @@ def setup_NS(w_NS, u, p, v, q,
     if enable_EC:
         F += sum([ci_1*df.dot(grad_g_ci_, v)*dx
                   for ci_1, grad_g_ci_ in zip(c_1, grad_g_c_)])
+
+    if p_lagrange:
+        F += (p*q0 + q*p0)*dx
 
     a, L = df.lhs(F), df.rhs(F)
     if not use_iterative_solvers:
@@ -182,8 +213,9 @@ def regulate(ci, ci_1, EC_scheme, c_cutoff):
         return max_value(ci_1, 0.)
 
 
-def setup_EC(w_EC, c, V, b, U, rho_e, grad_g_c, c_reg,
-             dx, ds,
+def setup_EC(w_EC, c, V, V0, b, U, U0,
+             rho_e, grad_g_c, c_reg,
+             dx, ds, normal,
              dirichlet_bcs_EC, neumann_bcs, boundary_to_mark,
              c_1, u_1, K, veps,
              dt, q_rhs,
@@ -191,34 +223,43 @@ def setup_EC(w_EC, c, V, b, U, rho_e, grad_g_c, c_reg,
              solutes,
              use_iterative_solvers,
              nonlinear_EC,
+             V_lagrange, p_lagrange,
              **namespace):
     """ Set up electrochemistry subproblem. """
-
-    # Projected velocity
-    u_star = u_1 - dt*sum([ci_1*grad_g_ci
-                           for ci_1, grad_g_ci in zip(c_1, grad_g_c)])
+    if enable_NS:
+        # Projected velocity
+        u_star = u_1 - dt*sum([ci_1*grad_g_ci
+                               for ci_1, grad_g_ci in zip(c_1, grad_g_c)])
 
     q_rhs_solutes = []
     for solute in solutes:
         q_rhs_solutes.append(q_rhs.get(solute[0], None))
 
     F_c = []
-    for ci, ci_1, bi, Ki, grad_g_ci, qi in zip(
-            c, c_1, b, K, grad_g_c, q_rhs_solutes):
+    for ci, ci_1, bi, Ki, grad_g_ci, qi, solute, ci_reg in zip(
+            c, c_1, b, K, grad_g_c, q_rhs_solutes, solutes, c_reg):
         F_ci = (1./dt*(ci-ci_1)*bi*dx +
-                Ki*c_reg*df.dot(grad_g_ci, df.grad(bi))*dx)
+                Ki*ci_reg*df.dot(grad_g_ci, df.grad(bi))*dx)
         if enable_NS:
             F_ci += df.dot(u_star, df.grad(ci_1))*bi*dx
         if qi is not None:
             F_ci += - qi*bi*dx
+        if enable_NS:
+            for boundary_name, value in neumann_bcs[solute[0]].iteritems():
+                # F_ci += df.dot(u_1, normal)*bi*ci_1*ds(
+                #     boundary_to_mark[boundary_name])
+                pass
         F_c.append(F_ci)
+
     F_V = veps*df.dot(df.grad(V), df.grad(U))*dx
     for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
         F_V += -sigma_e*U*ds(boundary_to_mark[boundary_name])
     if rho_e != 0:
         F_V += -rho_e*U*dx
-    F = sum(F_c) + F_V
+    if V_lagrange:
+        F_V += veps*V0*U*dx + veps*V*U0*dx
 
+    F = sum(F_c) + F_V
     if nonlinear_EC:
         J = df.derivative(F, w_EC)
         problem = df.NonlinearVariationalProblem(F, w_EC, dirichlet_bcs_EC, J)
@@ -226,15 +267,16 @@ def setup_EC(w_EC, c, V, b, U, rho_e, grad_g_c, c_reg,
         solver.parameters["newton_solver"]["relative_tolerance"] = 1e-7
         if use_iterative_solvers:
             solver.parameters["newton_solver"]["linear_solver"] = "bicgstab"
-            solver.parameters["newton_solver"]["preconditioner"] = "amg"
+            if not V_lagrange:
+                solver.parameters["newton_solver"]["preconditioner"] = "hypre_amg"
     else:
         a, L = df.lhs(F), df.rhs(F)
         problem = df.LinearVariationalProblem(a, L, w_EC, dirichlet_bcs_EC)
         solver = df.LinearVariationalSolver(problem)
         if use_iterative_solvers:
             solver.parameters["linear_solver"] = "bicgstab"
-            solver.parameters["preconditioner"] = "amg"
-
+            solver.parameters["preconditioner"] = "hypre_amg"
+            
     return solver
 
 
@@ -297,3 +339,65 @@ def discrete_energy(x_, solutes, permittivity,
                   for solute in solutes]
 
     return [0.5*df.dot(u, u)] + alpha_list + [0.5*veps*df.dot(grad_V, grad_V)]
+
+
+def equilibrium_EC(w_, test_functions,
+                   solutes,
+                   permittivity,
+                   dx, ds, normal,
+                   dirichlet_bcs, neumann_bcs, boundary_to_mark,
+                   use_iterative_solvers,
+                   V_lagrange,
+                   **namespace):
+    """ Electrochemistry equilibrium solver. Nonlinear! """
+    num_solutes = len(solutes)
+
+    cV = df.split(w_["EC"])
+    c, V = cV[:num_solutes], cV[num_solutes]
+    if V_lagrange:
+        V0 = cV[-1]
+
+    b = test_functions["EC"][:num_solutes]
+    U = test_functions["EC"][num_solutes]
+    if V_lagrange:
+        U0 = test_functions["EC"][-1]
+
+    z = []  # Charge z[species]
+    K = []  # Diffusivity K[species]
+
+    for solute in solutes:
+        z.append(solute[1])
+        K.append(solute[2])
+
+    rho_e = sum([c_e*z_e for c_e, z_e in zip(c, z)])
+
+    veps = permittivity[0]
+
+    F_c = []
+    for ci, bi, Ki, zi in zip(c, b, K, z):
+        grad_g_ci = df.grad(alpha_c(ci) + zi*V)
+        F_ci = Ki*max_value(ci, 0.)*df.dot(grad_g_ci, df.grad(bi))*dx
+        F_c.append(F_ci)
+
+    F_V = veps*df.dot(df.grad(V), df.grad(U))*dx
+    for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
+        F_V += -sigma_e*U*ds(boundary_to_mark[boundary_name])
+    if rho_e != 0:
+        F_V += -rho_e*U*dx
+    if V_lagrange:
+        F_V += veps*V0*U*dx + veps*V*U0*dx
+
+    F = sum(F_c) + F_V
+    J = df.derivative(F, w_["EC"])
+
+    problem = df.NonlinearVariationalProblem(F, w_["EC"],
+                                             dirichlet_bcs["EC"], J)
+    solver = df.NonlinearVariationalSolver(problem)
+
+    solver.parameters["newton_solver"]["relative_tolerance"] = 1e-7
+    if use_iterative_solvers:
+        solver.parameters["newton_solver"]["linear_solver"] = "bicgstab"
+        if not V_lagrange:
+            solver.parameters["newton_solver"]["preconditioner"] = "hypre_amg"
+
+    solver.solve()

@@ -16,15 +16,30 @@ df.parameters["std_out_all_processes"] = False
 df.parameters["form_compiler"]["cpp_optimize_flags"] = "-O3"
 # df.set_log_active(False)
 
+# Default base elements
+# Format: name : (family, degree, is_vector)
+base_elements = dict(u=["Lagrange", 2, True],
+                     p=["Lagrange", 1, False],
+                     c=["Lagrange", 1, False],
+                     V=["Lagrange", 1, False],
+                     p0=["Real", 0, False],
+                     V0=["Real", 0, False])
+
 # Set default parameters
 parameters = dict(
     folder="results",  # default folder to store results in
     info_intv=10,
     use_iterative_solvers=False,
     use_pressure_stabilization=False,
-    dump_subdomains=False
+    dump_subdomains=False,
+    V_lagrange=False,
+    p_lagrange=False,
+    base_elements=base_elements,
+    c_cutoff=0.,
+    q_rhs=dict(),
+    EC_scheme="NL2",
+    grav_dir=[1., 0],
 )
-
 
 def constrained_domain(**namespace):
     """ Returns e.g. periodic domain. """

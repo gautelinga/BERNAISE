@@ -8,6 +8,7 @@ from stable_single import setup_EC, alpha_prime_approx, alpha_generalized, \
 import dolfin as df
 from . import *
 from . import __all__
+import numpy as np
 
 
 def get_subproblems(base_elements, solutes, enable_NS, enable_EC,
@@ -31,15 +32,17 @@ def setup(test_functions, trial_functions, w_, w_1,
           solutes, enable_EC, enable_NS,
           dt,
           grav_const,
+          grav_dir,
           use_iterative_solvers,
           EC_scheme,
           c_cutoff,
           q_rhs,
           mesh,
+          V_lagrange, p_lagrange,
           **namespace):
     """ Set up problem. """
     # Constant
-    grav = df.Constant((0., -grav_const))
+    grav = df.Constant(tuple(grav_const*np.array(grav_dir)))
     nu = viscosity[0]
     veps = permittivity[0]
     rho = density[0]
@@ -49,6 +52,7 @@ def setup(test_functions, trial_functions, w_, w_1,
     else:
         nonlinear_EC = False
 
+    p0 = q0 = p0_ = p0_1 = None
     # Navier-Stokes
     if enable_NS:
         u = trial_functions["NSu"]
@@ -65,6 +69,7 @@ def setup(test_functions, trial_functions, w_, w_1,
         u_1 = p_1 = None
 
     # Electrochemistry
+    c_ = V_ = c_1 = V_1 = V0 = V0_ = V0_1 = b = U = U0 = None
     if enable_EC:
         num_solutes = len(trial_functions["EC"])-1
         assert(num_solutes == len(solutes))
@@ -103,12 +108,13 @@ def setup(test_functions, trial_functions, w_, w_1,
     if enable_EC:
         grad_g_c = []
         grad_g_c_ = []
+        c_reg = []
         for ci, ci_, ci_1, zi in zip(c, c_, c_1, z):
             grad_g_c.append(df.grad(
                 alpha_prime_approx(ci, ci_1, EC_scheme, c_cutoff) + zi*V))
             grad_g_c_.append(df.grad(
                 alpha_prime_approx(ci_, ci_1, EC_scheme, c_cutoff) + zi*V_))
-        c_reg = regulate(ci, ci_1, EC_scheme, c_cutoff)
+            c_reg.append(regulate(ci, ci_1, EC_scheme, c_cutoff))
     else:
         grad_g_c = None
         grad_g_c_ = None

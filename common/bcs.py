@@ -52,3 +52,14 @@ class Pressure(Fixed):
 
     def nbc(self):
         return Constant(self.value)
+
+
+class Open(GenericBC):
+    def __init__(self, value):
+        self.value = value
+
+    def is_nbc(self):
+        return True
+
+    def nbc(self):
+        return Constant(self.value)
