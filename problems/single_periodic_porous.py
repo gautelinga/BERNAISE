@@ -80,6 +80,7 @@ def problem():
         use_iterative_solvers=True,
         V_lagrange=True,
         p_lagrange=False,
+        c_lagrange=True,
         #
         grav_const=0.2,
         grav_dir=[1., 0.],
@@ -219,7 +220,7 @@ def start_hook(w_, x_,
     info("Total bulk charge:    {}".format(total_bulk_charge))
     rescale_factor = -total_surface_charge/total_bulk_charge
     info("Rescale factor:       {}".format(rescale_factor))
-    
+
     subproblem = field_to_subproblem[solutes[0][0]][0]
     w_[subproblem].vector()[:] = rescale_factor*w_[subproblem].vector().array()
 

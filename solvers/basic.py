@@ -322,3 +322,80 @@ def update(w_, w_1, enable_PF, enable_EC, enable_NS, **namespace):
                                   [enable_PF, enable_EC, enable_NS]):
         if enable:
             w_1[subproblem].assign(w_[subproblem])
+
+
+def equilibrium_EC(w_, x_, test_functions,
+                   solutes,
+                   permittivity,
+                   mesh, dx, ds, normal,
+                   dirichlet_bcs, neumann_bcs, boundary_to_mark,
+                   use_iterative_solvers,
+                   c_lagrange, V_lagrange,
+                   **namespace):
+    """ Electrochemistry equilibrium solver. Nonlinear! """
+    num_solutes = len(solutes)
+
+    cV = df.split(w_["EC"])
+    c, V = cV[:num_solutes], cV[num_solutes]
+    if c_lagrange:
+        c0, V0 = cV[num_solutes+1:2*num_solutes+1], cV[2*num_solutes+1]
+    if V_lagrange:
+        V0 = cV[-1]
+
+    b = test_functions["EC"][:num_solutes]
+    U = test_functions["EC"][num_solutes]
+    if c_lagrange:
+        b0, U0 = cV[num_solutes+1:2*num_solutes+1], cV[2*num_solutes+1]
+    if V_lagrange:
+        U0 = test_functions["EC"][-1]
+
+    phi = x_["phi"]
+
+    q = []
+    sum_zx = sum([solute[1]*xj for solute, xj in zip(solutes, composition)])
+    for solute, xj in zip(solutes, composition):
+        q.append(-xj*Q/(area*sum_zx))
+
+    z = []  # Charge z[species]
+    K = []  # Diffusivity K[species]
+    beta = []
+    for solute in solutes:
+        z.append(solute[1])
+        K.append(ramp(phi, solute[2:4]))
+        beta.append(ramp(phi, solute[4:6]))
+
+    rho_e = sum([c_e*z_e for c_e, z_e in zip(c, z)])
+    veps = ramp(phi, permittivity)
+
+    F_c = []
+    for ci, bi, c0i, b0i, solute, qi, betai, Ki in zip(
+            c, b, c0, b0, solutes, q, beta, K):
+        zi = solute[1]
+        F_ci = Ki*(df.dot(
+            df.grad(bi),
+            df.grad(ci) + df.grad(betai) + zi*ci*df.grad(V)))*dx
+        if c_lagrange:
+            F_ci += b0i*(ci-df.Constant(qi))*dx + c0i*bi*dx
+
+    F_V = veps*df.dot(df.grad(U), df.grad(V))*dx
+    for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
+        F_V += -sigma_e*U*ds(boundary_to_mark[boundary_name])
+    if rho_e != 0:
+        F_V += -rho_e*U*dx
+    if V_lagrange:
+        F_V += V0*U*dx + V*U0*dx
+
+    F = sum(F_c) + F_V
+    J = df.derivative(F, w_["EC"])
+
+    problem = df.NonlinearVariationalProblem(F, w_["EC"],
+                                             dirichlet_bcs["EC"], J)
+    solver = df.NonlinearVariationalSolver(problem)
+
+    solver.parameters["newton_solver"]["relative_tolerance"] = 1e-7
+    if use_iterative_solvers:
+        solver.parameters["newton_solver"]["linear_solver"] = "bicgstab"
+        if not V_lagrange:
+            solver.parameters["newton_solver"]["preconditioner"] = "hypre_amg"
+
+    solver.solve()

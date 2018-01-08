@@ -20,9 +20,12 @@ df.parameters["form_compiler"]["cpp_optimize_flags"] = "-O3"
 # Format: name : (family, degree, is_vector)
 base_elements = dict(u=["Lagrange", 2, True],
                      p=["Lagrange", 1, False],
+                     phi=["Lagrange", 1, False],
+                     g=["Lagrange", 1, False],
                      c=["Lagrange", 1, False],
                      V=["Lagrange", 1, False],
                      p0=["Real", 0, False],
+                     c0=["Real", 0, False],
                      V0=["Real", 0, False])
 
 # Set default parameters

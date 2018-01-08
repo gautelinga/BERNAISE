@@ -231,6 +231,9 @@ vars().update(start_hook(**vars()))
 stop = False
 t = t_0
 
+# Initial state to XDMF
+stop = save_solution(**vars())
+
 total_computing_time = 0.
 total_num_tsteps = 0
 

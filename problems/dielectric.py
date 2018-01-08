@@ -180,22 +180,6 @@ def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
                field_to_subproblem, subproblems, w_, **namespace):
     info_blue("Timestep = {}".format(tstep))
 
-    if False and stats_intv and tstep % stats_intv == 0:
-        # GL: Seems like a rather awkward way of doing this,
-        # but any other way seems to fuck up the simulation.
-        # Anyhow, a better idea could be to move some of this to a post-processing stage.
-        # GL: Move into common/utilities at a certain point.
-        subproblem_name, subproblem_i = field_to_subproblem["phi"]
-        Q = w_[subproblem_name].split(deepcopy=True)[subproblem_i]
-        bubble = df.interpolate(Q, field_to_subspace["phi"].collapse())
-        bubble = 0.5*(1.-df.sign(bubble))
-        mass = df.assemble(bubble*df.dx)
-        massy = df.assemble(
-            bubble*df.Expression("x[1]", degree=1)*df.dx)
-        if mpi_is_root():
-            with file(statsfile, "a") as outfile:
-                outfile.write("{} {} {} \n".format(t, mass, massy))
-
 
 def start_hook(newfolder, **namespace):
     statsfile = os.path.join(newfolder, "Statistics/stats.dat")
@@ -203,9 +187,9 @@ def start_hook(newfolder, **namespace):
 
 
 def initial_c(x, y, rad, c_init, function_space):
-#    expr_str = ("c_init*1./(2*pi*pow(sigma, 2)) * "
-#                "exp(- 0.5*pow((x[0]-x0)/sigma, 2)"
-#               " - 0.5*pow((x[1]-y0)/sigma, 2))")
+    #    expr_str = ("c_init*1./(2*pi*pow(sigma, 2)) * "
+    #                "exp(- 0.5*pow((x[0]-x0)/sigma, 2)"
+    #               " - 0.5*pow((x[1]-y0)/sigma, 2))")
     expr_str = ("2*c_init*1./(2*pi*pow(sigma, 2)) * "
                 "exp(- 0.5*pow((x[1]-y0)/sigma, 2))")
     c_init_expr = df.Expression(expr_str, x0=x, y0=y, sigma=rad,
