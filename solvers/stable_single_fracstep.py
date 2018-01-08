@@ -43,7 +43,7 @@ def setup(test_functions, trial_functions, w_, w_1,
     """ Set up problem. """
     # Constant
     grav = df.Constant(tuple(grav_const*np.array(grav_dir)))
-    nu = viscosity[0]
+    mu = viscosity[0]
     veps = permittivity[0]
     rho = density[0]
 
@@ -139,7 +139,7 @@ def setup(test_functions, trial_functions, w_, w_1,
 def setup_NSu(w_NSu, u, v,
               dx, ds, normal,
               dirichlet_bcs_NSu, neumann_bcs, boundary_to_mark,
-              u_, p_, u_1, p_1, nu, c_1, grad_g_c_,
+              u_, p_, u_1, p_1, rho, mu, c_1, grad_g_c_,
               dt, grav,
               enable_EC,
               trial_functions,
@@ -149,11 +149,11 @@ def setup_NSu(w_NSu, u, v,
     """ Set up the Navier-Stokes velocity subproblem. """
     solvers = dict()
 
-    F_predict = (1./dt * df.dot(u - u_1, v) * dx
-                 + df.inner(df.grad(u), df.outer(u_1, v)) * dx
-                 + nu*df.inner(df.grad(u), df.grad(v)) * dx
+    F_predict = (1./dt * rho * df.dot(u - u_1, v) * dx
+                 + rho * df.inner(df.grad(u), df.outer(u_1, v)) * dx
+                 + mu * df.inner(df.grad(u), df.grad(v)) * dx
                  - p_1 * df.div(v) * dx
-                 - df.dot(grav, v) * dx)
+                 - rho * df.dot(grav, v) * dx)
 
     for boundary_name, pressure in neumann_bcs["p"].iteritems():
         F_predict += pressure * df.inner(
@@ -173,8 +173,8 @@ def setup_NSu(w_NSu, u, v,
         solvers["predict"].parameters["preconditioner"] = "amg"
 
     F_correct = (
-        df.inner(u - u_, v)*df.dx
-        - dt * (p_ - p_1) * df.div(v) * df.dx
+        rho * df.inner(u - u_, v) * dx
+        - dt * (p_ - p_1) * df.div(v) * dx
     )
     a_correct, L_correct = df.lhs(F_correct), df.rhs(F_correct)
     problem_correct = df.LinearVariationalProblem(
@@ -193,13 +193,13 @@ def setup_NSu(w_NSu, u, v,
 
 
 def setup_NSp(w_NSp, p, q, dirichlet_bcs_NSp,
-              dt, u_, p_1,
+              dt, u_, p_1, rho,
               use_iterative_solvers,
               **namespace):
     """ Set up Navier-Stokes pressure subproblem. """
     F = (
         df.dot(df.grad(p - p_1), df.grad(q)) * df.dx
-        + 1./dt * df.div(u_) * q * df.dx
+        + 1./dt * rho * df.div(u_) * q * df.dx
     )
 
     a, L = df.lhs(F), df.rhs(F)
@@ -253,7 +253,7 @@ def update(w_, w_1, enable_EC, enable_NS, **namespace):
             w_1[subproblem].assign(w_[subproblem])
 
 
-def discrete_energy(x_, solutes, permittivity,
+def discrete_energy(x_, solutes, density, permittivity,
                     c_cutoff, EC_scheme, dt, **namespace):
     if x_ is None:
         return ["E_kin"] + ["E_{}".format(solute[0])
@@ -263,11 +263,12 @@ def discrete_energy(x_, solutes, permittivity,
     grad_V = df.grad(x_["V"])
     veps = permittivity[0]
     grad_p = df.grad(x_["p"])
+    rho = density[0]
 
     alpha_list = [alpha_generalized(x_[solute[0]], c_cutoff, EC_scheme)
                   for solute in solutes]
 
-    return ([0.5*df.dot(u, u)]
+    return ([0.5*rho*df.dot(u, u)]
             + alpha_list
             + [0.5*veps*df.dot(grad_V, grad_V)]
             + [0.5*dt**2*df.dot(grad_p, grad_p)])

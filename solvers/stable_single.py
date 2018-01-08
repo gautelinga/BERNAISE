@@ -49,7 +49,7 @@ def setup(test_functions, trial_functions, w_, w_1,
     """ Set up problem. """
     # Constant
     grav = df.Constant(tuple(grav_const*np.array(grav_dir)))
-    nu = viscosity[0]
+    mu = viscosity[0]
     veps = permittivity[0]
     rho = density[0]
 
@@ -154,7 +154,7 @@ def setup(test_functions, trial_functions, w_, w_1,
 def setup_NS(w_NS, u, p, v, q, p0, q0,
              dx, ds, normal,
              dirichlet_bcs_NS, neumann_bcs, boundary_to_mark,
-             u_1, nu, c_1, grad_g_c_,
+             u_1, rho, mu, c_1, grad_g_c_,
              dt, grav,
              enable_EC,
              trial_functions,
@@ -162,12 +162,12 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
              p_lagrange,
              mesh, **namespace):
     """ Set up the Navier-Stokes subproblem. """
-    F = (1./dt * df.dot(u - u_1, v) * dx
-         + df.inner(df.grad(u), df.outer(u_1, v)) * dx
-         + nu*df.inner(df.grad(u), df.grad(v)) * dx
+    F = (1./dt * rho * df.dot(u - u_1, v) * dx
+         + rho * df.inner(df.grad(u), df.outer(u_1, v)) * dx
+         + mu * df.inner(df.grad(u), df.grad(v)) * dx
          - p * df.div(v) * dx
          - q * df.div(u) * dx
-         - df.dot(grav, v) * dx)
+         - rho * df.dot(grav, v) * dx)
 
     for boundary_name, pressure in neumann_bcs["p"].iteritems():
         F += pressure * df.inner(
@@ -325,7 +325,7 @@ def alpha_generalized(c, c_cutoff, EC_scheme):
         return alpha(c)
 
 
-def discrete_energy(x_, solutes, permittivity,
+def discrete_energy(x_, solutes, density, permittivity,
                     c_cutoff, EC_scheme, **namespace):
     if x_ is None:
         return ["E_kin"] + ["E_{}".format(solute[0])
@@ -333,12 +333,14 @@ def discrete_energy(x_, solutes, permittivity,
 
     u = x_["u"]
     grad_V = df.grad(x_["V"])
+    rho = density[0]
     veps = permittivity[0]
 
     alpha_list = [alpha_generalized(x_[solute[0]], c_cutoff, EC_scheme)
                   for solute in solutes]
 
-    return [0.5*df.dot(u, u)] + alpha_list + [0.5*veps*df.dot(grad_V, grad_V)]
+    return ([0.5*rho*df.dot(u, u)]
+            + alpha_list + [0.5*veps*df.dot(grad_V, grad_V)])
 
 
 def equilibrium_EC(w_, test_functions,
