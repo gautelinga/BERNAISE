@@ -1,7 +1,7 @@
 """
 This module defines a range of different boundary conditions.
 """
-from dolfin import DirichletBC, Constant
+from dolfin import DirichletBC, Constant, Expression
 
 __author__ = "Gaute Linga"
 
@@ -43,7 +43,10 @@ class Charged(GenericBC):
         return True
 
     def nbc(self):
-        return Constant(self.value)
+        if isinstance(self.value, Expression):
+            return self.value
+        else:
+            return Constant(self.value)
 
 
 class Pressure(Fixed):
