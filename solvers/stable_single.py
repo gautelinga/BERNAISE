@@ -5,7 +5,7 @@ GL, 2017
 """
 import dolfin as df
 from common.functions import max_value, alpha, alpha_c, alpha_cc, \
-    alpha_reg, alpha_c_reg
+    alpha_reg, alpha_c_reg, absolute
 from . import *
 from . import __all__
 import numpy as np
@@ -379,6 +379,68 @@ def equilibrium_EC(w_, test_functions,
     for ci, bi, Ki, zi in zip(c, b, K, z):
         grad_g_ci = df.grad(alpha_c(ci) + zi*V)
         F_ci = Ki*max_value(ci, 0.)*df.dot(grad_g_ci, df.grad(bi))*dx
+        F_c.append(F_ci)
+
+    F_V = veps*df.dot(df.grad(V), df.grad(U))*dx
+    for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
+        F_V += -sigma_e*U*ds(boundary_to_mark[boundary_name])
+    if rho_e != 0:
+        F_V += -rho_e*U*dx
+    if V_lagrange:
+        F_V += veps*V0*U*dx + veps*V*U0*dx
+
+    F = sum(F_c) + F_V
+    J = df.derivative(F, w_["EC"])
+
+    problem = df.NonlinearVariationalProblem(F, w_["EC"],
+                                             dirichlet_bcs["EC"], J)
+    solver = df.NonlinearVariationalSolver(problem)
+
+    solver.parameters["newton_solver"]["relative_tolerance"] = 1e-7
+    if use_iterative_solvers:
+        solver.parameters["newton_solver"]["linear_solver"] = "bicgstab"
+        if not V_lagrange:
+            solver.parameters["newton_solver"]["preconditioner"] = "hypre_amg"
+
+    solver.solve()
+
+
+def equilibrium_EC_PNP(w_, test_functions,
+                       solutes,
+                       permittivity,
+                       dx, ds, normal,
+                       dirichlet_bcs, neumann_bcs, boundary_to_mark,
+                       use_iterative_solvers,
+                       V_lagrange,
+                       **namespace):
+    """ Electrochemistry equilibrium solver. Nonlinear! """
+    num_solutes = len(solutes)
+
+    cV = df.split(w_["EC"])
+    c, V = cV[:num_solutes], cV[num_solutes]
+    if V_lagrange:
+        V0 = cV[-1]
+
+    b = test_functions["EC"][:num_solutes]
+    U = test_functions["EC"][num_solutes]
+    if V_lagrange:
+        U0 = test_functions["EC"][-1]
+
+    z = []  # Charge z[species]
+    K = []  # Diffusivity K[species]
+
+    for solute in solutes:
+        z.append(solute[1])
+        K.append(solute[2])
+
+    rho_e = sum([c_e*z_e for c_e, z_e in zip(c, z)])
+
+    veps = permittivity[0]
+
+    F_c = []
+    for ci, bi, Ki, zi in zip(c, b, K, z):
+        ci_grad_g_ci = df.grad(ci) + ci*zi*df.grad(V)
+        F_ci = Ki*df.dot(ci_grad_g_ci, df.grad(bi))*dx
         F_c.append(F_ci)
 
     F_V = veps*df.dot(df.grad(V), df.grad(U))*dx

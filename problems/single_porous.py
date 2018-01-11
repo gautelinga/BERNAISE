@@ -6,7 +6,6 @@ from common.io import mpi_is_root, load_mesh
 from common.bcs import Fixed, Charged, Pressure, Open
 from porous import Obstacles
 from mpi4py import MPI
-# from single_periodic_porous import start_hook
 __author__ = "Gaute Linga"
 
 comm = MPI.COMM_WORLD
@@ -45,9 +44,17 @@ def problem():
     info_cyan("Porous media flow with electrohydrodynamics.")
     # GL: Note that these parameters are NOT physical.
     #     Awaiting Asger's realistic ones.
-    
-    solutes = [["c_p",  1, 0.01, 0.01, 0., 0.],
-               ["c_m", -1, 0.01, 0.01, 0., 0.]]
+    # GL 2018-01-11: Updating to realistic ones.
+
+    Re = 0.001
+    Pe = 1./2.189
+    lambda_D = 1.5
+    c_inf = 1.0
+    sigma_e = -5.0
+    f = 0.02
+
+    solutes = [["c_p",  1, 1./Pe, 1./Pe, 0., 0.],
+               ["c_m", -1, 1./Pe, 1./Pe, 0., 0.]]
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
@@ -61,31 +68,30 @@ def problem():
         stats_intv=5,
         checkpoint_intv=50,
         tstep=0,
-        dt=0.05,
+        dt=0.01,
         t_0=0.,
         T=10.0,
-        N=32,
         solutes=solutes,
-        Lx=6.,  # 8.,
-        Ly=3.,  # 8.,
-        rad=0.2,
-        num_obstacles=16,  # 100,
-        grid_spacing=0.05,
+        Lx=60.,
+        Ly=30.,
+        rad=3.0,
+        num_obstacles=8,  # 100,
+        grid_spacing=0.25,  # 1.,  # 1./4,
         #
-        density=[1., 1.],
-        viscosity=[0.2, 0.2],
-        permittivity=[2., 2.],
-        surface_charge=-2.0,
-        concentration_init=15.0,
+        density=[Re, Re],
+        viscosity=[1., 1.],
+        permittivity=[2.*lambda_D**2, 2.*lambda_D**2],
+        surface_charge=sigma_e,
+        concentration_init=c_inf,
         V_left=0.,
-        V_right=0.,
+        #V_right=0.,
         #
         EC_scheme="NL2",
         use_iterative_solvers=True,
         V_lagrange=False,
         p_lagrange=False,
         #
-        grav_const=0.4,
+        grav_const=f/Re,
         grav_dir=[1., 0.],
         c_cutoff=0.1
     )
@@ -133,7 +139,7 @@ def create_bcs(Lx, Ly, mesh, grid_spacing, rad, num_obstacles,
                surface_charge, solutes, enable_NS, enable_EC,
                p_lagrange, V_lagrange,
                concentration_init,
-               V_left, V_right,
+               V_left,
                **namespace):
     """ The boundaries and boundary conditions are defined here. """
     data = np.loadtxt(
@@ -164,8 +170,9 @@ def create_bcs(Lx, Ly, mesh, grid_spacing, rad, num_obstacles,
     if enable_EC:
         for solute in solutes:
             bcs["left"][solute[0]] = Fixed(concentration_init)
-            # bcs["right"][solute[0]] = Fixed(concentration_init)
+            bcs["right"][solute[0]] = Fixed(concentration_init)
         bcs["left"]["V"] = Fixed(V_left)
+        bcs["right"]["V"] = Charged(0.)
         # bcs["right"]["V"] = Fixed(V_right)
         bcs["obstacles"]["V"] = Charged(surface_charge)
 

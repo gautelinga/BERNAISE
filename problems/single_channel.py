@@ -60,9 +60,9 @@ def problem():
 
     Re = 0.001
     Pe = 1./2.189
-    lambda_D = 1.5 # 1.5
+    lambda_D = 1.5  # 1.5
     c_inf = 1.0
-    sigma_e = -6. #-6.
+    sigma_e = -6.  #-6.
     f = 0.02
 
     solutes = [["c_p",  1, 1./Pe, 1./Pe, 0., 0.],
