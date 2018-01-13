@@ -235,6 +235,10 @@ class TimeSeries:
     def __setitem__(self, key, val):
         self.datasets[key] = val
 
+    def __contains__(self, key):
+        """ Overload 'in' operator """
+        return key in self.datasets
+
     def function(self, field):
         if field == "u":
             return df.Function(self.vector_function_space, name="u")
@@ -310,7 +314,7 @@ class TimeSeries:
         solutes = self.get_parameter("solutes")
         charge_datasets = []
         for step in range(len(self)):
-            charge_loc = np.zeros_like(self["phi", step])
+            charge_loc = np.zeros_like(self[solutes[0][0], step])
             for solute in solutes:
                 field = solute[0]
                 z = solute[1]

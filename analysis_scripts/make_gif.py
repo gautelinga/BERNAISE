@@ -3,6 +3,7 @@ from common import info, info_cyan
 from postprocess import get_steps, rank, size, comm
 import os
 from utilities.plot import plot_fancy
+import numpy as np
 
 
 def description(ts, **kwargs):
@@ -10,7 +11,7 @@ def description(ts, **kwargs):
 
 
 def method(ts, show=False, save=True, dt=None, fps=25, skip=0,
-           delete_after=True, **kwargs):
+           delete_after=True, plot_u=False, **kwargs):
     """ Make fancy gif animation. """
     info_cyan("Making a fancy gif animation.")
     anim_name = "animation"
@@ -20,10 +21,17 @@ def method(ts, show=False, save=True, dt=None, fps=25, skip=0,
 
     for step in steps[rank::size]:
         info("Step " + str(step) + " of " + str(len(ts)))
-        phi = ts["phi", step][:, 0]
+        if "phi" in ts:
+            phi = ts["phi", step][:, 0]
+        else:
+            phi = np.zeros(len(ts.nodes))-1.
         charge = ts["charge", step][:, 0]
         charge_max = max(ts.max("charge"), -ts.min("charge"))
-
+        if plot_u and "u" in ts:
+            u = ts["u", step]
+        else:
+            u = None
+        
         if save:
             save_file = os.path.join(ts.tmp_folder,
                                      anim_name + "_{:06d}.png".format(step))
@@ -31,7 +39,7 @@ def method(ts, show=False, save=True, dt=None, fps=25, skip=0,
             save_file = None
 
         plot_fancy(ts.nodes, ts.elems, phi, charge,
-                   charge_max=charge_max, show=show,
+                   charge_max=charge_max, show=show, u=u,
                    save=save_file)
 
     comm.Barrier()

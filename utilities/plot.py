@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import LineCollection
 import numpy as np
+import matplotlib.tri as mtri
 from matplotlib.tri import tricontour
 from matplotlib.tri import TriContourSet
 from mpi4py.MPI import COMM_WORLD as comm
@@ -166,17 +167,61 @@ def plot_fancy(nodes, elems, phi, charge, u=None, charge_max=None,
                     cmap=cmap, levels=[-2.0, 0., 2.0], antialiased=True)
 
     if u is not None:
-        u_norm = np.sqrt(u[:, 0]**2 + u[:, 1]**2) + 1e-10
-        colors = phi
-        norm = plt.Normalize()
-        norm.autoscale(colors)
-        colormap = cmap  # plt.cm.get_cmap('inferno')
-        cmap._lut[:, -1] = 0.5
-        cmap._lut[length/2:, :-1] = 1.
+        x_i, y_i = np.meshgrid(
+            np.linspace(nodes[:, 0].min(), nodes[:, 0].max(), 60),
+            np.linspace(nodes[:, 1].min(), nodes[:, 1].max(), 60))
+        triang = mtri.Triangulation(nodes[:, 0], nodes[:, 1], elems)
+        ux_interp = mtri.LinearTriInterpolator(triang, u[:, 0])
+        uy_interp = mtri.LinearTriInterpolator(triang, u[:, 1])
+        phi_interp = mtri.LinearTriInterpolator(triang, phi)
+        ux_i = ux_interp(x_i, y_i)
+        uy_i = uy_interp(x_i, y_i)
+        phi_i = phi_interp(x_i, y_i)
 
-        fig.ax.quiver(nodes[:, 0], nodes[:, 1],
-                      u[:, 0]/u_norm, u[:, 1]/u_norm,
-                      color=colormap(norm(colors)))
+        ux_i = np.array(ux_i.filled(0.))
+        uy_i = np.array(uy_i.filled(0.))
+        phi_i = np.array(phi_i.filled(0.))
+
+        u_norm = np.sqrt(ux_i**2 + uy_i**2)
+        # u_norm = np.sqrt(u[:, 0]**2 + u[:, 1]**2) #+ 1e-10
+        # colors = phi
+        # colors = np.zeros_like(ux_i)
+        #colors[:] += phi_i
+
+        #norm = plt.Normalize()
+        #norm.autoscale(colors)
+        #colormap = plt.cm.get_cmap('inferno')
+        #cmap._lut[:, -1] = 0.5
+        #cmap._lut[length/2:, :-1] = 1.
+
+        #fig.ax.quiver(nodes[:, 0], nodes[:, 1],
+        #              u[:, 0]/u_norm, u[:, 1]/u_norm,
+        #              color=colormap(norm(colors)))
+        #np.nan_to_num(u_norm)
+        # print u_norm, u_norm.max(), u_norm.min()
+
+        lw = np.zeros_like(ux_i)
+        lw[:] += 5*u_norm/(u_norm.max() + 1e-10)
+
+        mask = np.zeros(ux_i.shape, dtype=bool)
+        mask[phi_i > 0.] = True
+        ux_i_2 = np.ma.array(ux_i, mask=mask)
+
+        fig.ax.streamplot(x_i, y_i,
+                          ux_i_2, uy_i,
+                          color="k",
+                          density=0.6,
+                          linewidth=lw)
+
+        mask = np.zeros(ux_i.shape, dtype=bool)
+        mask[phi_i < 0.] = True
+        ux_i_2 = np.ma.array(ux_i, mask=mask)
+
+        fig.ax.streamplot(x_i, y_i,
+                          ux_i_2, uy_i,
+                          color="w",
+                          density=0.6,
+                          linewidth=lw)
 
     return fig
 
