@@ -8,7 +8,7 @@ sys.path.append(bernaise_path)
 from common import info, info_cyan
 
 
-def get_help(methods, methods_folder, caller=__file__):
+def get_help(methods, methods_folder, caller=__file__, skip=0):
     info("Usage:\n   python " + os.path.basename(caller) +
          " method=... [optional arguments]\n")
     info_cyan("{:<18} {}".format(
@@ -19,7 +19,7 @@ def get_help(methods, methods_folder, caller=__file__):
         opt_args_str = ""
         argcount = func.__code__.co_argcount
         if argcount > 1:
-            opt_args = zip(func.__code__.co_varnames,
+            opt_args = zip(func.__code__.co_varnames[skip:],
                            func.__defaults__)
 
             opt_args_str = ", ".join(["=".join([str(item)

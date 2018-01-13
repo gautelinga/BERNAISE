@@ -9,13 +9,14 @@ def description(ts, **kwargs):
     info("Make a fancy gif animation.")
 
 
-def method(ts, show=False, save=True, dt=None, fps=25, **kwargs):
+def method(ts, show=False, save=True, dt=None, fps=25, skip=0,
+           delete_after=True, **kwargs):
     """ Make fancy gif animation. """
     info_cyan("Making a fancy gif animation.")
     anim_name = "animation"
     ts.compute_charge()
 
-    steps = get_steps(ts, dt)
+    steps = get_steps(ts, dt)[::(skip+1)]
 
     for step in steps[rank::size]:
         info("Step " + str(step) + " of " + str(len(ts)))
@@ -42,4 +43,5 @@ def method(ts, show=False, save=True, dt=None, fps=25, **kwargs):
                    " -loop 0 {anim_file}").
                   format(tmp_files=tmp_files,
                          anim_file=anim_file, delay=int(100./fps)))
-        os.system("rm {tmp_files}".format(tmp_files=tmp_files))
+        if delete_after:
+            os.system("rm {tmp_files}".format(tmp_files=tmp_files))

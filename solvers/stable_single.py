@@ -49,9 +49,9 @@ def setup(test_functions, trial_functions, w_, w_1,
     """ Set up problem. """
     # Constant
     grav = df.Constant(tuple(grav_const*np.array(grav_dir)))
-    mu = viscosity[0]
-    veps = permittivity[0]
-    rho = density[0]
+    mu = df.Constant(viscosity[0])
+    veps = df.Constant(permittivity[0])
+    rho = df.Constant(density[0])
 
     if EC_scheme in ["NL1", "NL2"]:
         nonlinear_EC = True
@@ -435,7 +435,12 @@ def equilibrium_EC_PNP(w_, test_functions,
 
     rho_e = sum([c_e*z_e for c_e, z_e in zip(c, z)])
 
-    veps = permittivity[0]
+    veps_arr = np.array([100.**2, 50.**2, 20.**2,
+                         10.**2, 5.**2, 2.**2, 1.**2])*permittivity[0]
+
+    veps = df.Expression("val",
+                         val=veps_arr[0],
+                         degree=1)
 
     F_c = []
     for ci, bi, Ki, zi in zip(c, b, K, z):
@@ -463,5 +468,6 @@ def equilibrium_EC_PNP(w_, test_functions,
         solver.parameters["newton_solver"]["linear_solver"] = "bicgstab"
         if not V_lagrange:
             solver.parameters["newton_solver"]["preconditioner"] = "hypre_amg"
-
-    solver.solve()
+    for val in veps_arr[1:]:
+        veps.val = val
+        solver.solve()

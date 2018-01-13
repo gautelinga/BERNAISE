@@ -116,7 +116,7 @@ def main():
 
     # Get help if it was called for.
     if cmd_kwargs.get("help", False):
-        get_help(methods, scripts_folder, __file__)
+        get_help(methods, scripts_folder, __file__, skip=1)
 
     # Get sought fields
     sought_fields = cmd_kwargs.get("fields", False)

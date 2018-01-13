@@ -76,10 +76,10 @@ def problem():
         Ly=30.,
         rad=3.0,
         num_obstacles=8,  # 100,
-        grid_spacing=0.25,  # 1.,  # 1./4,
+        grid_spacing=1.,  # 0.25,  # 1.,  # 1./4,
         #
         density=[Re, Re],
-        viscosity=[1., 1.],
+        viscosity=[2.*lambda_D**2, 2.*lambda_D**2],
         permittivity=[2.*lambda_D**2, 2.*lambda_D**2],
         surface_charge=sigma_e,
         concentration_init=c_inf,
@@ -91,7 +91,7 @@ def problem():
         V_lagrange=False,
         p_lagrange=False,
         #
-        grav_const=f/Re,
+        grav_const=2*lambda_D**2*f/Re,
         grav_dir=[1., 0.],
         c_cutoff=0.1
     )
