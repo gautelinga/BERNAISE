@@ -58,8 +58,6 @@ def method(ts, dt=0, extra_boundaries="", **kwargs):
     if len(extra_boundaries) > 0:
         boundaries_list.append(extra_boundaries)
 
-    print boundaries_list
-
     subdomains = [df.FacetFunction("size_t", ts.mesh)
                   for b in boundaries_list]
 
@@ -75,7 +73,7 @@ def method(ts, dt=0, extra_boundaries="", **kwargs):
             for boundary in boundary_list:
                 boundary.mark(subdomain, i+1)
             boundary_to_mark[name] = (i+1, k)
-            print "Boundary:", name
+            info_blue("Boundary:" + name)
 
     x_ = ts.functions()
 
