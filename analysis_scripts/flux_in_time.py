@@ -12,7 +12,17 @@ def description(ts, **kwargs):
     info("Plot flux in time.")
 
 
-def method(ts, dt=0, **kwargs):
+class CrossSection(df.SubDomain):
+    def __init__(self, x0, dim):
+        self.x0 = x0
+        self.dim = dim
+        df.SubDomain.__init__(self)
+
+    def inside(self, x, on_boundary):
+        return df.near(x[self.dim], self.x0) and on_boundary
+
+
+def method(ts, dt=0, extra_boundaries="", **kwargs):
     """ Plot flux in time. """
     info_cyan("Plot flux in time.")
 
@@ -30,21 +40,42 @@ def method(ts, dt=0, **kwargs):
     boundaries = boundaries.items()
     boundaries.insert(0, ("periodic", [pbc]))
 
-    subdomains = df.FacetFunction("size_t", ts.mesh)
-    subdomains.set_all(0)
+    extra_boundaries_keys = [s.lower() for s in extra_boundaries.split(",")]
+    extra_boundaries = []
+    if "left" in extra_boundaries_keys:
+        extra_boundaries.append(
+            ("extra_left", [CrossSection(ts.nodes[:, 0].min(), 0)]))
+    if "right" in extra_boundaries_keys:
+        extra_boundaries.append(
+            ("extra_right", [CrossSection(ts.nodes[:, 0].max(), 0)]))
+    if "top" in extra_boundaries_keys:
+        extra_boundaries.append(
+            ("extra_top", [CrossSection(ts.nodes[:, 1].max(), 1)]))
+    if "bottom" in extra_boundaries_keys:
+        extra_boundaries.append(
+            ("extra_bottom", [CrossSection(ts.nodes[:, 1].min(), 1)]))
+    boundaries_list = [boundaries]
+    if len(extra_boundaries) > 0:
+        boundaries_list.append(extra_boundaries)
+
+    print boundaries_list
+
+    subdomains = [df.FacetFunction("size_t", ts.mesh)
+                  for b in boundaries_list]
+
+    for subdomain in subdomains:
+        subdomain.set_all(0)
+
+    ds = [df.Measure("ds", domain=ts.mesh, subdomain_data=subdomain)
+          for subdomain in subdomains]
 
     boundary_to_mark = dict()
-    for i, (name, subdomain_list) in enumerate(boundaries):
-        for subdomain in subdomain_list:
-            subdomain.mark(subdomains, i+1)
-        boundary_to_mark[name] = i+1
-        print name
-
-    ds = df.Measure("ds", domain=ts.mesh, subdomain_data=subdomains)
-
-    #solver = params["solver"]
-    #info("Solver:  {}".format(solver))
-    #exec("from solvers.{} import discrete_energy".format(solver))
+    for k, subdomain in enumerate(subdomains):
+        for i, (name, boundary_list) in enumerate(boundaries_list[k]):
+            for boundary in boundary_list:
+                boundary.mark(subdomain, i+1)
+            boundary_to_mark[name] = (i+1, k)
+            print "Boundary:", name
 
     x_ = ts.functions()
 
@@ -57,7 +88,7 @@ def method(ts, dt=0, **kwargs):
         phi = x_["phi"]
         g = x_["g"]
         exec("from problems.{} import pf_mobility".format(problem))
-        M = pf_mobility(phi, params["gamma"])
+        M = pf_mobility(phi, params["pf_mobility_coeff"])
     else:
         phi = 1.
         g = df.Constant(0.)
@@ -127,15 +158,15 @@ def method(ts, dt=0, **kwargs):
         for field in x_:
             ts.update(x_[field], field, step)
 
-        for boundary_name, mark in boundary_to_mark.iteritems():
+        for boundary_name, (mark, k) in boundary_to_mark.iteritems():
             for flux_name, flux in fluxes.items():
                 data[boundary_name][flux_name][i] = df.assemble(
-                    df.dot(flux, n)*ds(mark))
+                    df.dot(flux, n)*ds[k](mark))
 
         t[i] = ts.times[step]
 
     savedata = dict()
-    flux_keys = fluxes.keys()
+    flux_keys = sorted(fluxes.keys())
     for boundary_name in boundary_to_mark:
         savedata[boundary_name] = np.array(
             zip(steps, t, *[data[boundary_name][flux_name]
