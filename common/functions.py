@@ -23,7 +23,7 @@ def diff_pf_potential_linearised(phi, phi0):
 def ramp(phi, A):
     """
     Ramps linearly between A[0] and A[1] according to phi,
-    such that phi=1 => A(phi) = A[1], phi=-1 => A(phi) = A[2]
+    such that phi=1 => A(phi) = A[0], phi=-1 => A(phi) = A[1]
     """
     return A[0]*0.5*(1.+phi) + A[1]*0.5*(1.-phi)
 

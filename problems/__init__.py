@@ -44,6 +44,7 @@ parameters = dict(
     grav_dir=[1., 0],
 )
 
+
 def constrained_domain(**namespace):
     """ Returns e.g. periodic domain. """
     return None

@@ -31,7 +31,7 @@ def method(ts, show=False, save=True, dt=None, fps=25, skip=0,
             u = ts["u", step]
         else:
             u = None
-        
+
         if save:
             save_file = os.path.join(ts.tmp_folder,
                                      anim_name + "_{:06d}.png".format(step))

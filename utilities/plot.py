@@ -141,7 +141,7 @@ def plot_quiver(nodes, elems, vals, title=None, clabel=None,
 
 
 def plot_fancy(nodes, elems, phi, charge, u=None, charge_max=None,
-               show=False, save=None):
+               show=False, save=None, num_intp=100):
     """ Plots fancily. """
     fig = Figure(colorbar=False, tight_layout=True, show=show,
                  xlabel="", ylabel="", save=save, ticks=False)
@@ -167,9 +167,17 @@ def plot_fancy(nodes, elems, phi, charge, u=None, charge_max=None,
                     cmap=cmap, levels=[-2.0, 0., 2.0], antialiased=True)
 
     if u is not None:
+        Lx = nodes[:, 0].max()-nodes[:, 0].min()
+        Ly = nodes[:, 1].max()-nodes[:, 1].min()
+        dx = max(Lx, Ly)/num_intp
+        Nx = int(Lx/dx)
+        Ny = int(Ly/dx)
+
         x_i, y_i = np.meshgrid(
-            np.linspace(nodes[:, 0].min(), nodes[:, 0].max(), 60),
-            np.linspace(nodes[:, 1].min(), nodes[:, 1].max(), 60))
+            np.linspace(dx+nodes[:, 0].min(),
+                        nodes[:, 0].max()-dx, Nx),
+            np.linspace(dx+nodes[:, 1].min(),
+                        nodes[:, 1].max()-dx, Ny))
         triang = mtri.Triangulation(nodes[:, 0], nodes[:, 1], elems)
         ux_interp = mtri.LinearTriInterpolator(triang, u[:, 0])
         uy_interp = mtri.LinearTriInterpolator(triang, u[:, 1])

@@ -12,7 +12,7 @@ def description(ts, **kwargs):
 
 
 def method(ts, dx=0.1, line="[0.,0.]--[1.,1.]", time=None, dt=None,
-           **kwargs):
+           skip=0, **kwargs):
     """ Probe along a line. """
     info_cyan("Probe along a line.")
     try:
