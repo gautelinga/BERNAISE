@@ -124,7 +124,7 @@ def initialize(Lx, Ly, R,
                     field_to_subspace["phi"])
                 # Only have ions in phase 2 (phi=-1)
                 c_init.vector()[:] = concentration_init*0.5*(
-                    1.-c_init.vector().array())
+                    1.-c_init.vector().get_local())
                 w_init_field[solute[0]] = c_init
 
     return w_init_field

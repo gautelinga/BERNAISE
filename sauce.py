@@ -133,7 +133,7 @@ else:
     exit()
 
 # Set up subdomains
-subdomains = df.FacetFunction("size_t", mesh)
+subdomains = df.MeshFunction("size_t", mesh, mesh.topology().dim()-1)
 subdomains.set_all(0)
 boundary_to_mark = dict()
 mark_to_boundary = dict()
