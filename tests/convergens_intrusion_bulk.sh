@@ -15,7 +15,7 @@ DT = 0.04
 
 ## Spacing 1/8, Time 0.000078125
 grid_spacing=$(bc <<< "scale = 16; (1. / $invers_grid_spacing)") 
-grid_spacing=0$grid_spacing
+grid_spacing=$grid_spacing
 
 echo Solving the intrusion_bulk problem. 
 echo Time step: $dt 
