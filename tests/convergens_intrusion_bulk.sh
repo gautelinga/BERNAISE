@@ -10,7 +10,7 @@ pf_mobility_coeff=0.000020
 invers_grid_spacing=8
 
 dt=0.000078125  
-
+DT = 0.04
 ## Space convergens
 
 ## Spacing 1/8, Time 0.000078125
@@ -21,7 +21,7 @@ echo Solving the intrusion_bulk problem.
 echo Time step: $dt 
 echo Grid_spacing: $grid_spacing
 
-mpiexec -n $cores python sauce.py problem=intrusion_bulk T=4 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
+mpiexec -n $cores python sauce.py problem=intrusion_bulk T=$DT dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
 
 
 ## New Spacing 1/16, Time 0.000078125
@@ -32,7 +32,7 @@ echo Solving the intrusion_bulk problem.
 echo Time step: $dt 
 echo Grid_spacing: $grid_spacing
 
-mpiexec -n $cores python sauce.py problem=intrusion_bulk T=4 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
+mpiexec -n $cores python sauce.py problem=intrusion_bulk T=$DT dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
 
 ## New Spacing 1/32, Time 0.000078125
 grid_spacing=$(bc <<< "scale = 8; ($grid_spacing / 2.0)") 
@@ -42,7 +42,7 @@ echo Solving the intrusion_bulk problem.
 echo Time step: $dt 
 echo Grid_spacing: $grid_spacing
 
-mpiexec -n $cores python sauce.py problem=intrusion_bulk T=4 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
+mpiexec -n $cores python sauce.py problem=intrusion_bulk T=$DT dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
 
 ## New Spacing 1/64, Time 0.000078125
 grid_spacing=$(bc <<< "scale = 8; ($grid_spacing / 2.0)") 
@@ -52,7 +52,7 @@ echo Solving the intrusion_bulk problem.
 echo Time step: $dt 
 echo Grid_spacing: $grid_spacing
 
-mpiexec -n $cores python sauce.py problem=intrusion_bulk T=4 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
+mpiexec -n $cores python sauce.py problem=intrusion_bulk T=$DT dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
 
 ## New Spacing 1/128, Time 0.000078125
 grid_spacing=$(bc <<< "scale = 8; ($grid_spacing / 2.0)") 
@@ -62,7 +62,7 @@ echo Solving the intrusion_bulk problem.
 echo Time step: $dt 
 echo Grid_spacing: $grid_spacing
 
-mpiexec -n $cores python sauce.py problem=intrusion_bulk T=4 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
+mpiexec -n $cores python sauce.py problem=intrusion_bulk T=$DT dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
 
 ## New Spacing 1/256, Time 0.000078125
 grid_spacing=$(bc <<< "scale = 8; ($grid_spacing / 2.0)") 
@@ -72,7 +72,7 @@ echo Solving the intrusion_bulk problem.
 echo Time step: $dt 
 echo Grid_spacing: $grid_spacing
 
-mpiexec -n $cores python sauce.py problem=intrusion_bulk T=4 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
+mpiexec -n $cores python sauce.py problem=intrusion_bulk T=$DT dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
 
 
 ## Spacing 1/128, New Time 0.00015625 
@@ -86,7 +86,7 @@ echo Solving the intrusion_bulk problem.
 echo Time step: $dt 
 echo Grid_spacing: $grid_spacing
 
-mpiexec -n $cores python sauce.py problem=intrusion_bulk T=4 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
+mpiexec -n $cores python sauce.py problem=intrusion_bulk T=0.64 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
 
 ## Spacing 1/128, New Time 0.0003125 
 
@@ -97,7 +97,7 @@ echo Solving the intrusion_bulk problem.
 echo Time step: $dt 
 echo Grid_spacing: $grid_spacing
 
-mpiexec -n $cores python sauce.py problem=intrusion_bulk T=4 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
+mpiexec -n $cores python sauce.py problem=intrusion_bulk T=0.64 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
 
 ## Spacing 1/128, New Time 0.000625 
 
@@ -108,7 +108,7 @@ echo Solving the intrusion_bulk problem.
 echo Time step: $dt 
 echo Grid_spacing: $grid_spacing
 
-mpiexec -n $cores python sauce.py problem=intrusion_bulk T=4 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
+mpiexec -n $cores python sauce.py problem=intrusion_bulk T=0.64 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
 
 ## Spacing 1/128, New Time 0.00125 
 
@@ -119,7 +119,7 @@ echo Solving the intrusion_bulk problem.
 echo Time step: $dt 
 echo Grid_spacing: $grid_spacing
 
-mpiexec -n $cores python sauce.py problem=intrusion_bulk T=4 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
+mpiexec -n $cores python sauce.py problem=intrusion_bulk T=0.64 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
 
 ## Spacing 1/128, New Time 0.0025 
 
@@ -130,7 +130,7 @@ echo Solving the intrusion_bulk problem.
 echo Time step: $dt 
 echo Grid_spacing: $grid_spacing
 
-mpiexec -n $cores python sauce.py problem=intrusion_bulk T=4 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
+mpiexec -n $cores python sauce.py problem=intrusion_bulk T=0.64 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
 
 ## Spacing 1/128, New Time 0.005 
 
@@ -141,7 +141,7 @@ echo Solving the intrusion_bulk problem.
 echo Time step: $dt 
 echo Grid_spacing: $grid_spacing
 
-mpiexec -n $cores python sauce.py problem=intrusion_bulk T=4 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
+mpiexec -n $cores python sauce.py problem=intrusion_bulk T=0.64 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
 
 ## Spacing 1/128, New Time 0.01 
 
@@ -152,7 +152,7 @@ echo Solving the intrusion_bulk problem.
 echo Time step: $dt 
 echo Grid_spacing: $grid_spacing
 
-mpiexec -n $cores python sauce.py problem=intrusion_bulk T=4 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
+mpiexec -n $cores python sauce.py problem=intrusion_bulk T=0.64 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
 
 ## Spacing 1/128, New Time 0.02 
 
@@ -163,7 +163,7 @@ echo Solving the intrusion_bulk problem.
 echo Time step: $dt 
 echo Grid_spacing: $grid_spacing
 
-mpiexec -n $cores python sauce.py problem=intrusion_bulk T=4 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
+mpiexec -n $cores python sauce.py problem=intrusion_bulk T=0.64 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
 
 
 ## Spacing 1/128, New Time 0.04 
@@ -175,7 +175,7 @@ echo Solving the intrusion_bulk problem.
 echo Time step: $dt 
 echo Grid_spacing: $grid_spacing
 
-mpiexec -n $cores python sauce.py problem=intrusion_bulk T=4 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
+mpiexec -n $cores python sauce.py problem=intrusion_bulk T=0.64 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
 
 
 ## Spacing 1/128, New Time 0.08 
@@ -187,7 +187,7 @@ echo Solving the intrusion_bulk problem.
 echo Time step: $dt 
 echo Grid_spacing: $grid_spacing
 
-mpiexec -n $cores python sauce.py problem=intrusion_bulk T=4 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
+mpiexec -n $cores python sauce.py problem=intrusion_bulk T=0.64 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
 
 ## Spacing 1/128, New Time 0.16 
 
@@ -198,4 +198,4 @@ echo Solving the intrusion_bulk problem.
 echo Time step: $dt 
 echo Grid_spacing: $grid_spacing
 
-mpiexec -n $cores python sauce.py problem=intrusion_bulk T=4 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
+mpiexec -n $cores python sauce.py problem=intrusion_bulk T=0.64 dt=$dt grid_spacing=$grid_spacing interface_thickness=$interface_thickness pf_mobility_coeff=$pf_mobility_coeff viscosity=[100.0,1.0] initial_interface="flat" 
