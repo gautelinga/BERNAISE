@@ -11,11 +11,14 @@ from . import *
 from . import __all__
 import numpy as np
 
-def get_subproblems(base_elements, solutes, enable_EC,
-                    V_lagrange, p_lagrange,
+def get_subproblems(base_elements, solutes, enable_EC, enable_PF,
+                    V_lagrange, 
                     **namespace):
     """ Returns dict of subproblems the solver splits the problem into. """
     subproblems = dict()
+    if enable_PF:
+        subproblems["PF"] = [dict(name="phi", element="phi"),
+                             dict(name="g", element="g")]
     if enable_EC:
         subproblems["EC"] = ([dict(name=solute[0], element="c")
                               for solute in solutes]
@@ -96,3 +99,35 @@ def setup(test_functions, trial_functions, w_, w_1,
 
 
     return dict(solvers=solvers)
+
+    def setup_EC(w_EC, c, V, b, U, rho_e,
+             dx, ds,
+             dirichlet_bcs, neumann_bcs, boundary_to_mark,
+             c_1, u_1, K_, veps_, phi_,
+             per_tau, z, dbeta,
+             enable_NS, enable_PF,
+             use_iterative_solvers):
+    """ Set up electrochemistry subproblem. """
+         
+    F_V = veps_*df.dot(df.grad(V), df.grad(U))*dx
+    for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
+        F_V += -sigma_e*U*ds(boundary_to_mark[boundary_name])
+    if rho_e != 0:
+        F_V += -V*U*dx
+    F = F_V
+    a, L = df.lhs(F), df.rhs(F)
+
+    
+   
+
+    problem = df.LinearVariationalProblem(a, L, w_EC, dirichlet_bcs)
+    solver = df.LinearVariationalSolver(problem)
+
+    for ci, ci_1, bi, Ki_, zi, dbetai in zip(c, c_1, b, K_, z, dbeta):
+        ?? 
+
+    if use_iterative_solvers:
+        solver.parameters["linear_solver"] = "gmres"
+        solver.parameters["preconditioner"] = "hypre_euclid"
+
+    return solver
