@@ -83,7 +83,7 @@ class TimeSeries:
 
             indices_function = df.Function(self.function_space)
             self.set_val(indices_function, np.arange(len(self.nodes)))
-            self.indices = np.asarray(indices_function.vector().array(),
+            self.indices = np.asarray(indices_function.vector().get_local(),
                                       dtype=int)
         else:
             self.mesh = get_mesh_from.mesh

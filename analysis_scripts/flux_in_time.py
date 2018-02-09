@@ -1,5 +1,5 @@
 """ flux_in_time script """
-from common import info, info_cyan
+from common import info, info_cyan, info_blue
 from postprocess import get_steps, rank
 import numpy as np
 import dolfin as df
@@ -58,7 +58,8 @@ def method(ts, dt=0, extra_boundaries="", **kwargs):
     if len(extra_boundaries) > 0:
         boundaries_list.append(extra_boundaries)
 
-    subdomains = [df.FacetFunction("size_t", ts.mesh)
+    subdomains = [df.MeshFunction("size_t", ts.mesh,
+                                  ts.mesh.topology().dim()-1)
                   for b in boundaries_list]
 
     for subdomain in subdomains:

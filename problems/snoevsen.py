@@ -39,8 +39,8 @@ def problem():
     info_cyan("Desnotting Snoevsen.")
 
     #         2, beta in phase 1, beta in phase 2
-    solutes = [["c_p",  1, 1e-4, 1e-2, 4., 1.],
-               ["c_m", -1, 1e-4, 1e-2, 4., 1.]]
+    solutes = [["c_p",  2, 1e-4, 1e-2, 4., 1.],
+               ["c_m", -2, 1e-4, 1e-2, 4., 1.]]
 
     # Format: name : (family, degree, is_vector)
     base_elements = dict(u=["Lagrange", 2, True],
@@ -51,7 +51,7 @@ def problem():
                          V=["Lagrange", 1, False])
 
     factor = 1./4
-    sigma_e = 0.  # -10.
+    sigma_e = -10.  # 0.
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
@@ -119,11 +119,12 @@ def initialize(Lx, Ly, R,
                 field_to_subspace["phi"])
         if enable_EC:
             for solute in solutes:
+                concentration_init_loc = concentration_init/abs(solute[1])
                 c_init = initial_phasefield(
                     Lx/2, 0., R, interface_thickness,
                     field_to_subspace["phi"])
                 # Only have ions in phase 2 (phi=-1)
-                c_init.vector()[:] = concentration_init*0.5*(
+                c_init.vector()[:] = concentration_init_loc*0.5*(
                     1.-c_init.vector().get_local())
                 w_init_field[solute[0]] = c_init
 
@@ -158,7 +159,7 @@ def create_bcs(Lx, Ly,
 
     if enable_EC:
         for solute in solutes:
-            bcs["top"][solute[0]] = Fixed(concentration_init)
+            bcs["top"][solute[0]] = Fixed(concentration_init/abs(solute[1]))
         bcs["top"]["V"] = Fixed(0.)
         bcs["bottom"]["V"] = Charged(surface_charge)
 
