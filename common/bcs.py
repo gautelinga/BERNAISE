@@ -17,6 +17,12 @@ class GenericBC:
     def is_nbc(self):
         return False
 
+    def dbc(self):
+        pass
+
+    def nbc(self):
+        pass
+
 
 class Fixed(GenericBC):
     """ Fixed boundary conditon. """

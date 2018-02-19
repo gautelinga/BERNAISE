@@ -56,8 +56,8 @@ def method(ts, time=None, step=0, show=False,
         f_ref[field].assign(df.interpolate(
             ref_expr, f_ref[field].function_space()))
 
-        err[field].vector()[:] = (f_int[field].vector().array() -
-                                  f_ref[field].vector().array())
+        err[field].vector()[:] = (f_int[field].vector().get_local() -
+                                  f_ref[field].vector().get_local())
 
         if show or save_fig:
             # Interpolate the error to low order space for visualisation.
