@@ -17,9 +17,9 @@ set ylabel 'Phasefield $\phi$'
 set xlabel 'Space $x$'
 
 set output "space_data_comparison_intrusion_bulk.tex"
-prefix = "../../../data/probes_20_"
+prefix = "intbulk/prope"
 
-set xrange [2.5:3.5]
+set xrange [0.7:1.3]
 #set yrange [0:1]
 
 #set xtics 0.5
@@ -34,18 +34,21 @@ set xrange [2.5:3.5]
 set ytics nomirror
 set y2tics
 
-pl prefix.'12.dat' every 3 u 1:4 w p t '$\Delta x = 0.125$' ls 2, \
-prefix.'13.dat' every 3 u 1:4 w p t '0.0625' ls 3, \
-prefix.'1.dat' every 3 u 1:4 w p t '0.03125' ls 4, \
-prefix.'2.dat' every 3 u 1:4 w p t '0.015625' ls 5,\
-prefix.'3.dat' every 3 u 1:4 w p t '0.0078125' ls 6, tanh((x**1 -3)/(sqrt(2)*0.03)) t "Analytical" ls 9
+pl prefix.'1.dat' every 2 u 1:4 w p t '$\Delta x = 0.125$' ls 2, \
+prefix.'2.dat' every 2 u 1:4 w p t '0.0625' ls 3, \
+prefix.'3.dat' every 2 u 1:4 w p t '0.03125' ls 4, \
+prefix.'4.dat' every 2 u 1:4 w p t '0.015625' ls 5,\
+prefix.'5.dat' every 2 u 1:4 w p t '0.0078125' ls 6,\
+prefix.'6.dat' every 2 u 1:4 w p t '0.00390625' ls 7,\
+ tanh((x**1 -1.004)/(sqrt(2)*0.03)) t "Analytical" ls 9
 
-set output "time_data_comparison_intrusion_bulk.tex"
 
-pl prefix.'14.dat' every 3 u 1:4 w p t '$\Delta t = 0.16$' ls 2, \
-prefix.'9.dat' every 3 u 1:4 w p t '0.08' ls 3, \
-prefix.'8.dat' every 3 u 1:4 w p t '0.04' ls 4, \
-prefix.'7.dat' every 3 u 1:4 w p t '0.02' ls 5, \
-prefix.'6.dat' every 3 u 1:4 w p t '0.01' ls 6, \
-prefix.'5.dat' every 3 u 1:4 w p t '0.005' ls 7, \
-prefix.'3.dat' every 3 u 1:4 w p t '0.0025' ls 8 , tanh((x**1 -3)/(sqrt(2)*0.03)) t "Analytical"  ls 9 
+#set output "time_data_comparison_intrusion_bulk.tex"
+
+#pl prefix.'14.dat' every 3 u 1:4 w p t '$\Delta t = 0.16$' ls 2, \
+#prefix.'9.dat' every 3 u 1:4 w p t '0.08' ls 3, \
+#prefix.'8.dat' every 3 u 1:4 w p t '0.04' ls 4, \
+#prefix.'7.dat' every 3 u 1:4 w p t '0.02' ls 5, \
+#prefix.'6.dat' every 3 u 1:4 w p t '0.01' ls 6, \
+#prefix.'5.dat' every 3 u 1:4 w p t '0.005' ls 7, \
+#prefix.'3.dat' every 3 u 1:4 w p t '0.0025' ls 8 , tanh((x**1 -3)/(sqrt(2)*0.03)) t "Analytical"  ls 9 
