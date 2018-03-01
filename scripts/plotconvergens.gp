@@ -16,4 +16,5 @@ set output "convergens_in_space_intrusion_bulk.tex"
 set xlabel "$\\Delta x$"
 set key top left  
 
-pl 'errosconvergensintrusionbulk.dat' index 0 u 4:2 w lp ls 2 t  "data", x**2 ls 1 t "$\\sim \\Delta x^2$"
+pl 'errosconvergensintrusionbulk.dat' index 2 u 4:2 w lp ls 2 t  "data", 5*x**2 ls 1 t "$\\sim \\Delta x^2$"
+
