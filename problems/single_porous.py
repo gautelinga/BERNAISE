@@ -135,11 +135,11 @@ def initialize(Lx, Ly,
     return w_init_field
 
 
-def create_bcs(Lx, Ly, mesh, grid_spacing, rad, num_obstacles,
+def create_bcs(Lx, Ly,
+               grid_spacing, rad, num_obstacles,
                surface_charge, solutes, enable_NS, enable_EC,
                p_lagrange, V_lagrange,
-               concentration_init,
-               V_left,
+               concentration_init, V_left,
                **namespace):
     """ The boundaries and boundary conditions are defined here. """
     data = np.loadtxt(
