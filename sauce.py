@@ -267,10 +267,11 @@ while not stop:
                       split_computing_time/split_num_tsteps))
         df.list_timings(df.TimingClear_clear, [df.TimingType_wall])
 
-info_cyan("Total computing time for all {0:d}"
-           " timesteps: {1:f} seconds"
-           " ({2:f} seconds/timestep)".format(
-               total_num_tsteps, total_computing_time,
-               total_computing_time/total_num_tsteps))
+if total_num_tsteps > 0:
+    info_cyan("Total computing time for all {0:d}"
+              " timesteps: {1:f} seconds"
+              " ({2:f} seconds/timestep)".format(
+                  total_num_tsteps, total_computing_time,
+                  total_computing_time/total_num_tsteps))
 
 end_hook(**vars())

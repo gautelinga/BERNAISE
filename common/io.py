@@ -194,12 +194,13 @@ def load_mesh(filename):
     return mesh
 
 
-def parse_xdmf(xml_file):
+def parse_xdmf(xml_file, get_mesh_address=False):
     tree = ET.parse(xml_file)
     root = tree.getroot()
 
     dsets = []
     timestamps = []
+
     for i, step in enumerate(root[0][0]):
         if step.tag == "Time":
             # Support for earlier dolfin formats
@@ -213,7 +214,17 @@ def parse_xdmf(xml_file):
                     timestamp = float(prop.attrib["Value"])
                 elif prop.tag == "Attribute":
                     dset_address = prop[0].text.split(":")[1]
+                elif get_mesh_address and prop.tag == "Topology":
+                    topology_address = prop[0].text.split(":")
+                    topology_address[0] = os.path.join(
+                        os.path.dirname(xml_file), topology_address[0])
+                elif get_mesh_address and prop.tag == "Geometry":
+                    geometry_address = prop[0].text.split(":")
+                    geometry_address[0] = os.path.join(
+                        os.path.dirname(xml_file), geometry_address[0])
             if timestamp is None:
                 timestamp = timestamps[i-1]
             dsets.append((timestamp, dset_address))
+    if get_mesh_address:
+        return (dsets, topology_address, geometry_address)
     return dsets

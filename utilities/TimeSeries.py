@@ -132,13 +132,18 @@ class TimeSeries:
                     if bool(field not in data):
                         data[field] = dict()
 
-                    dsets = parse_xdmf(xml_file)
+                    dsets, topology_address, geometry_address \
+                        = parse_xdmf(xml_file, get_mesh_address=True)
+
+                    if self.elems is None:
+                        with h5py.File(topology_address[0], "r") as h5f:
+                            self.elems = np.array(h5f[topology_address[1]])
+
+                    if self.nodes is None:
+                        with h5py.File(geometry_address[0], "r") as h5f:
+                            self.nodes = np.array(h5f[geometry_address[1]])
 
                     with h5py.File(data_file, "r") as h5f:
-                        if self.nodes is None or self.elems is None:
-                            self.elems = np.array(h5f["Mesh/0/mesh/topology"])
-                            self.nodes = np.array(h5f["Mesh/0/mesh/geometry"])
-
                         for time, dset_address in dsets:
                             # If in memory saving mode, only store
                             # address for later use.
