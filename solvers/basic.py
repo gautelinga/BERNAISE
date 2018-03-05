@@ -27,6 +27,7 @@ from . import __all__
 
 
 def get_subproblems(base_elements, solutes,
+                    p_lagrange,
                     enable_NS, enable_PF, enable_EC,
                     **namespace):
     """ Returns dict of subproblems the solver splits the problem into. """
@@ -34,6 +35,8 @@ def get_subproblems(base_elements, solutes,
     if enable_NS:
         subproblems["NS"] = [dict(name="u", element="u"),
                              dict(name="p", element="p")]
+        if p_lagrange:
+            subproblems["NS"].append(dict(name="p0", element="p0"))
     if enable_PF:
         subproblems["PF"] = [dict(name="phi", element="phi"),
                              dict(name="g", element="g")]
@@ -44,14 +47,20 @@ def get_subproblems(base_elements, solutes,
     return subproblems
 
 
-def setup(test_functions, trial_functions, w_, w_1,
+def setup(test_functions, trial_functions,
+          w_, w_1,
           ds, dx, normal,
           dirichlet_bcs, neumann_bcs, boundary_to_mark,
           permittivity, density, viscosity,
-          solutes, enable_PF, enable_EC, enable_NS,
+          solutes,
+          enable_PF, enable_EC, enable_NS,
           surface_tension, dt, interface_thickness,
-          grav_const, pf_mobility, pf_mobility_coeff,
+          grav_const,
+          pf_mobility,
+          pf_mobility_coeff,
           use_iterative_solvers, use_pressure_stabilization,
+          p_lagrange,
+          q_rhs,
           **namespace):
     """ Set up problem. """
     # Constant
@@ -62,15 +71,22 @@ def setup(test_functions, trial_functions, w_, w_1,
     eps = interface_thickness
 
     # Navier-Stokes
+    u_ = p_ = None
+    u_1 = p_1 = None
+    p0 = q0 = p0_ = p0_1 = None
     if enable_NS:
-        u, p = trial_functions["NS"]
-        v, q = test_functions["NS"]
+        u, p = trial_functions["NS"][:2]
+        v, q = test_functions["NS"][:2]
 
-        u_, p_ = df.split(w_["NS"])
-        u_1, p_1 = df.split(w_1["NS"])
-    else:
-        u_ = p_ = None
-        u_1 = p_1 = None
+        up_ = df.split(w_["NS"])
+        up_1 = df.split(w_1["NS"])
+        u_, p_ = up_[:2]
+        u_1, p_1 = up_1[:2]
+        if p_lagrange:
+            p0 = trial_functions["NS"][-1]
+            q0 = test_functions["NS"][-1]
+            p0_ = up_[-1]
+            p0_1 = up_1[-1]
 
     # Phase field
     if enable_PF:
@@ -139,7 +155,7 @@ def setup(test_functions, trial_functions, w_, w_1,
                                  phi_1, u_1, M_1, c_1, V_1,
                                  per_tau, sigma_bar, eps, dbeta, dveps,
                                  enable_NS, enable_EC,
-                                 use_iterative_solvers)
+                                 use_iterative_solvers, q_rhs)
 
     if enable_EC:
         solvers["EC"] = setup_EC(w_["EC"], c, V, b, U, rho_e,
@@ -147,31 +163,39 @@ def setup(test_functions, trial_functions, w_, w_1,
                                  dirichlet_bcs["EC"], neumann_bcs,
                                  boundary_to_mark,
                                  c_1, u_1, K_, veps_, phi_flt_,
+                                 solutes,
                                  per_tau, z, dbeta,
                                  enable_NS, enable_PF,
-                                 use_iterative_solvers)
+                                 use_iterative_solvers,
+                                 q_rhs)
 
     if enable_NS:
-        solvers["NS"] = setup_NS(w_["NS"], u, p, v, q,
+        solvers["NS"] = setup_NS(w_["NS"], u, p, v, q, p0, q0,
                                  dx, ds, normal,
                                  dirichlet_bcs["NS"], neumann_bcs,
                                  boundary_to_mark,
                                  u_1, phi_flt_,
-                                 rho_, rho_1, g_, M_, nu_, rho_e_, V_,
+                                 rho_, rho_1, g_, M_, nu_, rho_e_,
+                                 c_, V_, dbeta, solutes,
                                  per_tau, drho, sigma_bar, eps, dveps, grav,
                                  enable_PF, enable_EC,
                                  use_iterative_solvers,
-                                 use_pressure_stabilization)
+                                 use_pressure_stabilization,
+                                 p_lagrange,
+                                 q_rhs)
     return dict(solvers=solvers)
 
 
-def setup_NS(w_NS, u, p, v, q,
+def setup_NS(w_NS, u, p, v, q, p0, q0,
              dx, ds, normal,
              dirichlet_bcs, neumann_bcs, boundary_to_mark,
-             u_1, phi_, rho_, rho_1, g_, M_, nu_, rho_e_, V_,
+             u_1, phi_, rho_, rho_1, g_, M_, nu_, rho_e_,
+             c_, V_, dbeta, solutes,
              per_tau, drho, sigma_bar, eps, dveps, grav,
              enable_PF, enable_EC,
-             use_iterative_solvers, use_pressure_stabilization):
+             use_iterative_solvers, use_pressure_stabilization,
+             p_lagrange,
+             q_rhs):
     """ Set up the Navier-Stokes subproblem. """
     # F = (
     #     per_tau * rho_ * df.dot(u - u_1, v)*dx
@@ -183,14 +207,15 @@ def setup_NS(w_NS, u, p, v, q,
     # )
     mom_1 = rho_1*u_1
     if enable_PF:
-        mom_1 += -M_*drho * df.grad(g_)
+        mom_1 += -M_*drho * df.nabla_grad(g_)
+
     F = (
         per_tau * rho_1 * df.dot(u - u_1, v) * dx
         + 2*nu_*df.inner(df.sym(df.nabla_grad(u)),
                          df.sym(df.nabla_grad(v))) * dx
         - p * df.div(v) * dx
         - q * df.div(u) * dx
-        + df.inner(df.grad(u), df.outer(mom_1, v)) * dx
+        + df.inner(df.nabla_grad(u), df.outer(mom_1, v)) * dx
         + 0.5 * (per_tau * (rho_ - rho_1) + df.div(mom_1)) * df.dot(u, v) * dx
         - rho_*df.dot(grav, v) * dx
     )
@@ -201,16 +226,34 @@ def setup_NS(w_NS, u, p, v, q,
     if enable_PF:
         # F += - drho*M_*df.inner(df.grad(u), df.outer(df.grad(g_), v))*dx
         # GL: Wasn't filter applied outside?
-        F += - sigma_bar*eps*df.inner(df.outer(
-            df.grad(unit_interval_filter(phi_)),
-            df.grad(unit_interval_filter(phi_))),
-                                      df.grad(v))*dx
+        # F += - sigma_bar*eps*df.inner(df.outer(
+        #     df.grad(unit_interval_filter(phi_)),
+        #     df.grad(unit_interval_filter(phi_))),
+        #                               df.grad(v))*dx
+        F += phi_*df.dot(df.grad(g_), v)*dx
+
     if enable_EC and rho_e_ != 0:
-        F += rho_e_*df.dot(df.grad(V_), v)*dx
-    if enable_PF and enable_EC:
-        F += 0.5 * dveps * df.dot(df.grad(
-            unit_interval_filter(phi_)), v)*df.dot(df.grad(V_),
-                                                   df.grad(V_))*dx
+        for ci_, dbetai, solute in zip(c_, dbeta, solutes):
+            zi = solute[1]
+            F += df.dot(df.grad(ci_), v)*dx \
+                 + ci_*dbetai*df.dot(df.grad(phi_), v)*dx \
+                 + zi*ci_*df.dot(df.grad(V_), v)*dx
+        #F += rho_e_*df.dot(df.grad(V_), v)*dx
+        #if enable_PF and enable_EC:
+        #F += 0.5 * dveps * df.dot(df.grad(
+        #    unit_interval_filter(phi_)), v)*df.dot(df.grad(V_),
+        #                                           df.grad(V_))*dx
+
+    if p_lagrange:
+        F += (p*q0 + q*p0)*dx
+
+    if "u" in q_rhs:
+        #import matplotlib.pyplot as plt
+        #fig = df.plot(q_rhs["u"], mesh=w_NS.function_space().mesh())
+        #plt.colorbar(fig)
+        #plt.show()
+        
+        F += -df.dot(q_rhs["u"], v)*dx
 
     a, L = df.lhs(F), df.rhs(F)
 
@@ -231,7 +274,8 @@ def setup_PF(w_PF, phi, g, psi, h,
              per_tau, sigma_bar, eps,
              dbeta, dveps,
              enable_NS, enable_EC,
-             use_iterative_solvers):
+             use_iterative_solvers,
+             q_rhs):
     """ Set up phase field subproblem. """
 
     F_phi = (per_tau*(phi-unit_interval_filter(phi_1))*psi*dx +
@@ -248,6 +292,10 @@ def setup_PF(w_PF, phi, g, psi, h,
         F_g += (-sum([dbeta_i*ci_1*h*dx
                       for dbeta_i, ci_1 in zip(dbeta, c_1)])
                 + 0.5*dveps*df.dot(df.grad(V_1), df.grad(V_1))*h*dx)
+
+    if "phi" in q_rhs:        
+        F_phi += -q_rhs["phi"]*psi*dx
+    
     F = F_phi + F_g
     a, L = df.lhs(F), df.rhs(F)
 
@@ -265,12 +313,14 @@ def setup_EC(w_EC, c, V, b, U, rho_e,
              dx, ds,
              dirichlet_bcs, neumann_bcs, boundary_to_mark,
              c_1, u_1, K_, veps_, phi_,
+             solutes,
              per_tau, z, dbeta,
              enable_NS, enable_PF,
-             use_iterative_solvers):
+             use_iterative_solvers,
+             q_rhs):
     """ Set up electrochemistry subproblem. """
     F_c = []
-    for ci, ci_1, bi, Ki_, zi, dbetai in zip(c, c_1, b, K_, z, dbeta):
+    for ci, ci_1, bi, Ki_, zi, dbetai, solute in zip(c, c_1, b, K_, z, dbeta, solutes):
         F_ci = (per_tau*(ci-ci_1)*bi*dx +
                 Ki_*df.dot(df.grad(ci), df.grad(bi))*dx)
         if zi != 0:
@@ -283,12 +333,19 @@ def setup_EC(w_EC, c, V, b, U, rho_e,
             #     F_ci += -Ki_*ci*dbetai*df.dot(df.grad(phi_), normal)*bi*ds(boundary_to_mark[boundary_name])
         if enable_NS:
             F_ci += df.dot(u_1, df.grad(ci))*bi*dx
+
+        if solute[0] in q_rhs:
+            F_ci += - q_rhs[solute[0]]*bi*dx
+            
         F_c.append(F_ci)
     F_V = veps_*df.dot(df.grad(V), df.grad(U))*dx
     for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
         F_V += -sigma_e*U*ds(boundary_to_mark[boundary_name])
     if rho_e != 0:
         F_V += -rho_e*U*dx
+    if "V" in q_rhs:
+        F_V += q_rhs["V"]*U*dx
+
     F = sum(F_c) + F_V
     a, L = df.lhs(F), df.rhs(F)
 
@@ -316,8 +373,23 @@ def solve(w_, solvers, enable_PF, enable_EC, enable_NS, **namespace):
     timer_outer.stop()
 
 
-def update(w_, w_1, enable_PF, enable_EC, enable_NS, **namespace):
+def update(t, dt, w_, w_1, bcs, bcs_pointwise,
+           enable_PF, enable_EC, enable_NS, q_rhs, **namespace):
     """ Update work variables at end of timestep. """
+    # Update the time-dependent source terms
+    for qi in q_rhs.values():
+        qi.t = t+0.5*dt
+    # Update the time-dependent boundary conditions
+    for boundary_name, bcs_fields in bcs.iteritems():
+        for field, bc in bcs_fields.iteritems():
+            if isinstance(bc.value, df.Expression):
+                bc.value.t = t+0.5*dt
+    # Time-dependent pointwise bcs
+    for field, (value, c_code) in bcs_pointwise.iteritems():
+        if isinstance(value, df.Expression):
+            value.t = t + 0.5*dt
+                
+    # Update fields
     for subproblem, enable in zip(["PF", "EC", "NS"],
                                   [enable_PF, enable_EC, enable_NS]):
         if enable:

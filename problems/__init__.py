@@ -101,4 +101,10 @@ def import_problem_hook(parameters, mesh, cmd_kwargs, **namespace):
 
 
 def rhs_source(**namespace):
+    """ External source terms on the right hand side of the conservation equations. """
     return dict()
+
+
+def pf_mobility(phi, gamma):
+    """ Default phase field mobility function. """
+    return gamma
