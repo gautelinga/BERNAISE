@@ -21,12 +21,15 @@ def method(ts, dt=0, **kwargs):
 
     f_mask = df.Function(ts.function_space)
     f_mask_x = []
+    f_mask_u = []
     for d in range(ts.dim):
         f_mask_x.append(df.Function(ts.function_space))
+        f_mask_u.append(df.Function(ts.function_space))
 
     length = np.zeros(len(ts))
     area = np.zeros(len(ts))
     com = np.zeros((len(ts), ts.dim))
+    u = np.zeros((len(ts), ts.dim))
 
     makedirs_safe(os.path.join(ts.analysis_folder, "contour"))
 
@@ -40,6 +43,7 @@ def method(ts, dt=0, **kwargs):
         ts.set_val(f_mask, mask)
         for d in range(ts.dim):
             ts.set_val(f_mask_x[d], mask*ts.nodes[:, d])
+            ts.set_val(f_mask_u[d], mask*ts["u", step][:, d])
 
         contour_file = os.path.join(ts.analysis_folder, "contour",
                                     "contour_{:06d}.dat".format(step))
@@ -51,13 +55,16 @@ def method(ts, dt=0, **kwargs):
         area[step] = df.assemble(f_mask*df.dx)
         for d in range(ts.dim):
             com[step, d] = df.assemble(f_mask_x[d]*df.dx)
+            u[step, d] = df.assemble(f_mask_u[d]*df.dx)
 
     for d in range(ts.dim):
         com[:, d] /= area
+        u[:, d] /= area
 
     if rank == 0:
         np.savetxt(os.path.join(ts.analysis_folder,
                                 "time_data.dat"),
                    np.array(zip(np.arange(len(ts)), ts.times, length, area,
-                                com[:, 0], com[:, 1])),
-                   header="Timestep\tTime\tLength\tArea\tCoM_x\tCoM_y")
+                                com[:, 0], com[:, 1], u[:, 0], u[:, 1])),
+                   header=("Timestep\tTime\tLength\tArea\t"
+                           "CoM_x\tCoM_y\tU_x\tU_y"))
