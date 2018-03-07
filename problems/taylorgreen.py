@@ -18,7 +18,7 @@ def problem():
     info_cyan("Taylor-Green vortex flow with two-phase electrohydrodynamics.")
 
     solutes = [["c_p",  1, 3., 1., 2., -2.],
-               ["c_m", -1, 3., 1., 2., -2.]]
+               ["c_m", -1, 4., 2., 1., -1.]]
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
@@ -37,23 +37,22 @@ def problem():
         T=.25,
         N=32,
         solutes=solutes,
-        base_elements=base_elements,
         Lx=2.*np.pi,
         Ly=2.*np.pi,
         concentration_init=1.,
         concentration_init_dev=0.5,
         #
-        density=[1.5, 0.5],
-        viscosity=[3., 1.],
-        permittivity=[2., 2.],
+        density=[3.0, 1.0],
+        viscosity=[3., 5.],
+        permittivity=[3., 4.],
         EC_scheme="NL2",
         use_iterative_solvers=False,
         grav_const=0.,
         c_cutoff=0.1,
         p_lagrange=False,
         #
-        surface_tension=1.0,
-        interface_thickness=1.0,  # /np.sqrt(2.0),
+        surface_tension=.1,
+        interface_thickness=1.0/np.sqrt(2.0),
         pf_mobility_coeff=1.0,
         pf_init=1.
     )
@@ -122,10 +121,10 @@ def create_bcs(t_0, Lx, Ly,
     for field, expr in exprs.items():
         if field != "p":
             bcs["wall"][field] = Fixed(expr)
-    
+
     if enable_NS and not p_lagrange:
         bcs_pointwise["p"] = (
-            exprs["p"], ("x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS"))
+            0., ("x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS"))
 
     return boundaries, bcs, bcs_pointwise
 

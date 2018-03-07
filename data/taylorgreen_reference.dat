@@ -15,7 +15,7 @@ p7
 S'c0*(-chi*exp(t*(1 + c0/veps)*(-D_m - D_p))*cos(x[0])*cos(x[1]) + 1)'
 p8
 sS'p'
-S'-3.0L/64.0L*pow(Phi0, 4)*sigma_tilde*exp(-8*M*sigma_tilde*t*(2*eps - 1/eps))*cos(2*x[0])*cos(4*x[1])/eps - 3.0L/64.0L*pow(Phi0, 4)*sigma_tilde*exp(-8*M*sigma_tilde*t*(2*eps - 1/eps))*cos(4*x[0])*cos(2*x[1])/eps - 3.0L/256.0L*pow(Phi0, 4)*sigma_tilde*exp(-8*M*sigma_tilde*t*(2*eps - 1/eps))*cos(4*x[0])*cos(4*x[1])/eps - 9.0L/256.0L*pow(Phi0, 4)*sigma_tilde*exp(-8*M*sigma_tilde*t*(2*eps - 1/eps))*cos(4*x[0])/eps - 9.0L/256.0L*pow(Phi0, 4)*sigma_tilde*exp(-8*M*sigma_tilde*t*(2*eps - 1/eps))*cos(4*x[1])/eps - 1.0L/4.0L*(pow(U0, 2)*rho*exp(-4*mu*t/rho) + pow(c0, 2)*pow(chi, 2)*exp(2*t*(1 + c0/veps)*(-D_m - D_p))/veps)*(cos(2*x[0]) + cos(2*x[1])) - ((9.0L/64.0L)*pow(Phi0, 4)*sigma_tilde*exp(-8*M*sigma_tilde*t*(2*eps - 1/eps))/eps + (1.0L/8.0L)*pow(Phi0, 2)*sigma_tilde*(2*eps - 1/eps)*exp(-4*M*sigma_tilde*t*(2*eps - 1/eps)))*cos(2*x[0]) - ((9.0L/64.0L)*pow(Phi0, 4)*sigma_tilde*exp(-8*M*sigma_tilde*t*(2*eps - 1/eps))/eps + (1.0L/8.0L)*pow(Phi0, 2)*sigma_tilde*(2*eps - 1/eps)*exp(-4*M*sigma_tilde*t*(2*eps - 1/eps)))*cos(2*x[1]) - ((3.0L/16.0L)*pow(Phi0, 4)*sigma_tilde*exp(-8*M*sigma_tilde*t*(2*eps - 1/eps))/eps + (1.0L/8.0L)*pow(Phi0, 2)*sigma_tilde*(2*eps - 1/eps)*exp(-4*M*sigma_tilde*t*(2*eps - 1/eps)))*cos(2*x[0])*cos(2*x[1]) - 1.0L/4.0L*pow(c0, 2)*pow(chi, 2)*exp(2*t*(1 + c0/veps)*(-D_m - D_p))*cos(2*x[0])*cos(2*x[1])/veps'
+S'-1.0L/4.0L*(pow(U0, 2)*rho*exp(-4*mu*t/rho) + pow(c0, 2)*pow(chi, 2)*exp(2*t*(1 + c0/veps)*(-D_m - D_p))/veps)*(cos(2*x[0]) + cos(2*x[1]) - 2) - 1.0L/4.0L*pow(c0, 2)*pow(chi, 2)*(cos(2*x[0])*cos(2*x[1]) - 1)*exp(2*t*(1 + c0/veps)*(-D_m - D_p))/veps'
 p9
 sS'u'
 (S'U0*exp(-2*mu*t/rho)*sin(x[1])*cos(x[0])'

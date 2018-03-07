@@ -36,7 +36,7 @@ def method(ts, dt=0, **kwargs):
         info("Step " + str(step) + " of " + str(len(ts)))
 
         phi = ts["phi", step][:, 0]
-        mask = 0.5*(1.-np.sign(phi))
+        mask = 0.5*(1.-phi)  # 0.5*(1.-np.sign(phi))
         ts.set_val(f_mask, mask)
         for d in range(ts.dim):
             ts.set_val(f_mask_x[d], mask*ts.nodes[:, d])
@@ -60,4 +60,4 @@ def method(ts, dt=0, **kwargs):
                                 "time_data.dat"),
                    np.array(zip(np.arange(len(ts)), ts.times, length, area,
                                 com[:, 0], com[:, 1])),
-                   header="Timestep\tTime\tLength\tCoM_x\tCoM_y")
+                   header="Timestep\tTime\tLength\tArea\tCoM_x\tCoM_y")

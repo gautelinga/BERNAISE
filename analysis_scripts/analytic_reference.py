@@ -21,7 +21,7 @@ def method(ts, time=None, step=0, show=False,
     parameters = ts.get_parameters(time=time)
     problem = parameters.get("problem", "intrusion_bulk")
     exec("from problems.{} import reference".format(problem))
-    ref_exprs = reference(**parameters)
+    ref_exprs = reference(t=time, **parameters)
 
     info("Comparing to analytic solution.")
     info_split("Problem:", "{}".format(problem))

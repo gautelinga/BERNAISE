@@ -236,13 +236,14 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
         for ci_, dbetai, solute in zip(c_, dbeta, solutes):
             zi = solute[1]
             F += df.dot(df.grad(ci_), v)*dx \
-                 + ci_*dbetai*df.dot(df.grad(phi_), v)*dx \
-                 + zi*ci_*df.dot(df.grad(V_), v)*dx
-        #F += rho_e_*df.dot(df.grad(V_), v)*dx
-        #if enable_PF and enable_EC:
-        #F += 0.5 * dveps * df.dot(df.grad(
-        #    unit_interval_filter(phi_)), v)*df.dot(df.grad(V_),
-        #                                           df.grad(V_))*dx
+                + ci_*dbetai*df.dot(df.grad(phi_), v)*dx \
+                + zi*ci_*df.dot(df.grad(V_), v)*dx
+        # F += rho_e_*df.dot(df.grad(V_), v)*dx
+
+    if enable_PF and enable_EC:
+        F += 0.5 * dveps * df.dot(df.grad(
+            unit_interval_filter(phi_)), v)*df.dot(df.grad(V_),
+                                                   df.grad(V_))*dx
 
     if p_lagrange:
         F += (p*q0 + q*p0)*dx
@@ -378,16 +379,12 @@ def update(t, dt, w_, w_1, bcs, bcs_pointwise,
     """ Update work variables at end of timestep. """
     # Update the time-dependent source terms
     for qi in q_rhs.values():
-        qi.t = t+0.5*dt
+        qi.t = t+dt
     # Update the time-dependent boundary conditions
     for boundary_name, bcs_fields in bcs.iteritems():
         for field, bc in bcs_fields.iteritems():
             if isinstance(bc.value, df.Expression):
-                bc.value.t = t+0.5*dt
-    # Time-dependent pointwise bcs
-    for field, (value, c_code) in bcs_pointwise.iteritems():
-        if isinstance(value, df.Expression):
-            value.t = t + 0.5*dt
+                bc.value.t = t+dt
                 
     # Update fields
     for subproblem, enable in zip(["PF", "EC", "NS"],

@@ -284,13 +284,19 @@ def setup_EC(w_EC, c, V, V0, b, U, U0,
     return solver
 
 
-def solve(w_, t, q_rhs, solvers, enable_EC, enable_NS,
-          use_iterative_solvers,
+def solve(w_, t, dt, q_rhs, solvers, enable_EC, enable_NS,
+          use_iterative_solvers, bcs,
           **namespace):
     """ Solve equations. """
     # Update the time-dependent source terms
+    # Update the time-dependent source terms
     for qi in q_rhs.values():
-        qi.t = t
+        qi.t = t+dt
+    # Update the time-dependent boundary conditions
+    for boundary_name, bcs_fields in bcs.iteritems():
+        for field, bc in bcs_fields.iteritems():
+            if isinstance(bc.value, df.Expression):
+                bc.value.t = t+dt
 
     timer_outer = df.Timer("Solve system")
     for subproblem, enable in zip(["EC", "NS"], [enable_EC, enable_NS]):
