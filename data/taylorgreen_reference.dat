@@ -1,0 +1,27 @@
+(dp1
+S'phi'
+p2
+S'Phi0*exp(-2*M*sigma_tilde*t*(2*eps - 1/eps))*cos(x[0])*cos(x[1])'
+p3
+sS'g'
+S'dbeta_m*c0*(-chi*exp(t*(1 + c0/veps)*(-D_m - D_p))*cos(x[0])*cos(x[1]) + 1) + dbeta_p*c0*(chi*exp(t*(1 + c0/veps)*(-D_m - D_p))*cos(x[0])*cos(x[1]) + 1) - 0.5*dveps*(pow(c0, 2)*pow(chi, 2)*exp(2*t*(1 + c0/veps)*(-D_m - D_p))*pow(sin(x[0]), 2)*pow(cos(x[1]), 2)/pow(veps, 2) + pow(c0, 2)*pow(chi, 2)*exp(2*t*(1 + c0/veps)*(-D_m - D_p))*pow(sin(x[1]), 2)*pow(cos(x[0]), 2)/pow(veps, 2)) + sigma_tilde*(2*Phi0*eps*exp(-2*M*sigma_tilde*t*(2*eps - 1/eps))*cos(x[0])*cos(x[1]) - Phi0*(-pow(Phi0, 2)*exp(-4*M*sigma_tilde*t*(2*eps - 1/eps))*pow(cos(x[0]), 2)*pow(cos(x[1]), 2) + 1)*exp(-2*M*sigma_tilde*t*(2*eps - 1/eps))*cos(x[0])*cos(x[1])/eps)'
+p4
+sS'c_p'
+p5
+S'c0*(chi*exp(t*(1 + c0/veps)*(-D_m - D_p))*cos(x[0])*cos(x[1]) + 1)'
+p6
+sS'c_m'
+p7
+S'c0*(-chi*exp(t*(1 + c0/veps)*(-D_m - D_p))*cos(x[0])*cos(x[1]) + 1)'
+p8
+sS'p'
+S'-1.0L/4.0L*(pow(U0, 2)*rho*exp(-4*mu*t/rho) + pow(c0, 2)*pow(chi, 2)*exp(2*t*(1 + c0/veps)*(-D_m - D_p))/veps)*(cos(2*x[0]) + cos(2*x[1]) - 2) - 1.0L/4.0L*pow(c0, 2)*pow(chi, 2)*(cos(2*x[0])*cos(2*x[1]) - 1)*exp(2*t*(1 + c0/veps)*(-D_m - D_p))/veps'
+p9
+sS'u'
+(S'U0*exp(-2*mu*t/rho)*sin(x[1])*cos(x[0])'
+S'-U0*exp(-2*mu*t/rho)*sin(x[0])*cos(x[1])'
+tp10
+sS'V'
+S'c0*chi*exp(t*(1 + c0/veps)*(-D_m - D_p))*cos(x[0])*cos(x[1])/veps'
+p11
+s.

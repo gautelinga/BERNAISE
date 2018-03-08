@@ -27,13 +27,16 @@ class GenericBC:
 class Fixed(GenericBC):
     """ Fixed boundary conditon. """
     def __init__(self, value):
-        self.value = value
+        if isinstance(value, Expression):
+            self.value = value
+        else:
+            self.value = Constant(value)
 
     def is_dbc(self):
         return True
 
     def dbc(self, subspace, subdomains, mark):
-        return DirichletBC(subspace, Constant(self.value), subdomains, mark)
+        return DirichletBC(subspace, self.value, subdomains, mark)
 
 
 class NoSlip(Fixed):
@@ -43,16 +46,16 @@ class NoSlip(Fixed):
 
 class Charged(GenericBC):
     def __init__(self, value):
-        self.value = value
+        if isinstance(value, Expression):
+            self.value = value
+        else:
+            self.value = Constant(self.value)
 
     def is_nbc(self):
         return True
 
     def nbc(self):
-        if isinstance(self.value, Expression):
-            return self.value
-        else:
-            return Constant(self.value)
+        return self.value
 
 
 class Pressure(Fixed):
@@ -60,7 +63,7 @@ class Pressure(Fixed):
         return True
 
     def nbc(self):
-        return Constant(self.value)
+        return self.value
 
 
 class Open(GenericBC):

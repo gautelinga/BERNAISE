@@ -160,11 +160,13 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
              trial_functions,
              use_iterative_solvers,
              p_lagrange,
-             mesh, **namespace):
+             mesh,
+             q_rhs,
+             **namespace):
     """ Set up the Navier-Stokes subproblem. """
     F = (1./dt * rho * df.dot(u - u_1, v) * dx
-         + rho * df.inner(df.grad(u), df.outer(u_1, v)) * dx
-         + mu * df.inner(df.grad(u), df.grad(v)) * dx
+         + rho * df.inner(df.nabla_grad(u), df.outer(u_1, v)) * dx
+         + mu * df.inner(df.nabla_grad(u), df.nabla_grad(v)) * dx
          - p * df.div(v) * dx
          - q * df.div(u) * dx
          - rho * df.dot(grav, v) * dx)
@@ -179,6 +181,9 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
 
     if p_lagrange:
         F += (p*q0 + q*p0)*dx
+
+    if "u" in q_rhs:
+        F += -df.dot(q_rhs["u"], v)*dx
 
     a, L = df.lhs(F), df.rhs(F)
     if not use_iterative_solvers:
@@ -218,12 +223,13 @@ def setup_EC(w_EC, c, V, V0, b, U, U0,
              dx, ds, normal,
              dirichlet_bcs_EC, neumann_bcs, boundary_to_mark,
              c_1, u_1, K, veps,
-             dt, q_rhs,
+             dt,
              enable_NS,
              solutes,
              use_iterative_solvers,
              nonlinear_EC,
              V_lagrange, p_lagrange,
+             q_rhs,
              **namespace):
     """ Set up electrochemistry subproblem. """
     if enable_NS:
@@ -231,19 +237,15 @@ def setup_EC(w_EC, c, V, V0, b, U, U0,
         u_star = u_1 - dt*sum([ci_1*grad_g_ci
                                for ci_1, grad_g_ci in zip(c_1, grad_g_c)])
 
-    q_rhs_solutes = []
-    for solute in solutes:
-        q_rhs_solutes.append(q_rhs.get(solute[0], None))
-
     F_c = []
-    for ci, ci_1, bi, Ki, grad_g_ci, qi, solute, ci_reg in zip(
-            c, c_1, b, K, grad_g_c, q_rhs_solutes, solutes, c_reg):
+    for ci, ci_1, bi, Ki, grad_g_ci, solute, ci_reg in zip(
+            c, c_1, b, K, grad_g_c, solutes, c_reg):
         F_ci = (1./dt*(ci-ci_1)*bi*dx +
                 Ki*ci_reg*df.dot(grad_g_ci, df.grad(bi))*dx)
         if enable_NS:
             F_ci += df.dot(u_star, df.grad(ci_1))*bi*dx
-        if qi is not None:
-            F_ci += - qi*bi*dx
+        if solute[0] in q_rhs:
+            F_ci += - q_rhs[solute[0]]*bi*dx
         if enable_NS:
             for boundary_name, value in neumann_bcs[solute[0]].iteritems():
                 # F_ci += df.dot(u_1, normal)*bi*ci_1*ds(
@@ -258,6 +260,8 @@ def setup_EC(w_EC, c, V, V0, b, U, U0,
         F_V += -rho_e*U*dx
     if V_lagrange:
         F_V += veps*V0*U*dx + veps*V*U0*dx
+    if "V" in q_rhs:
+        F_V += q_rhs["V"]*U*dx
 
     F = sum(F_c) + F_V
     if nonlinear_EC:
@@ -280,15 +284,19 @@ def setup_EC(w_EC, c, V, V0, b, U, U0,
     return solver
 
 
-def solve(w_, t, q_rhs, solvers, enable_EC, enable_NS,
-          use_iterative_solvers,
+def solve(w_, t, dt, q_rhs, solvers, enable_EC, enable_NS,
+          use_iterative_solvers, bcs,
           **namespace):
     """ Solve equations. """
-    if enable_EC:
-        # Update the time-dependent source terms
-        for qi in q_rhs.items():
-            if qi is not None:
-                qi.t = t
+    # Update the time-dependent source terms
+    # Update the time-dependent source terms
+    for qi in q_rhs.values():
+        qi.t = t+dt
+    # Update the time-dependent boundary conditions
+    for boundary_name, bcs_fields in bcs.iteritems():
+        for field, bc in bcs_fields.iteritems():
+            if isinstance(bc.value, df.Expression):
+                bc.value.t = t+dt
 
     timer_outer = df.Timer("Solve system")
     for subproblem, enable in zip(["EC", "NS"], [enable_EC, enable_NS]):

@@ -22,6 +22,66 @@ class CrossSection(df.SubDomain):
         return df.near(x[self.dim], self.x0) and on_boundary
 
 
+def get_boundaries_list(boundaries, pbc, extra_boundaries_keys, nodes):
+    boundaries = boundaries.items()
+    if pbc is not None:
+        boundaries.insert(0, ("periodic", [pbc]))
+
+    extra_boundaries = []
+    if "left" in extra_boundaries_keys:
+        extra_boundaries.append(
+            ("extra_left", [CrossSection(nodes[:, 0].min(), 0)]))
+    if "right" in extra_boundaries_keys:
+        extra_boundaries.append(
+            ("extra_right", [CrossSection(nodes[:, 0].max(), 0)]))
+    if "top" in extra_boundaries_keys:
+        extra_boundaries.append(
+            ("extra_top", [CrossSection(nodes[:, 1].max(), 1)]))
+    if "bottom" in extra_boundaries_keys:
+        extra_boundaries.append(
+            ("extra_bottom", [CrossSection(nodes[:, 1].min(), 1)]))
+    boundaries_list = [boundaries]
+    if len(extra_boundaries) > 0:
+        boundaries_list.append(extra_boundaries)
+    return boundaries_list
+    
+
+def get_boundary_to_mark(subdomains, boundaries_list):
+    boundary_to_mark = dict()
+    for k, subdomain in enumerate(subdomains):
+        for i, (name, boundary_list) in enumerate(boundaries_list[k]):
+            for boundary in boundary_list:
+                boundary.mark(subdomain, i+1)
+            boundary_to_mark[name] = (i+1, k)
+            info_blue("Boundary:" + name)
+    return boundary_to_mark
+
+
+def fetch_boundaries(ts, problem, params, extra_boundaries):
+    exec("from problems.{} import constrained_domain, create_bcs".format(problem))
+
+    pbc = constrained_domain(**params)
+    boundaries, _, _ = create_bcs(**params)
+    extra_boundaries_keys = [s.lower() for s in extra_boundaries.split(",")]
+ 
+    boundaries_list = get_boundaries_list(
+        boundaries, pbc, extra_boundaries_keys, ts.nodes)
+
+    subdomains = [df.MeshFunction("size_t", ts.mesh,
+                                  ts.mesh.topology().dim()-1)
+                  for _ in boundaries_list]
+
+    for subdomain in subdomains:
+        subdomain.set_all(0)
+
+    ds = [df.Measure("ds", domain=ts.mesh, subdomain_data=subdomain)
+          for subdomain in subdomains]
+
+    boundary_to_mark = get_boundary_to_mark(subdomains, boundaries_list)
+
+    return boundary_to_mark, ds
+
+
 def method(ts, dt=0, extra_boundaries="", **kwargs):
     """ Plot flux in time. """
     info_cyan("Plot flux in time.")
@@ -32,50 +92,9 @@ def method(ts, dt=0, extra_boundaries="", **kwargs):
     problem = params["problem"]
     info("Problem: {}".format(problem))
 
-    exec("from problems.{} import constrained_domain, create_bcs".format(problem))
-
-    pbc = constrained_domain(**params)
-    boundaries, _, _ = create_bcs(**params)
-
-    boundaries = boundaries.items()
-    boundaries.insert(0, ("periodic", [pbc]))
-
-    extra_boundaries_keys = [s.lower() for s in extra_boundaries.split(",")]
-    extra_boundaries = []
-    if "left" in extra_boundaries_keys:
-        extra_boundaries.append(
-            ("extra_left", [CrossSection(ts.nodes[:, 0].min(), 0)]))
-    if "right" in extra_boundaries_keys:
-        extra_boundaries.append(
-            ("extra_right", [CrossSection(ts.nodes[:, 0].max(), 0)]))
-    if "top" in extra_boundaries_keys:
-        extra_boundaries.append(
-            ("extra_top", [CrossSection(ts.nodes[:, 1].max(), 1)]))
-    if "bottom" in extra_boundaries_keys:
-        extra_boundaries.append(
-            ("extra_bottom", [CrossSection(ts.nodes[:, 1].min(), 1)]))
-    boundaries_list = [boundaries]
-    if len(extra_boundaries) > 0:
-        boundaries_list.append(extra_boundaries)
-
-    subdomains = [df.MeshFunction("size_t", ts.mesh,
-                                  ts.mesh.topology().dim()-1)
-                  for b in boundaries_list]
-
-    for subdomain in subdomains:
-        subdomain.set_all(0)
-
-    ds = [df.Measure("ds", domain=ts.mesh, subdomain_data=subdomain)
-          for subdomain in subdomains]
-
-    boundary_to_mark = dict()
-    for k, subdomain in enumerate(subdomains):
-        for i, (name, boundary_list) in enumerate(boundaries_list[k]):
-            for boundary in boundary_list:
-                boundary.mark(subdomain, i+1)
-            boundary_to_mark[name] = (i+1, k)
-            info_blue("Boundary:" + name)
-
+    boundary_to_mark, ds = fetch_boundaries(
+        ts, problem, params, extra_boundaries)
+    
     x_ = ts.functions()
 
     if params["enable_NS"]:

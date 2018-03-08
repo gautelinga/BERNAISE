@@ -140,11 +140,69 @@ def plot_quiver(nodes, elems, vals, title=None, clabel=None,
                   vals[:, 0]/vals_norm, vals[:, 1]/vals_norm)
 
 
-def plot_fancy(nodes, elems, phi, charge, u=None, charge_max=None,
-               show=False, save=None, num_intp=100):
+def plot_streamlines(nodes, elems, vals, title=None, clabel=None,
+                     save=None, show=True, num_intp=200, density=0.8):
+    """ Plots streamlines with contour in the background.
+    Values given at nodes. """
+    fig = Figure(title=title, subplots=True, clabel=clabel,
+                 save=save, show=show)
+
+    vals_norm = np.sqrt(vals[:, 0]**2 + vals[:, 1]**2) + 1e-10
+    # vals_norm_max = np.max(vals_norm)
+    fig.colorbar_ax = fig.ax.tricontourf(nodes[:, 0], nodes[:, 1], elems,
+                                         vals_norm)
+
+    Lx = nodes[:, 0].max()-nodes[:, 0].min()
+    Ly = nodes[:, 1].max()-nodes[:, 1].min()
+    dx = max(Lx, Ly)/num_intp
+    Nx = int(Lx/dx)
+    Ny = int(Ly/dx)
+
+    x_i, y_i = np.meshgrid(
+        np.linspace(dx+nodes[:, 0].min(),
+                    nodes[:, 0].max()-dx, Nx),
+        np.linspace(dx+nodes[:, 1].min(),
+                    nodes[:, 1].max()-dx, Ny))
+    triang = mtri.Triangulation(nodes[:, 0], nodes[:, 1], elems)
+    ux_interp = mtri.LinearTriInterpolator(triang, vals[:, 0])
+    uy_interp = mtri.LinearTriInterpolator(triang, vals[:, 1])
+    ux_i = ux_interp(x_i, y_i)
+    uy_i = uy_interp(x_i, y_i)
+
+    ux_i = np.array(ux_i.filled(0.))
+    uy_i = np.array(uy_i.filled(0.))
+
+    u_norm = np.sqrt(ux_i**2 + uy_i**2)
+
+    lw = np.zeros_like(ux_i)
+    lw[:] += 5*u_norm/(u_norm.max() + 1e-10)
+
+    mask = np.zeros(ux_i.shape, dtype=bool)
+    ux_i_2 = np.ma.array(ux_i, mask=mask)
+
+    fig.ax.streamplot(x_i, y_i,
+                      ux_i_2, uy_i,
+                      color="k",
+                      density=density,
+                      linewidth=lw)
+
+
+def plot_fancy(nodes, elems, phi=None, charge=None, u=None, charge_max=None,
+               show=False, save=None, num_intp=100, title=None, clabel=None,
+               animation_mode=True):
     """ Plots fancily. """
-    fig = Figure(colorbar=False, tight_layout=True, show=show,
-                 xlabel="", ylabel="", save=save, ticks=False)
+    if animation_mode:
+        fig = Figure(colorbar=False, tight_layout=True, show=show,
+                     xlabel="", ylabel="", save=save, ticks=False)
+    else:
+        fig = Figure(colorbar=True, tight_layout=False, show=show,
+                     xlabel="x", ylabel="y", save=save, ticks=True)
+
+    if phi is None:
+        phi = -np.ones(len(nodes))
+
+    if charge is None:
+        charge = np.zeros(len(nodes))
 
     if charge_max is None:
         charge_max = max(np.max(np.abs(charge)), 1e-10)
@@ -156,7 +214,7 @@ def plot_fancy(nodes, elems, phi, charge, u=None, charge_max=None,
     # cmap._lut[:, -1] = np.linspace(0., 1.0, length)
     cmap._lut[:length/2, -1] = 0.
     cmap._lut[length/2:, -1] = 1.
-
+    
     phi[phi > 1.] = 1.
     phi[phi < -1.] = -1.
 
@@ -191,22 +249,6 @@ def plot_fancy(nodes, elems, phi, charge, u=None, charge_max=None,
         phi_i = np.array(phi_i.filled(0.))
 
         u_norm = np.sqrt(ux_i**2 + uy_i**2)
-        # u_norm = np.sqrt(u[:, 0]**2 + u[:, 1]**2) #+ 1e-10
-        # colors = phi
-        # colors = np.zeros_like(ux_i)
-        #colors[:] += phi_i
-
-        #norm = plt.Normalize()
-        #norm.autoscale(colors)
-        #colormap = plt.cm.get_cmap('inferno')
-        #cmap._lut[:, -1] = 0.5
-        #cmap._lut[length/2:, :-1] = 1.
-
-        #fig.ax.quiver(nodes[:, 0], nodes[:, 1],
-        #              u[:, 0]/u_norm, u[:, 1]/u_norm,
-        #              color=colormap(norm(colors)))
-        #np.nan_to_num(u_norm)
-        # print u_norm, u_norm.max(), u_norm.min()
 
         lw = np.zeros_like(ux_i)
         lw[:] += 5*u_norm/(u_norm.max() + 1e-10)
@@ -239,9 +281,9 @@ def plot_any_field(nodes, elems, values, save=None, show=True, label=None):
     if label is None:
         label = ""
     if values.shape[1] >= 2:
-        plot_quiver(nodes, elems, values[:, :2],
-                    title=label, clabel=label, save=save,
-                    show=show)
+        plot_streamlines(nodes, elems, values[:, :2],
+                         title=label, clabel=label, save=save,
+                         show=show)
     else:
         plot_contour(nodes, elems, values[:, 0],
                      title=label, clabel=label, save=save,

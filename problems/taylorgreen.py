@@ -4,153 +4,127 @@ import os
 from . import *
 from common.io import mpi_is_root
 from common.bcs import Fixed, Charged
+import cPickle
 __author__ = "Gaute Linga"
 
 
-class PeriodicBoundary(df.SubDomain):
-    # Left boundary is target domain
-    def __init__(self, Lx, Ly):
-        self.Lx = Lx
-        self.Ly = Ly
-        df.SubDomain.__init__(self)
 
+class Wall(df.SubDomain):
     def inside(self, x, on_boundary):
-        return bool((df.near(x[0], 0.) or df.near(x[1], 0.)) and
-                    (not ((df.near(x[0], 0.) and df.near(x[1], self.Ly)) or
-                          (df.near(x[0], self.Lx) and df.near(x[1], 0.))))
-                    and on_boundary)
-
-    def map(self, x, y):
-        if df.near(x[0], self.Lx) and df.near(x[1], self.Ly):
-            y[0] = x[0] - self.Lx
-            y[1] = x[1] - self.Ly
-        elif df.near(x[0], self.Lx):
-            y[0] = x[0] - self.Lx
-            y[1] = x[1]
-        else:
-            y[0] = x[0]
-            y[1] = x[1] - self.Ly
+        return on_boundary
 
 
 def problem():
-    info_cyan("Taylor-Green vortex flow with electrohydrodynamics.")
+    info_cyan("Taylor-Green vortex flow with two-phase electrohydrodynamics.")
 
-    solutes = [["c_p",  1, 2., 2., 0., 0.],
-               ["c_m", -1, 2., 2., 0., 0.]]
-
-    # Format: name : (family, degree, is_vector)
-    base_elements = dict(u=["Lagrange", 2, True],
-                         p=["Lagrange", 1, False],
-                         c=["Lagrange", 1, False],
-                         V=["Lagrange", 1, False])
+    solutes = [["c_p",  1, 3., 1., 2., -2.],
+               ["c_m", -1, 4., 2., 1., -1.]]
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
-        solver="stable_single",
+        solver="basic",  # "stable_single",
         folder="results_taylorgreen",
         restart_folder=False,
         enable_NS=True,
-        enable_PF=False,
+        enable_PF=True,  # False,
         enable_EC=True,
         save_intv=5,
         stats_intv=5,
         checkpoint_intv=50,
         tstep=0,
-        dt=0.002,
+        dt=0.001,
         t_0=0.,
-        T=1.,
+        T=.25,
         N=32,
         solutes=solutes,
-        base_elements=base_elements,
         Lx=2.*np.pi,
         Ly=2.*np.pi,
         concentration_init=1.,
         concentration_init_dev=0.5,
         #
-        density=[1., 1.],
-        viscosity=[1., 1.],
-        permittivity=[2., 2.],
-        EC_scheme="L1",
-        use_iterative_solvers=True,
+        density=[3.0, 1.0],
+        viscosity=[3., 5.],
+        permittivity=[3., 4.],
+        EC_scheme="NL2",
+        use_iterative_solvers=False,
         grav_const=0.,
-        c_cutoff=0.1
+        c_cutoff=0.1,
+        p_lagrange=False,
+        #
+        surface_tension=.1,
+        interface_thickness=1.0/np.sqrt(2.0),
+        pf_mobility_coeff=1.0,
+        pf_init=1.
     )
     return parameters
 
 
 def constrained_domain(Lx, Ly, **namespace):
-    return PeriodicBoundary(Lx, Ly)
+    return None  # PeriodicBoundary(Lx, Ly)
 
 
 def mesh(Lx=2.*np.pi, Ly=2.*np.pi, N=16, **namespace):
-    return df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly), N, N)
+    m = df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly), N, N)
+    return m
 
 
 def initialize(Lx, Ly,
-               solutes, restart_folder,
+               surface_tension, interface_thickness,
+               pf_init, pf_mobility_coeff,
+               solutes,
+               density, viscosity, permittivity,
+               restart_folder,
                field_to_subspace,
                concentration_init,
                concentration_init_dev,
-               permittivity,
-               enable_NS, enable_EC,
+               enable_NS, enable_PF, enable_EC,
                **namespace):
     """ Create the initial state. """
-    veps = permittivity[0]
     w_init_field = dict()
+
+    #import matplotlib.pyplot as plt
+
     if not restart_folder:
-        if enable_EC:
-            for solute in solutes:
-                c_init_expr = df.Expression(
-                    "c0*(1 + zi*chi*cos(x[0])*cos(x[1]))",
-                    c0=concentration_init,
-                    zi=solute[1],
-                    chi=concentration_init_dev,
-                    degree=2)
-                c_init = df.interpolate(
-                    c_init_expr,
-                    field_to_subspace[solute[0]].collapse())
-                w_init_field[solute[0]] = c_init
-        if enable_NS:
-            u_init_expr = df.Expression(
-                ("cos(x[0])*sin(x[1])", "-sin(x[0])*cos(x[1])"),
-                degree=2)
-            w_init_field["u"] = df.interpolate(
-                u_init_expr, field_to_subspace["u"].collapse())
-            p_init_expr = df.Expression(
-                "(-0.25+factor)*(cos(2*x[0]) + cos(2*x[1]))"
-                "+ factor*cos(2*x[0])*cos(2*x[1])",
-                factor=concentration_init**2*concentration_init_dev**2/veps,
-                degree=2)
-            w_init_field["p"] = df.interpolate(
-                p_init_expr, field_to_subspace["p"].collapse())
+        exprs = reference(t=0., **vars())
+        for field, expr in exprs.items():
+            w_init_field[field] = df.interpolate(
+                expr, field_to_subspace[field].collapse())
+            #fig = df.plot(w_init_field[field])
+            #plt.title(field)
+            #plt.colorbar(fig)
+            #plt.show()
+
     return w_init_field
 
 
-def create_bcs(Lx, Ly, mesh,
-               enable_NS, enable_EC,
+def create_bcs(t_0, Lx, Ly,
+               concentration_init, concentration_init_dev,
+               surface_tension, interface_thickness,
+               pf_init, pf_mobility_coeff,
+               solutes, density, permittivity, viscosity,
+               p_lagrange,
+               enable_NS, enable_PF, enable_EC,
                **namespace):
     """ The boundaries and boundary conditions are defined here. """
-    boundaries = dict()
+    boundaries = dict(
+        wall=[Wall()]
+    )
     bcs = dict()
+    for boundary_name in boundaries.keys():
+        bcs[boundary_name] = dict()
 
     # Apply pointwise BCs e.g. to pin pressure.
     bcs_pointwise = dict()
 
-    if enable_NS:
-        bcs_pointwise["p"] = (
-            0.,
-            ("DOLFIN_PI/4 - DOLFIN_EPS < x[0] && "
-             "DOLFIN_PI/4 - DOLFIN_EPS < x[0] && "
-             "x[0] < DOLFIN_PI/4 + DOLFIN_EPS && "
-             "x[1] < DOLFIN_PI/4 + DOLFIN_EPS"))
+    exprs = reference(t=t_0, **vars())
 
-    if enable_EC:
-        bcs_pointwise["V"] = (
-            0.,
-            ("DOLFIN_PI/2 - DOLFIN_EPS < x[0] && "
-             "DOLFIN_PI/2 - DOLFIN_EPS < x[1] && "
-             "x[0] < DOLFIN_PI/2 + DOLFIN_EPS && "
-             "x[1] < DOLFIN_PI/2 + DOLFIN_EPS"))
+    for field, expr in exprs.items():
+        if field != "p":
+            bcs["wall"][field] = Fixed(expr)
+
+    if enable_NS and not p_lagrange:
+        bcs_pointwise["p"] = (
+            0., ("x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS"))
 
     return boundaries, bcs, bcs_pointwise
 
@@ -165,71 +139,116 @@ def start_hook(newfolder, **namespace):
     return dict(statsfile=statsfile)
 
 
-def rhs_source(t, solutes, viscosity, permittivity,
+def rhs_source(t, solutes,
+               surface_tension, interface_thickness, pf_mobility_coeff, pf_init,
+               density, viscosity, permittivity,
                concentration_init, concentration_init_dev,
+               enable_PF, enable_NS, enable_EC,
                **namespace):
-    """ Source term on the right hand side of ion transport. """
-    C_str, U_str = reference_prefactors()
-    code_string = ("-0.5*K*pow(c0*{C_str}, 2)/veps*"
-                   "(cos(2*x[0])+cos(2*x[1])"
-                   "+2*cos(2*x[0])*cos(2*x[1]))").format(C_str=C_str)
+    """ Source term on the right hand side of the conservation equations. """
+    with open("data/taylorgreen_rhs.dat", "r") as infile:
+        code = cPickle.load(infile)
+    
+    replace_vals = replace_dict(concentration_init, concentration_init_dev,
+                                surface_tension, interface_thickness,
+                                density, permittivity, viscosity, solutes,
+                                pf_mobility_coeff, pf_init,
+                                enable_NS, enable_PF, enable_EC)
 
-    nu = viscosity[0]
-    K = solutes[0][2]
-    c0 = concentration_init
-    chi = concentration_init_dev
-    veps = permittivity[0]
+    keys = []
+    q = dict()
+    if enable_NS and "u" in code:
+        keys.append("u")
+    if enable_PF and "phi" in code:
+        keys.append("phi")
+    if enable_EC:
+        for solute in solutes:
+            if solute[0] in code:
+                keys.append(solute[0])
+        if "V" in code:
+            keys.append("V")
 
-    q = []
-    for solute in solutes:
-        q.append(df.Expression(code_string, t=t,
-                               nu=nu, K=K, c0=c0, chi=chi, veps=veps,
-                               degree=2))
+    for key in keys:
+        q[key] = df.Expression(code[key], t=t, degree=2, **replace_vals)
+
     return q
 
 
-def reference(t, viscosity,
+def reference(t,
               concentration_init, concentration_init_dev,
-              solutes, permittivity, **namespace):
+              surface_tension, interface_thickness,
+              pf_init, pf_mobility_coeff,
+              solutes, density, permittivity, viscosity,
+              enable_NS, enable_PF, enable_EC,
+              **namespace):
     """ This contains the analytical reference for convergence analysis. """
-    nu = viscosity[0]
-    K = solutes[0][2]  # Same diffusivity for both species
-    c0 = concentration_init
-    chi = concentration_init_dev
-    veps = permittivity[0]
+    with open("data/taylorgreen_reference.dat", "r") as infile:
+        code = cPickle.load(infile)
 
-    code_strings = reference_code(solutes)
+    replace_vals = replace_dict(concentration_init, concentration_init_dev,
+                                surface_tension, interface_thickness,
+                                density, permittivity, viscosity, solutes,
+                                pf_mobility_coeff, pf_init,
+                                enable_NS, enable_PF, enable_EC)
+
+    code_strings = dict()
+    if enable_NS:
+        code_strings["u"] = code["u"]
+        code_strings["p"] = code["p"]
+    if enable_PF:
+        code_strings["phi"] = code["phi"]
+        code_strings["g"] = code["g"]
+    if enable_EC:
+        for solute in solutes:
+            code_strings[solute[0]] = code[solute[0]]
+        code_strings["V"] = code["V"]
+    
     expr = dict()
     for key, code_string in code_strings.iteritems():
-        expr[key] = df.Expression(code_string, t=t,
-                                  nu=nu, chi=chi, c0=c0, veps=veps, K=K,
-                                  degree=2)
+        expr[key] = df.Expression(code_string, t=t, degree=2,
+                                  **replace_vals)
     return expr
 
 
-def reference_code(solutes):
-    """ Returns reference code strings. """
-    U_str, C_str = reference_prefactors()
-    factor_str = "pow(c0*{C_str}, 2)/veps".format(C_str=C_str)
+def mean(a):
+    """ Same as np.mean """
+    return (a[0]+a[1])/2
 
-    code_strings = dict()
-    code_strings["u"] = ("{U_str}*cos(x[0])*sin(x[1])".format(U_str=U_str),
-                         "-{U_str}*sin(x[0])*cos(x[1])".format(U_str=U_str))
-    code_strings["p"] = ("0.25*((-pow({U_str}, 2)+{factor_str})"
-                         "*(cos(2*x[0])+cos(2*x[1]))"
-                         "+{factor_str}*cos(2*x[0])*cos(2*x[1]))").format(
-                             U_str=U_str, factor_str=factor_str)
-    for solute in solutes:
-        code_strings[solute[0]] = ("c0*(1+{z}*cos(x[0])"
-                                   "*cos(x[1])*{C_str})").format(
-                                       C_str=C_str, z=solute[1])
-    code_strings["V"] = ("-c0/veps*cos(x[0])*cos(x[1])"
-                         "*{C_str}").format(C_str=C_str)
-
-    return code_strings
+def dmean(a):
+    """ Consider moving somewhere else. """
+    return (a[0]-a[1])/2
 
 
-def reference_prefactors():
-    U_str = "(exp(-2*nu*t))"
-    C_str = "(chi*exp(-2*K*(1-c0/veps)*t))"
-    return U_str, C_str
+def replace_dict(concentration_init, concentration_init_dev,
+                 surface_tension, interface_thickness,
+                 density, permittivity, viscosity, solutes,
+                 pf_mobility_coeff, pf_init,
+                 enable_NS, enable_PF, enable_EC):
+    diffusivity_p = solutes[0][2:4]
+    diffusivity_m = solutes[1][2:4]
+    solubility_p = solutes[0][4:6]
+    solubility_m = solutes[1][4:6]
+    replace_vals = dict(
+        U0=1. if enable_NS else 0,
+        c0=concentration_init if enable_EC else 0,
+        chi=concentration_init_dev if enable_EC else 0,
+        sigma_tilde=surface_tension*3./(2.*np.sqrt(2.)) if enable_PF else 0,
+        eps=interface_thickness if enable_PF else 1.0/np.sqrt(2),
+        veps=mean(permittivity) if enable_PF and enable_EC else permittivity[0],
+        dveps=dmean(permittivity) if enable_PF and enable_EC else 0,
+        D_p=mean(diffusivity_p) if enable_PF else diffusivity_p[0],
+        dD_p=dmean(diffusivity_p) if enable_PF else 0,
+        D_m=mean(diffusivity_m) if enable_PF else diffusivity_m[0],
+        dD_m=dmean(diffusivity_m) if enable_PF else 0,
+        beta_p=mean(solubility_p) if enable_PF else 0,  # solubility_p[0],
+        dbeta_p=dmean(solubility_p) if enable_PF else 0,
+        beta_m=mean(solubility_m) if enable_PF else 0,  # solubility_m[0],
+        dbeta_m=dmean(solubility_m) if enable_PF else 0,
+        mu=mean(viscosity) if enable_PF else viscosity[0],
+        dmu=dmean(viscosity) if enable_PF else 0,
+        rho=mean(density) if enable_PF else density[0],
+        drho=dmean(density) if enable_PF else 0,
+        M=pf_mobility_coeff if enable_PF else 0,
+        Phi0=pf_init if enable_PF else 0
+    )
+    return replace_vals
