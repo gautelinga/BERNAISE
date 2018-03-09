@@ -176,7 +176,9 @@ def setup(test_functions, trial_functions,
                                  boundary_to_mark,
                                  u_1, phi_flt_,
                                  rho_, rho_1, g_, M_, nu_, rho_e_,
-                                 c_, V_, dbeta, solutes,
+                                 c_, V_,
+                                 c_1, V_1,
+                                 dbeta, solutes,
                                  per_tau, drho, sigma_bar, eps, dveps, grav,
                                  enable_PF, enable_EC,
                                  use_iterative_solvers,
@@ -190,7 +192,9 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
              dx, ds, normal,
              dirichlet_bcs, neumann_bcs, boundary_to_mark,
              u_1, phi_, rho_, rho_1, g_, M_, nu_, rho_e_,
-             c_, V_, dbeta, solutes,
+             c_, V_,
+             c_1, V_1,
+             dbeta, solutes,
              per_tau, drho, sigma_bar, eps, dveps, grav,
              enable_PF, enable_EC,
              use_iterative_solvers, use_pressure_stabilization,
@@ -224,36 +228,19 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
             normal, v) * ds(boundary_to_mark[boundary_name])
 
     if enable_PF:
-        # F += - drho*M_*df.inner(df.grad(u), df.outer(df.grad(g_), v))*dx
-        # GL: Wasn't filter applied outside?
-        # F += - sigma_bar*eps*df.inner(df.outer(
-        #     df.grad(unit_interval_filter(phi_)),
-        #     df.grad(unit_interval_filter(phi_))),
-        #                               df.grad(v))*dx
         F += phi_*df.dot(df.grad(g_), v)*dx
 
-    if enable_EC and rho_e_ != 0:
-        for ci_, dbetai, solute in zip(c_, dbeta, solutes):
+    if enable_EC:
+        for ci_, ci_1, dbetai, solute in zip(c_, c_1, dbeta, solutes):
             zi = solute[1]
             F += df.dot(df.grad(ci_), v)*dx \
                 + ci_*dbetai*df.dot(df.grad(phi_), v)*dx \
-                + zi*ci_*df.dot(df.grad(V_), v)*dx
-        # F += rho_e_*df.dot(df.grad(V_), v)*dx
-
-    if enable_PF and enable_EC:
-        F += 0.5 * dveps * df.dot(df.grad(
-            unit_interval_filter(phi_)), v)*df.dot(df.grad(V_),
-                                                   df.grad(V_))*dx
+                + zi*ci_1*df.dot(df.grad(V_), v)*dx
 
     if p_lagrange:
         F += (p*q0 + q*p0)*dx
 
     if "u" in q_rhs:
-        #import matplotlib.pyplot as plt
-        #fig = df.plot(q_rhs["u"], mesh=w_NS.function_space().mesh())
-        #plt.colorbar(fig)
-        #plt.show()
-        
         F += -df.dot(q_rhs["u"], v)*dx
 
     a, L = df.lhs(F), df.rhs(F)

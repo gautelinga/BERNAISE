@@ -2,14 +2,13 @@ import dolfin as df
 import os
 from . import *
 from common.io import mpi_is_root
-from common.bcs import Fixed
+from common.bcs import Fixed, NoSlip, FreeSlip
 __author__ = "Gaute Linga"
 
 
 class Bottom(df.SubDomain):
     def inside(self, x, on_boundary):
         return bool(x[1] < df.DOLFIN_EPS and on_boundary)
-
 
 class Top(df.SubDomain):
     def __init__(self, Ly):
@@ -19,12 +18,9 @@ class Top(df.SubDomain):
     def inside(self, x, on_boundary):
         return bool(x[1] > self.Ly-df.DOLFIN_EPS and on_boundary)
 
-
-
 class Left(df.SubDomain):
     def inside(self, x, on_boundary):
         return bool(x[0] < df.DOLFIN_EPS and on_boundary)
-
 
 class Right(df.SubDomain):
     def __init__(self, Lx):
@@ -36,28 +32,20 @@ class Right(df.SubDomain):
 
 
 def problem():
-    info_cyan("Charged droplet on electrod.")
+    info_cyan("Charged droplet on electrode.")
 
     # Define solutes
     # Format: name, valency, diffusivity in phase 1, diffusivity in phase
     #         2, beta in phase 1, beta in phase 2
-    solutes = [["c_sp",  1, 1., .01, 1., 4.],
-               ["c_sm", -1, 1., .01, 1., 4.],
-               ["c_dp",  1, .01, 1., 4., 1.],
-               ["c_dm", -1, .01, 1., 4., 1.]]
-
-    # Format: name : (family, degree, is_vector)
-    base_elements = dict(u=["Lagrange", 2, True],
-                         p=["Lagrange", 1, False],
-                         phi=["Lagrange", 1, False],
-                         g=["Lagrange", 1, False],
-                         c=["Lagrange", 1, False],
-                         V=["Lagrange", 1, False])
+    solutes = [["c_sp",  1, 1., .001, 0., 4.],
+               ["c_sm", -1, 1., .001, 0., 4.],
+               ["c_dp",  1, .001, 1., 4., 0.],
+               ["c_dm", -1, .001, 1., 4., 0.]]
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
         solver="basic",
-        folder="results_electro_wetting",
+        folder="results_electrowetting",
         restart_folder=False,
         enable_NS=True,
         enable_PF=True,
@@ -68,25 +56,26 @@ def problem():
         tstep=0,
         dt=0.08,  # 0.02,
         t_0=0.,
-        T=8.,
-        grid_spacing=1./16,  # 1./64,
-        interface_thickness=0.03,  # 0.02,
+        T=20.,
+        grid_spacing=1./10,  # 1./64,
+        interface_thickness=0.04,  # 0.02,
         solutes=solutes,
         base_elements=base_elements,
         Lx=3.,
         Ly=3.,
         rad_init=0.75,
         #
-        V_top=-0.5,
-        V_bottom=0.5,
+        V_top=1.,
+        V_bottom=0.,
         surface_tension=5.,  # 24.5,
         grav_const=0.,
-        concentration_init=1,
+        concentration_init_s=10.,
+        concentration_init_d=10.,
         #
         pf_mobility_coeff=0.00002,  # 0.000010,
         density=[100., 100.],
         viscosity=[1., 1.],
-        permittivity=[1., 1.],
+        permittivity=[1., 2.],
         #
         use_iterative_solvers=False,
         use_pressure_stabilization=False
@@ -96,23 +85,24 @@ def problem():
 
 def mesh(Lx=1, Ly=5, grid_spacing=1./16, **namespace):
     m = df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly),
-                         int(Lx/(2*grid_spacing)),
-                         int(Ly/(2*grid_spacing)))
+                         int(Lx/(1*grid_spacing)),
+                         int(Ly/(1*grid_spacing)))
     m = df.refine(m)
     return m
 
 
 def initialize(Lx, Ly, rad_init,
                interface_thickness, solutes,
-               concentration_init,
+               concentration_init_d,
+               concentration_init_s,
                restart_folder,
                field_to_subspace,
-               enable_NS, enable_PF, enable_EC, **namespace):
+               enable_NS, enable_PF, enable_EC,
+               **namespace):
     """ Create the initial state. """
-    x0 = [Lx/2]
-    y0 = [0]
-    rad0 = [rad_init]
-    c0 = [concentration_init]
+    x0 = 0.
+    y0 = 0.
+    rad0 = rad_init
 
     w_init_field = dict()
     if not restart_folder:
@@ -124,9 +114,17 @@ def initialize(Lx, Ly, rad_init,
 
         # Electrochemistry
         if enable_EC:
-            for x, y, rad, ci, solute in zip(x0, y0, rad0, c0, solutes):
-                c_init = initial_c(x, y, rad/3., ci, interface_thickness,
-                                   field_to_subspace[solute[0]].collapse())
+            for solute in solutes[:2]:
+                c_init = initial_pf(x0, y0, rad0, interface_thickness,
+                                    field_to_subspace[solute[0]].collapse())
+                c_init.vector()[:] = (0.5*(1+c_init.vector().get_local())
+                                      *concentration_init_s)
+                w_init_field[solute[0]] = c_init
+            for solute in solutes[2:]:
+                c_init = initial_pf(x0, y0, rad0, interface_thickness,
+                                    field_to_subspace[solute[0]].collapse())
+                c_init.vector()[:] = (0.5*(1-c_init.vector().get_local())
+                                      *concentration_init_d)
                 w_init_field[solute[0]] = c_init
             V_init_expr = df.Expression("0.", degree=1)
             w_init_field["V"] = df.interpolate(
@@ -135,7 +133,9 @@ def initialize(Lx, Ly, rad_init,
     return w_init_field
 
 
-def create_bcs(field_to_subspace, Lx, Ly, solutes,
+def create_bcs(field_to_subspace, Lx, Ly,
+               solutes,
+               concentration_init_s,
                V_top, V_bottom,
                enable_NS, enable_PF, enable_EC,
                **namespace):
@@ -148,7 +148,9 @@ def create_bcs(field_to_subspace, Lx, Ly, solutes,
         right=[Right(Lx)]
     )
 
-    noslip = Fixed((0., 0.))
+    noslip = NoSlip()
+    freeslip_y = FreeSlip(0., 0)
+    freeslip_x = FreeSlip(0., 1)
 
     bcs = dict()
     bcs_pointwise = dict()
@@ -159,13 +161,19 @@ def create_bcs(field_to_subspace, Lx, Ly, solutes,
     bcs["right"] = dict()
 
     if enable_NS:
-        bcs["top"]["u"] = noslip
+        bcs["top"]["u"] = freeslip_x
         bcs["bottom"]["u"] = noslip        
-        bcs["left"]["u"] = noslip
-        bcs["right"]["u"] = noslip
-        bcs_pointwise["p"] = (0., "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS")
+        bcs["left"]["u"] = freeslip_y
+        bcs["right"]["u"] = freeslip_y
+        bcs_pointwise["p"] = (
+            0.,
+            "x[0] > {Lx}- DOLFIN_EPS && x[1] > {Ly} - DOLFIN_EPS".format(Lx=Lx, Ly=Ly))
 
     if enable_EC:
+        for solute in solutes[:2]:
+            bcs["top"][solute[0]] = Fixed(concentration_init_s)
+        for solute in solutes[2:]:
+            bcs["top"][solute[0]] = Fixed(0.)
         bcs["top"]["V"] = Fixed(V_top)
         bcs["bottom"]["V"] = Fixed(V_bottom)
 
@@ -173,26 +181,12 @@ def create_bcs(field_to_subspace, Lx, Ly, solutes,
 
 
 def initial_pf(x0, y0, rad0, eps, function_space):
-    expr_str = "1."
-    for x, y, rad in zip(x0, y0, rad0):
-        expr_str += ("-(1.-tanh(sqrt(2)*(sqrt(pow(x[0]-{x}, 2)"
-                     "+pow(x[1]-{y}, 2))-{rad})/{eps}))").format(
-                        x=x, y=y, rad=rad, eps=eps)
+    expr_str = ("tanh(1./sqrt(2)*(sqrt(pow(x[0]-{x}, 2)"
+                "+pow(x[1]-{y}, 2))-{rad})/{eps})").format(
+                    x=x0, y=y0, rad=rad0, eps=eps)
     phi_init_expr = df.Expression(expr_str, degree=2)
     phi_init = df.interpolate(phi_init_expr, function_space)
     return phi_init
-
-
-def initial_c(x, y, rad, c_init, eps, function_space):
-    # expr_str = ("{c_init}*0.5*(1.-tanh(sqrt(2)*(sqrt(pow(x[0]-{x}, 2)"
-    #             "+pow(x[1]-{y}, 2))-{rad})/{eps}))").format(
-    #                 x=x, y=y, rad=rad, eps=eps, c_init=c_init)
-    expr_str = ("c_init*1./(2*pi*pow(sigma, 2)) * "
-                "exp(- 0.5*pow((x[0]-x0)/sigma, 2)"
-                " - 0.5*pow((x[1]-y0)/sigma, 2))")
-    c_init_expr = df.Expression(expr_str, x0=x, y0=y, sigma=rad,
-                                c_init=c_init, degree=2)
-    return df.interpolate(c_init_expr, function_space)
 
 
 def tstep_hook(t, tstep, **namespace):

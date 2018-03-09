@@ -17,7 +17,7 @@ class GenericBC:
     def is_nbc(self):
         return False
 
-    def dbc(self):
+    def dbc(self, subspace, subdomains, mark):
         pass
 
     def nbc(self):
@@ -41,7 +41,24 @@ class Fixed(GenericBC):
 
 class NoSlip(Fixed):
     def __init__(self):
-        Fixed.__init__((0., 0.))  # To be generalized for arbitrary dim.
+        Fixed.__init__(self, (0., 0.))  # To be generalized for arbitrary dim.
+
+
+class FreeSlip(GenericBC):
+    # Class for implementing free slip in a certain direction
+    def __init__(self, value, dim):
+        if isinstance(value, Expression):
+            self.value = value
+        else:
+            self.value = Constant(value)
+        self.dim = dim
+
+    def is_dbc(self):
+        return True
+
+    def dbc(self, subspace, subdomains, mark):
+        return DirichletBC(subspace.sub(self.dim),
+                           self.value, subdomains, mark)
 
 
 class Charged(GenericBC):
@@ -49,7 +66,7 @@ class Charged(GenericBC):
         if isinstance(value, Expression):
             self.value = value
         else:
-            self.value = Constant(self.value)
+            self.value = Constant(value)
 
     def is_nbc(self):
         return True
