@@ -57,7 +57,7 @@ def problem():
         dt=0.08,  # 0.02,
         t_0=0.,
         T=20.,
-        grid_spacing=1./10,  # 1./64,
+        grid_spacing=1./8,  # 1./64,
         interface_thickness=0.04,  # 0.02,
         solutes=solutes,
         base_elements=base_elements,
@@ -83,11 +83,21 @@ def problem():
     return parameters
 
 
-def mesh(Lx=1, Ly=5, grid_spacing=1./16, **namespace):
+def mesh(Lx=1, Ly=5, grid_spacing=1./16, rad_init=0.75, **namespace):
     m = df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly),
                          int(Lx/(1*grid_spacing)),
                          int(Ly/(1*grid_spacing)))
-    m = df.refine(m)
+
+    for k in range(2):
+        cell_markers = df.MeshFunction("bool", m, 2)
+        origin = df.Point(0.0, 0.0)
+        for cell in df.cells(m):
+            p = cell.midpoint()
+            if p.distance(origin) < (1.5-0.25*k)*rad_init or p.y() < 0.5 - k*0.25: 
+                cell_markers[cell] = True
+            else:
+                cell_markers[cell] = False
+        m = df.refine(m, cell_markers)
     return m
 
 
