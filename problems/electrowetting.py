@@ -6,6 +6,25 @@ from common.bcs import Fixed, NoSlip, FreeSlip
 __author__ = "Gaute Linga"
 
 
+'''
+Control paremetors in BERNAISE units
+
+Potential dorp over the electric double layer in units of the termalvoltage (sometims \zeta-potential):
+\phi_0 = V_top - V_bottem  
+Capasitance  for the droplet interface c_d and c_s is definde by concentration_init_d and concentration_init_s:
+C = \sqrt(\epsilon_s\sqrt(\epsilon_d/(2z^2 c_d))/(\epsilon_s\sqrt(\epsilon_s)/(2z^2 c_d)))
+
+b that is the cpacitanc over the surface tension as is given by: 
+1/\sigma\sqrt(\sqrt(1/(2 z^2 c_d \epsilon_d))\sqrt(1/(2 z^2 c_s \epsilon_s)))
+
+For simulation it would be nice to scan in \phi_0 for valus of aleast [0-2] but as hight as 10 would be interessding for some aplication (glass can have phi_0 ~ 4).
+This sacn should give eq (1) in C.W. Monroe et al.
+
+the paremtor C one should consider to be  0.5 and 2 so one are in two regions of FIG 3. C.W. Monroe et al.  
+
+and then the b should be 0.005.  
+'''
+
 class Bottom(df.SubDomain):
     def inside(self, x, on_boundary):
         return bool(x[1] < df.DOLFIN_EPS and on_boundary)
