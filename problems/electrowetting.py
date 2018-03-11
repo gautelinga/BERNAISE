@@ -1,26 +1,27 @@
 import dolfin as df
 import os
+import numpy as np
 from . import *
 from common.io import mpi_is_root
 from common.bcs import Fixed, NoSlip, FreeSlip
-__author__ = "Gaute Linga"
+__author__ = "Gaute Linga and Asger Bolet"
 
 
 '''
 Control paremetors in BERNAISE units
 
-Potential dorp over the electric double layer in units of the termalvoltage (sometims \zeta-potential):
+Potential drop over the electric double layer in units of the termal voltage (sometimes \zeta-potential):
 \phi_0 = V_top - V_bottem  
-Capasitance  for the droplet interface c_d and c_s is definde by concentration_init_d and concentration_init_s:
+Capacitance  for the droplet interface c_d and c_s is defined by concentration_init_d and concentration_init_s:
 C = \sqrt(\epsilon_s\sqrt(\epsilon_d/(2z^2 c_d))/(\epsilon_s\sqrt(\epsilon_s)/(2z^2 c_d)))
 
-b that is the cpacitanc over the surface tension as is given by: 
+b that is the capacitance over the surface tension as is given by: 
 1/\sigma\sqrt(\sqrt(1/(2 z^2 c_d \epsilon_d))\sqrt(1/(2 z^2 c_s \epsilon_s)))
 
-For simulation it would be nice to scan in \phi_0 for valus of aleast [0-2] but as hight as 10 would be interessding for some aplication (glass can have phi_0 ~ 4).
-This sacn should give eq (1) in C.W. Monroe et al.
+For simulation it would be nice to scan in \phi_0 for valus of at least [0-2] but as hight as 10 would be interesting for some aplication (glass can have phi_0 ~ 4).
+This scan should give eq (1) in C.W. Monroe et al.
 
-the paremtor C one should consider to be  0.5 and 2 so one are in two regions of FIG 3. C.W. Monroe et al.  
+the parameter C one should consider to be  0.5 and 2 so one are in two regions of FIG 3. C.W. Monroe et al.  
 
 and then the b should be 0.005.  
 '''
@@ -29,6 +30,7 @@ class Bottom(df.SubDomain):
     def inside(self, x, on_boundary):
         return bool(x[1] < df.DOLFIN_EPS and on_boundary)
 
+    
 class Top(df.SubDomain):
     def __init__(self, Ly):
         self.Ly = Ly
@@ -37,10 +39,12 @@ class Top(df.SubDomain):
     def inside(self, x, on_boundary):
         return bool(x[1] > self.Ly-df.DOLFIN_EPS and on_boundary)
 
+    
 class Left(df.SubDomain):
     def inside(self, x, on_boundary):
         return bool(x[0] < df.DOLFIN_EPS and on_boundary)
 
+    
 class Right(df.SubDomain):
     def __init__(self, Lx):
         self.Lx = Lx
@@ -56,10 +60,12 @@ def problem():
     # Define solutes
     # Format: name, valency, diffusivity in phase 1, diffusivity in phase
     #         2, beta in phase 1, beta in phase 2
-    solutes = [["c_sp",  1, 1., .001, 0., 4.],
-               ["c_sm", -1, 1., .001, 0., 4.],
-               ["c_dp",  1, .001, 1., 4., 0.],
-               ["c_dm", -1, .001, 1., 4., 0.]]
+    solutes = [
+        ["c_sp",  1, 1., .001, 0., 4.],
+        ["c_sm", -1, 1., .001, 0., 4.],
+        ["c_dp",  1, .001, 1., 4., 0.],
+        ["c_dm", -1, .001, 1., 4., 0.]
+    ]
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
@@ -75,7 +81,7 @@ def problem():
         tstep=0,
         dt=0.08,  # 0.02,
         t_0=0.,
-        T=20.,
+        T=50.,
         grid_spacing=1./8,  # 1./64,
         interface_thickness=0.04,  # 0.02,
         solutes=solutes,
@@ -88,13 +94,13 @@ def problem():
         V_bottom=0.,
         surface_tension=5.,  # 24.5,
         grav_const=0.,
-        concentration_init_s=10.,
-        concentration_init_d=10.,
+        concentration_init_s=20., # 10.,
+        concentration_init_d=0.,  # 10.,
         #
         pf_mobility_coeff=0.00002,  # 0.000010,
         density=[100., 100.],
-        viscosity=[1., 1.],
-        permittivity=[1., 2.],
+        viscosity=[1., 10.],
+        permittivity=[2., 1.],
         #
         use_iterative_solvers=False,
         use_pressure_stabilization=False
@@ -112,7 +118,11 @@ def mesh(Lx=1, Ly=5, grid_spacing=1./16, rad_init=0.75, **namespace):
         origin = df.Point(0.0, 0.0)
         for cell in df.cells(m):
             p = cell.midpoint()
-            if p.distance(origin) < (1.5-0.25*k)*rad_init or p.y() < 0.5 - k*0.25: 
+            x = p.x()
+            y = p.y()
+            if (bool(p.distance(origin) < (2.0-0.4*k)*rad_init and
+                     p.distance(origin) > (0.2+0.3*k)*rad_init)
+                or p.y() < 0.5 - k*0.15):
                 cell_markers[cell] = True
             else:
                 cell_markers[cell] = False
@@ -146,13 +156,13 @@ def initialize(Lx, Ly, rad_init,
             for solute in solutes[:2]:
                 c_init = initial_pf(x0, y0, rad0, interface_thickness,
                                     field_to_subspace[solute[0]].collapse())
-                c_init.vector()[:] = (0.5*(1+c_init.vector().get_local())
+                c_init.vector()[:] = ((0.5*(1+(c_init.vector().get_local())))**4
                                       *concentration_init_s)
                 w_init_field[solute[0]] = c_init
             for solute in solutes[2:]:
                 c_init = initial_pf(x0, y0, rad0, interface_thickness,
                                     field_to_subspace[solute[0]].collapse())
-                c_init.vector()[:] = (0.5*(1-c_init.vector().get_local())
+                c_init.vector()[:] = ((0.5*(1-(c_init.vector().get_local())))**4
                                       *concentration_init_d)
                 w_init_field[solute[0]] = c_init
             V_init_expr = df.Expression("0.", degree=1)
@@ -227,7 +237,7 @@ def pf_mobility(phi, gamma):
     # return gamma * (phi**2-1.)**2
     func = 1.-phi**2
     return 0.75 * gamma * 0.5 * (1. + df.sign(func)) * func
-    # return gamma
+    #return gamma
 
 
 def start_hook(newfolder, **namespace):
