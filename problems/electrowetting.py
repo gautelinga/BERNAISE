@@ -3,7 +3,7 @@ import os
 import numpy as np
 from . import *
 from common.io import mpi_is_root
-from common.bcs import Fixed, NoSlip, FreeSlip
+from common.bcs import Fixed, NoSlip, FreeSlip, Slip
 __author__ = "Gaute Linga and Asger Bolet"
 
 
@@ -94,13 +94,13 @@ def problem():
         V_bottom=0.,
         surface_tension=5.,  # 24.5,
         grav_const=0.,
-        concentration_init_s=10., # 10.,
-        concentration_init_d=40.,  # 10.,
+        concentration_init_s=1.,  # 10.,
+        concentration_init_d=0.,  # 10.,
         #
         pf_mobility_coeff=0.000002,  # 0.000010,
         density=[10., 10.],
         viscosity=[10., 10.],
-        permittivity=[.1, .5],
+        permittivity=[.1, .2],
         #
         use_iterative_solvers=True,
         use_pressure_stabilization=False
@@ -198,6 +198,7 @@ def create_bcs(field_to_subspace, Lx, Ly,
     noslip = NoSlip()
     freeslip_y = FreeSlip(0., 0)
     freeslip_x = FreeSlip(0., 1)
+    slip_x = Slip(0.005, 1)
 
     bcs = dict()
     bcs_pointwise = dict()
@@ -208,8 +209,8 @@ def create_bcs(field_to_subspace, Lx, Ly,
     bcs["right"] = dict()
 
     if enable_NS:
-        bcs["top"]["u"] = freeslip_x
-        bcs["bottom"]["u"] = freeslip_x  # noslip        
+        bcs["top"]["u"] = slip_x
+        bcs["bottom"]["u"] = noslip        
         bcs["left"]["u"] = freeslip_y
         bcs["right"]["u"] = freeslip_y
         bcs_pointwise["p"] = (

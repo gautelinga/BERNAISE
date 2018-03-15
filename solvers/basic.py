@@ -223,6 +223,10 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
         + 0.5 * (per_tau * (rho_ - rho_1) + df.div(mom_1)) * df.dot(u, v) * dx
         - rho_*df.dot(grav, v) * dx
     )
+    for boundary_name, slip_length in neumann_bcs["u"].iteritems():
+        F += 1./slip_length * \
+             df.dot(u, v) * ds(boundary_to_mark[boundary_name])
+
     for boundary_name, pressure in neumann_bcs["p"].iteritems():
         F += pressure * df.inner(
             normal, v) * ds(boundary_to_mark[boundary_name])

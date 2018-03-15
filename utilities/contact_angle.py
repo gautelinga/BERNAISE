@@ -12,8 +12,8 @@ def parse_args():
     return args
 
 
-def fitfunc(x, x0, R_x, R_y):
-    y = R_y**2*(1. - ((x-x0)/R_x)**2)
+def fitfunc(x, x0, R_x):
+    y = R_x**2*(1. - ((x-x0)/R_x)**2)
     return y
 
 
@@ -45,7 +45,7 @@ def main():
         x = x[x > 0.1]
         
         popt, pcov = curve_fit(fitfunc,
-                               x, y2, p0=[0., 1., 1.])
+                               x, y2, p0=[0., 1.])
 
         if f == fs[-1]:
             plt.plot(data[:, 1], data[:, 0])
@@ -54,7 +54,7 @@ def main():
                      'r-')
             plt.show()
 
-        x0, R_x, R_y = popt
+        x0, R_x = popt
         
         #plt.show()
         # plt.plot(-data[:, 0], data[:, 1])
@@ -65,20 +65,27 @@ def main():
         #theta = np.arctan2(-dy, dx)
         x0_.append(x0)
         R_x_.append(R_x)
-        R_y_.append(R_y)
+        #R_y_.append(R_y)
 
-    #np.savetxt(
-    #    os.path.join(args.folder, "Analysis", "contang.dat"),
-    #    np.array(zip(time, theta_c)))
     x0_ = np.array(x0_)
     R_x_ = np.array(R_x_)
-    R_y_ = np.array(R_y_)
+    #R_y_ = np.array(R_y_)
+
+    theta_c = 0.5+np.arctan(x0_/np.sqrt(R_x_**2-x0_**2)/np.pi)
     
     plt.plot(time, x0_)
     plt.show()
 
-    plt.plot(time, (R_y_-R_x_)/(R_x_+R_y_))
+    #plt.plot(time, (R_y_-R_x_)/(R_x_+R_y_))
+    plt.plot(time, R_x_)
     plt.show()
+
+    plt.plot(time, theta_c)
+    plt.show()
+
+    np.savetxt(
+        os.path.join(args.folder, "Analysis", "contact_angle.dat"),
+        np.array(zip(time, theta_c)))
 
     #print theta_c[-1]
 

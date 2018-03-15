@@ -61,6 +61,28 @@ class FreeSlip(GenericBC):
                            self.value, subdomains, mark)
 
 
+class Slip(GenericBC):
+    def __init__(self, value, dim):
+        if isinstance(value, Expression):
+            self.value = value
+        else:
+            self.value = Constant(value)
+        self.dim = int(dim)
+
+    def is_dbc(self):
+        return True
+
+    def dbc(self, subspace, subdomains, mark):
+        return DirichletBC(subspace.sub(self.dim),
+                           Constant(0.), subdomains, mark)
+
+    def is_nbc(self):
+        return True
+
+    def nbc(self):
+        return self.value
+
+
 class Charged(GenericBC):
     def __init__(self, value):
         if isinstance(value, Expression):
