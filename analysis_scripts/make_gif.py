@@ -11,7 +11,7 @@ def description(ts, **kwargs):
 
 
 def method(ts, show=False, save=True, dt=None, fps=25, skip=0,
-           delete_after=True, plot_u=False, **kwargs):
+           delete_after=True, plot_u=False, inverse_phase=False, **kwargs):
     """ Make fancy gif animation. """
     info_cyan("Making a fancy gif animation.")
     anim_name = "animation"
@@ -25,6 +25,8 @@ def method(ts, show=False, save=True, dt=None, fps=25, skip=0,
             phi = ts["phi", step][:, 0]
         else:
             phi = np.zeros(len(ts.nodes))-1.
+        if inverse_phase:
+            phi = -phi
         charge = ts["charge", step][:, 0]
         charge_max = max(ts.max("charge"), -ts.min("charge"))
         if plot_u and "u" in ts:

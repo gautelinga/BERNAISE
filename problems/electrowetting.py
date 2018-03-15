@@ -82,27 +82,27 @@ def problem():
         dt=0.08,  # 0.02,
         t_0=0.,
         T=50.,
-        grid_spacing=1./8,  # 1./64,
-        interface_thickness=0.04,  # 0.02,
+        grid_spacing=1./4,  # 1./64,
+        interface_thickness=0.05,  # 0.02,
         solutes=solutes,
         base_elements=base_elements,
         Lx=3.,
         Ly=3.,
-        rad_init=0.75,
+        rad_init=1.0,
         #
         V_top=1.,
         V_bottom=0.,
         surface_tension=5.,  # 24.5,
         grav_const=0.,
-        concentration_init_s=20., # 10.,
-        concentration_init_d=0.,  # 10.,
+        concentration_init_s=10., # 10.,
+        concentration_init_d=40.,  # 10.,
         #
-        pf_mobility_coeff=0.00002,  # 0.000010,
-        density=[100., 100.],
-        viscosity=[1., 10.],
-        permittivity=[2., 1.],
+        pf_mobility_coeff=0.000002,  # 0.000010,
+        density=[10., 10.],
+        viscosity=[10., 10.],
+        permittivity=[.1, .5],
         #
-        use_iterative_solvers=False,
+        use_iterative_solvers=True,
         use_pressure_stabilization=False
     )
     return parameters
@@ -113,16 +113,24 @@ def mesh(Lx=1, Ly=5, grid_spacing=1./16, rad_init=0.75, **namespace):
                          int(Lx/(1*grid_spacing)),
                          int(Ly/(1*grid_spacing)))
 
-    for k in range(2):
+    for k in range(3):
         cell_markers = df.MeshFunction("bool", m, 2)
         origin = df.Point(0.0, 0.0)
         for cell in df.cells(m):
             p = cell.midpoint()
             x = p.x()
             y = p.y()
-            if (bool(p.distance(origin) < (2.0-0.4*k)*rad_init and
-                     p.distance(origin) > (0.2+0.3*k)*rad_init)
-                or p.y() < 0.5 - k*0.15):
+
+            k_p = 1.6-0.2*k
+            k_m = 0.4+0.2*k
+            rad_x = 0.75*rad_init
+            rad_y = 1.25*rad_init
+            
+            if (bool(p.distance(origin) < k_p*rad_init and
+                     p.distance(origin) > k_m*rad_init)
+                or bool((x/rad_x)**2 + (y/rad_y)**2 < k_p**2 and
+                        (x/rad_x)**2 + (y/rad_y)**2 > k_m**2)
+                or p.y() < 0.5 - k*0.2):
                 cell_markers[cell] = True
             else:
                 cell_markers[cell] = False
@@ -201,7 +209,7 @@ def create_bcs(field_to_subspace, Lx, Ly,
 
     if enable_NS:
         bcs["top"]["u"] = freeslip_x
-        bcs["bottom"]["u"] = noslip        
+        bcs["bottom"]["u"] = freeslip_x  # noslip        
         bcs["left"]["u"] = freeslip_y
         bcs["right"]["u"] = freeslip_y
         bcs_pointwise["p"] = (
