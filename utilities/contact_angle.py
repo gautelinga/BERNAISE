@@ -3,6 +3,7 @@ import os
 import argparse
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
+import simplejson
 
 
 def parse_args():
@@ -71,7 +72,7 @@ def main():
     R_x_ = np.array(R_x_)
     #R_y_ = np.array(R_y_)
 
-    theta_c = 0.5+np.arctan(x0_/np.sqrt(R_x_**2-x0_**2)/np.pi)
+    theta_c = 0.5+np.arcsin(x0_/R_x_)/np.pi
     
     plt.plot(time, x0_)
     plt.show()
@@ -87,7 +88,11 @@ def main():
         os.path.join(args.folder, "Analysis", "contact_angle.dat"),
         np.array(zip(time, theta_c)))
 
-    #print theta_c[-1]
+
+    params = simplejson.load(open(os.path.join(
+        args.folder, "Settings", "parameters_from_tstep_0.dat")))
+    
+    print params["V_top"], theta_c[-1]
 
 
 if __name__ == "__main__":
