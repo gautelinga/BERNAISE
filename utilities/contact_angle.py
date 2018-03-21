@@ -76,9 +76,13 @@ def main():
             plt.plot(time, R_x_)
             plt.show()
 
+            plt.plot(time, theta_c)
+            plt.show()
+            
         popt, pcov = curve_fit(expfit,
-                               time[np.isnan(theta_c)],
-                               theta_c[np.isnan(theta_c)], p0=[1., 1., 1.])
+                               time,
+                               theta_c, p0=[1., 1., 1.])
+
         plt.plot(time, theta_c)
         plt.plot(time, expfit(time, *popt))
         plt.show()
