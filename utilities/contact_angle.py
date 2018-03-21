@@ -77,7 +77,8 @@ def main():
             plt.show()
 
         popt, pcov = curve_fit(expfit,
-                               time, theta_c, p0=[1., 1., 1.])
+                               time[np.isnan(theta_c)],
+                               theta_c[np.isnan(theta_c)], p0=[1., 1., 1.])
         plt.plot(time, theta_c)
         plt.plot(time, expfit(time, *popt))
         plt.show()
