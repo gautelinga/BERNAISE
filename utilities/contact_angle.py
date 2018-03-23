@@ -8,7 +8,8 @@ import simplejson
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Analyze contact angle")
-    parser.add_argument("folder", type=str, help="Folder")
+    parser.add_argument("folders", nargs='+', type=str, help="Folders")
+    parser.add_argument("--plot", "-p", action="store_true", help="Plot")
     args = parser.parse_args()
     return args
 
@@ -18,81 +19,87 @@ def fitfunc(x, x0, R_x):
     return y
 
 
+def expfit(x, A, B, tau):
+    y = A + (B-A)*np.exp(-x/tau)
+    return y
+
+
 def main():
     args = parse_args()
-    folder = os.path.join(args.folder, "Analysis", "contour")
 
-    time_data = np.loadtxt(os.path.join(
-        args.folder, "Analysis", "time_data.dat"))
-    time = time_data[:, 1]
+    contact_angle = dict()
+    relaxation_time = dict()
 
-    theta_c = []
-    x0_ = []
-    R_x_ = []
-    R_y_ = []
-    fs = sorted(os.listdir(folder))
-    for f in fs:
-        #print f
-        data = np.loadtxt(os.path.join(folder, f))
+    for base_folder in args.folders:
+        folder = os.path.join(base_folder, "Analysis", "contour")
 
-        #x = 0.5*(data[1:, 0]+data[:-1, 0])
-        #y = 0.5*(data[1:, 1]+data[:-1, 1])
-        #x = data[:, 0]
-        #y = data[:, 1]
+        time_data = np.loadtxt(os.path.join(
+            base_folder, "Analysis", "time_data.dat"))
+        time = time_data[:, 1]
 
-        x = data[:, 1]
-        y2 = data[:, 0]**2
-        y2 = y2[x > 0.1]
-        x = x[x > 0.1]
+        theta_c = []
+        x0_ = []
+        R_x_ = []
+        fs = sorted(os.listdir(folder))
+        for f in fs:
+            data = np.loadtxt(os.path.join(folder, f))
+
+            x = data[:, 1]
+            y2 = data[:, 0]**2
+            y2 = y2[x > 0.1]
+            x = x[x > 0.1]
         
-        popt, pcov = curve_fit(fitfunc,
-                               x, y2, p0=[0., 1.])
+            popt, pcov = curve_fit(fitfunc,
+                                   x, y2, p0=[0., 1.])
 
-        if f == fs[-1]:
-            plt.plot(data[:, 1], data[:, 0])
-            plt.plot(data[:, 1],
-                     np.sqrt(fitfunc(data[:, 1], *popt)),
-                     'r-')
+            if args.plot and f == fs[-1]:
+                plt.plot(data[:, 1], data[:, 0])
+                plt.plot(data[:, 1],
+                         np.sqrt(fitfunc(data[:, 1], *popt)),
+                         'r-')
+                plt.show()
+
+            x0, R_x = popt
+
+            x0_.append(x0)
+            R_x_.append(R_x)
+
+        x0_ = np.array(x0_)
+        R_x_ = np.array(R_x_)
+
+        theta_c = 0.5+np.arcsin(x0_/R_x_)/np.pi
+
+        if args.plot:
+            plt.plot(time, x0_)
             plt.show()
 
-        x0, R_x = popt
-        
-        #plt.show()
-        # plt.plot(-data[:, 0], data[:, 1])
-        #dx = x[1:]-x[:-1]
-        #dy = y[1:]-y[:-1]
+            plt.plot(time, R_x_)
+            plt.show()
 
-        #phi = np.arctan2(y[1:]+y[:-1], x[1:]+x[:-1])
-        #theta = np.arctan2(-dy, dx)
-        x0_.append(x0)
-        R_x_.append(R_x)
-        #R_y_.append(R_y)
+            plt.plot(time, theta_c)
+            plt.show()
+            
+        popt, pcov = curve_fit(expfit,
+                               time,
+                               theta_c, p0=[1., 1., 1.])
 
-    x0_ = np.array(x0_)
-    R_x_ = np.array(R_x_)
-    #R_y_ = np.array(R_y_)
+        plt.plot(time, theta_c)
+        plt.plot(time, expfit(time, *popt))
+        plt.show()
 
-    theta_c = 0.5+np.arcsin(x0_/R_x_)/np.pi
-    
-    plt.plot(time, x0_)
-    plt.show()
+        np.savetxt(
+            os.path.join(base_folder, "Analysis", "contact_angle.dat"),
+            np.array(zip(time, theta_c)))
 
-    #plt.plot(time, (R_y_-R_x_)/(R_x_+R_y_))
-    plt.plot(time, R_x_)
-    plt.show()
+        params = simplejson.load(
+            open(os.path.join(
+                base_folder, "Settings", "parameters_from_tstep_0.dat")))
 
-    plt.plot(time, theta_c)
-    plt.show()
+        contact_angle[params["V_top"]] = theta_c[-1]
+        relaxation_time[params["V_top"]] = popt[2]
 
-    np.savetxt(
-        os.path.join(args.folder, "Analysis", "contact_angle.dat"),
-        np.array(zip(time, theta_c)))
-
-
-    params = simplejson.load(open(os.path.join(
-        args.folder, "Settings", "parameters_from_tstep_0.dat")))
-    
-    print params["V_top"], theta_c[-1]
+    for key in sorted(contact_angle.keys()):
+        print key, contact_angle[key], relaxation_time[key]
 
 
 if __name__ == "__main__":
