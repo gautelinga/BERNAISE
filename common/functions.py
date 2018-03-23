@@ -19,6 +19,26 @@ def diff_pf_potential_linearised(phi, phi0):
     return phi0**3-phi0+(3*phi0**2-1.)*(phi-phi0)
 
 
+def pf_contact(phi):
+    """ Phase field contact function. """
+    return (2. + 3.*phi - phi**3)/4.
+
+
+def diff_pf_contact(phi):
+    """ Derivative of phase field contact function. """
+    return 3.*(1. - phi**2)/4.
+
+
+def ddiff_pf_contact(phi):
+    """ Double derivative of phase field contact. """
+    return -3.*phi/2.
+
+
+def diff_pf_contact_linearised(phi, phi0):
+    """ Linearised derivative of phase field contact function. """
+    return diff_pf_contact(phi0) + ddiff_pf_contact(phi0)*(phi-phi0)
+    
+
 # Phase field auxiliary fields
 def ramp(phi, A):
     """
