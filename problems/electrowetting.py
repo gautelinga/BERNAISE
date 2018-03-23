@@ -88,19 +88,19 @@ def problem():
         base_elements=base_elements,
         Lx=3.,
         Ly=3.,
-        rad_init=1.0,
+        rad_init=1.5,  # 1.0,
         #
         V_top=1.,
         V_bottom=0.,
         surface_tension=5.,  # 24.5,
         grav_const=0.,
-        concentration_init_s=1.,  # 10.,
+        concentration_init_s=10.,  # 10.,
         concentration_init_d=0.,  # 10.,
         #
         pf_mobility_coeff=0.000002,  # 0.000010,
         density=[10., 10.],
         viscosity=[10., 10.],
-        permittivity=[.1, .2],
+        permittivity=[.1, .2],  # [.1, .2],
         #
         use_iterative_solvers=True,
         use_pressure_stabilization=False
@@ -164,13 +164,13 @@ def initialize(Lx, Ly, rad_init,
             for solute in solutes[:2]:
                 c_init = initial_pf(x0, y0, rad0, interface_thickness,
                                     field_to_subspace[solute[0]].collapse())
-                c_init.vector()[:] = ((0.5*(1+(c_init.vector().get_local())))**4
+                c_init.vector()[:] = ((0.5*(1+(c_init.vector().get_local())))**10
                                       *concentration_init_s)
                 w_init_field[solute[0]] = c_init
             for solute in solutes[2:]:
                 c_init = initial_pf(x0, y0, rad0, interface_thickness,
                                     field_to_subspace[solute[0]].collapse())
-                c_init.vector()[:] = ((0.5*(1-(c_init.vector().get_local())))**4
+                c_init.vector()[:] = ((0.5*(1-(c_init.vector().get_local())))**10
                                       *concentration_init_d)
                 w_init_field[solute[0]] = c_init
             V_init_expr = df.Expression("0.", degree=1)
