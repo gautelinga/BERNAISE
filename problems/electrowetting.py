@@ -3,7 +3,7 @@ import os
 import numpy as np
 from . import *
 from common.io import mpi_is_root
-from common.bcs import Fixed, NoSlip, FreeSlip, Slip
+from common.bcs import Fixed, NoSlip, FreeSlip, Slip, ContactAngle
 __author__ = "Gaute Linga and Asger Bolet"
 
 
@@ -96,6 +96,7 @@ def problem():
         grav_const=0.,
         concentration_init_s=10.,  # 10.,
         concentration_init_d=0.,  # 10.,
+        contact_angle=np.pi/4.,
         #
         pf_mobility_coeff=0.000002,  # 0.000010,
         density=[10., 10.],
@@ -184,6 +185,7 @@ def create_bcs(field_to_subspace, Lx, Ly,
                solutes,
                concentration_init_s,
                V_top, V_bottom,
+               contact_angle,
                enable_NS, enable_PF, enable_EC,
                **namespace):
     """ The boundary conditions are defined in terms of field. """
@@ -224,6 +226,9 @@ def create_bcs(field_to_subspace, Lx, Ly,
             bcs["top"][solute[0]] = Fixed(0.)
         bcs["top"]["V"] = Fixed(V_top)
         bcs["bottom"]["V"] = Fixed(V_bottom)
+
+    if enable_PF:
+        bcs["bottom"]["phi"] = ContactAngle(np.pi-contact_angle)
 
     return boundaries, bcs, bcs_pointwise
 
