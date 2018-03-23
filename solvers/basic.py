@@ -21,7 +21,7 @@ GL, 2017-05-29
 import dolfin as df
 import math
 from common.functions import ramp, dramp, diff_pf_potential_linearised, \
-    unit_interval_filter
+    unit_interval_filter, diff_pf_contact_linearised
 from . import *
 from . import __all__
 
@@ -285,6 +285,11 @@ def setup_PF(w_PF, phi, g, psi, h,
                       for dbeta_i, ci_1 in zip(dbeta, c_1)])
                 + 0.5*dveps*df.dot(df.grad(V_1), df.grad(V_1))*h*dx)
 
+    for boundary_name, costheta in neumann_bcs["phi"].iteritems():
+        fw_prime = diff_pf_contact_linearised(phi, unit_interval_filter(phi_1))
+        F_g += sigma_bar*costheta*fw_prime*h*ds(boundary_to_mark[boundary_name])
+
+        
     if "phi" in q_rhs:        
         F_phi += -q_rhs["phi"]*psi*dx
     

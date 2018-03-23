@@ -2,6 +2,7 @@
 This module defines a range of different boundary conditions.
 """
 from dolfin import DirichletBC, Constant, Expression
+import numpy as np
 
 __author__ = "Gaute Linga"
 
@@ -89,6 +90,17 @@ class Charged(GenericBC):
             self.value = value
         else:
             self.value = Constant(value)
+
+    def is_nbc(self):
+        return True
+
+    def nbc(self):
+        return self.value
+
+
+class ContactAngle(GenericBC):
+    def __init__(self, theta):
+        self.value = Constant(np.cos(theta))
 
     def is_nbc(self):
         return True
