@@ -201,6 +201,9 @@ def parse_xdmf(xml_file, get_mesh_address=False):
     dsets = []
     timestamps = []
 
+    geometry_found = not get_mesh_address
+    topology_found = not get_mesh_address
+    
     for i, step in enumerate(root[0][0]):
         if step.tag == "Time":
             # Support for earlier dolfin formats
@@ -214,17 +217,19 @@ def parse_xdmf(xml_file, get_mesh_address=False):
                     timestamp = float(prop.attrib["Value"])
                 elif prop.tag == "Attribute":
                     dset_address = prop[0].text.split(":")[1]
-                elif get_mesh_address and prop.tag == "Topology":
+                elif not topology_found and prop.tag == "Topology":
                     topology_address = prop[0].text.split(":")
                     topology_address[0] = os.path.join(
                         os.path.dirname(xml_file), topology_address[0])
-                elif get_mesh_address and prop.tag == "Geometry":
+                    topology_found = True
+                elif not geometry_found and prop.tag == "Geometry":
                     geometry_address = prop[0].text.split(":")
                     geometry_address[0] = os.path.join(
                         os.path.dirname(xml_file), geometry_address[0])
+                    geometry_found = True
             if timestamp is None:
                 timestamp = timestamps[i-1]
             dsets.append((timestamp, dset_address))
-    if get_mesh_address:
+    if get_mesh_address and topology_found and geometry_found:
         return (dsets, topology_address, geometry_address)
     return dsets
