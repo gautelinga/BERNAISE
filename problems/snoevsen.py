@@ -75,6 +75,7 @@ def problem():
         Lx=3.,
         Ly=1.,
         R=0.3,
+        surfacepotential=False,
         surface_charge=sigma_e,
         concentration_init=2.,
         velocity_top=.2,
@@ -133,7 +134,7 @@ def initialize(Lx, Ly, R,
 
 def create_bcs(Lx, Ly,
                velocity_top, solutes,
-               concentration_init, surface_charge,
+               concentration_init, surface_charge,surfacepotential,
                enable_NS, enable_PF, enable_EC,
                **namespace):
     """ The boundaries and boundary conditions are defined here. """
@@ -161,7 +162,10 @@ def create_bcs(Lx, Ly,
         for solute in solutes:
             bcs["top"][solute[0]] = Fixed(concentration_init/abs(solute[1]))
         bcs["top"]["V"] = Fixed(0.)
-        bcs["bottom"]["V"] = Charged(surface_charge)
+        if surfacepotential:
+            bcs["bottom"]["V"] = Fixed(surface_charge)
+        else: 
+            bcs["bottom"]["V"] = Charged(surface_charge)
 
     return boundaries, bcs, bcs_pointwise
 
