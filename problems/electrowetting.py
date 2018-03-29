@@ -131,6 +131,8 @@ def mesh(Lx=1, Ly=5, grid_spacing=1./16, rad_init=0.75, **namespace):
                      p.distance(origin) > k_m*rad_init)
                 or bool((x/rad_x)**2 + (y/rad_y)**2 < k_p**2 and
                         (x/rad_x)**2 + (y/rad_y)**2 > k_m**2)
+                or bool((x/rad_y)**2 + (y/rad_x)**2 < k_p**2 and
+                        (x/rad_y)**2 + (y/rad_x)**2 > k_m**2)
                 or p.y() < 0.5 - k*0.2):
                 cell_markers[cell] = True
             else:
@@ -143,15 +145,16 @@ def initialize(Lx, Ly, rad_init,
                interface_thickness, solutes,
                concentration_init_d,
                concentration_init_s,
+               contact_angle,
                restart_folder,
                field_to_subspace,
                enable_NS, enable_PF, enable_EC,
                **namespace):
     """ Create the initial state. """
+    rad0 = rad_init*np.sqrt(np.pi/(2*contact_angle - np.sin(2*contact_angle)))
     x0 = 0.
-    y0 = 0.
-    rad0 = rad_init
-
+    y0 = -rad0*np.cos(contact_angle)
+    
     w_init_field = dict()
     if not restart_folder:
         # Phase field
@@ -234,10 +237,11 @@ def create_bcs(field_to_subspace, Lx, Ly,
 
 
 def initial_pf(x0, y0, rad0, eps, function_space):
-    expr_str = ("tanh(1./sqrt(2)*(sqrt(pow(x[0]-{x}, 2)"
-                "+pow(x[1]-{y}, 2))-{rad})/{eps})").format(
-                    x=x0, y=y0, rad=rad0, eps=eps)
-    phi_init_expr = df.Expression(expr_str, degree=2)
+    expr_str = ("tanh(1./sqrt(2)*(sqrt(pow(x[0]-x0, 2)"
+                "+pow(x[1]-y0, 2))-rad0)/eps)")
+    phi_init_expr = df.Expression(
+        expr_str,
+        x0=x0, y0=y0, rad0=rad0, eps=eps, degree=2)
     phi_init = df.interpolate(phi_init_expr, function_space)
     return phi_init
 
