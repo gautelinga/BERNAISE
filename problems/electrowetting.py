@@ -30,7 +30,7 @@ class Bottom(df.SubDomain):
     def inside(self, x, on_boundary):
         return bool(x[1] < df.DOLFIN_EPS and on_boundary)
 
-    
+
 class Top(df.SubDomain):
     def __init__(self, Ly):
         self.Ly = Ly
@@ -39,12 +39,12 @@ class Top(df.SubDomain):
     def inside(self, x, on_boundary):
         return bool(x[1] > self.Ly-df.DOLFIN_EPS and on_boundary)
 
-    
+
 class Left(df.SubDomain):
     def inside(self, x, on_boundary):
         return bool(x[0] < df.DOLFIN_EPS and on_boundary)
 
-    
+
 class Right(df.SubDomain):
     def __init__(self, Lx):
         self.Lx = Lx
@@ -55,7 +55,7 @@ class Right(df.SubDomain):
 
 
 def problem():
-    info_cyan("Charged droplet on electrode.")
+    info_cyan("Electrowetting with electrolytes.")
 
     # Define solutes
     # Format: name, valency, diffusivity in phase 1, diffusivity in phase
