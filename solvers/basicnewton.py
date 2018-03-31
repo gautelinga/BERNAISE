@@ -1,14 +1,16 @@
 """
-This module defines the basic newton solver.
+This module defines the basic Newton solver.
 
-Binary electrohydrodynamics solved using monolitic newton solver 
-and with a implicit euler timeintegartion. 
+Binary electrohydrodynamics solved using monolithic Newton solver 
+and with a implicit Euler time integartion. 
 
-AB, 2017-06-1(based on basic.py) 
+AB, 2017-06-1 (based on basic.py)
+GL, 2018-03 
 """
 import dolfin as df
 import math
-from common.functions import ramp, dramp, diff_pf_potential, diff_pf_contact
+from common.functions import ramp, dramp, diff_pf_potential, diff_pf_contact,\
+    unit_interval_filter, max_value
 from . import *
 from . import __all__
 
@@ -53,15 +55,14 @@ def setup(test_functions, trial_functions, w_, w_1,
           p_lagrange,
           **namespace):
     """ Set up problem. """
-    # Constant
+    # Constants
     sigma_bar = surface_tension*3./(2*math.sqrt(2))
     per_tau = df.Constant(1./dt)
     grav = df.Constant((0., -grav_const))
     gamma = pf_mobility_coeff
     eps = interface_thickness
 
-    # Set up the feilds
-
+    # Set up the fields
     funs_ = df.split(w_["NSPFEC"])
     funs_1 = df.split(w_1["NSPFEC"])
     field_number = 0
@@ -84,7 +85,7 @@ def setup(test_functions, trial_functions, w_, w_1,
         else:
             q0 = p0_ = p0_1 = None
     else:
-        v = u_ = u_1 = q = q_ = q_1 = q0 = p0 = p0_1 = None  
+        v = u_ = u_1 = q = q0 = p0_ = p0_1 = None
     if enable_PF:
         psi = test_functions["NSPFEC"][field_number]
         phi_ = funs_[field_number]
@@ -225,7 +226,8 @@ def setup_NSPFEC(w_NSPFEC, w_1NSPFEC,
 
     # Setup of the phase-field equations
     if enable_PF:
-        F_PF_phi = (per_tau*(phi_-phi_1)*psi*df.dx +
+        phi_1_flt = unit_interval_filter(phi_1)
+        F_PF_phi = (per_tau*(phi_-phi_1_flt)*psi*df.dx +
                     M_*df.dot(df.grad(g_), df.grad(psi)) * dx)
         if enable_NS:
             F_PF_phi += df.dot(u_, df.grad(phi_)) * psi * dx
@@ -256,7 +258,8 @@ def setup_NSPFEC(w_NSPFEC, w_1NSPFEC,
         F_E_c = []
         for ci_, ci_1, bi, Ki_, zi, dbetai, solute in zip(
                 c_, c_1, b, K_, z, dbeta, solutes):
-            F_E_ci = (per_tau*(ci_-ci_1)*bi*df.dx
+            ci_1_flt = max_value(ci_1, 0.)
+            F_E_ci = (per_tau*(ci_-ci_1_flt)*bi*df.dx
                        + Ki_*df.dot(df.grad(ci_), df.grad(bi))*df.dx)
             if zi != 0:
                 F_E_ci += Ki_*zi*ci_*df.dot(df.grad(V_),
