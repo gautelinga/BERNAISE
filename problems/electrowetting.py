@@ -37,7 +37,7 @@ class Top(df.SubDomain):
         df.SubDomain.__init__(self)
     
     def inside(self, x, on_boundary):
-        return bool(x[1] > self.Ly-df.DOLFIN_EPS and on_boundary)
+        return bool(x[1] > self.Ly*(1.-df.DOLFIN_EPS) and on_boundary)
 
 
 class Left(df.SubDomain):
@@ -51,7 +51,7 @@ class Right(df.SubDomain):
         df.SubDomain.__init__(self)
 
     def inside(self, x, on_boundary):
-        return bool(x[0] > self.Lx-df.DOLFIN_EPS and on_boundary)
+        return bool(x[0] > self.Lx*(1.-df.DOLFIN_EPS) and on_boundary)
 
 
 def problem():
@@ -96,7 +96,7 @@ def problem():
         grav_const=0.,
         concentration_init_s=10.,  # 10.,
         concentration_init_d=0.,  # 10.,
-        contact_angle=np.pi/4.,
+        contact_angle=np.pi/2.,
         #
         pf_mobility_coeff=0.000002,  # 0.000010,
         density=[10., 10.],

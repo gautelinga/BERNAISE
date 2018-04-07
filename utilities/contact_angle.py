@@ -42,6 +42,24 @@ def expfit(x, A, B, tau):
     return y
 
 
+def read_blocks(input_file):
+    empty_lines = 0
+    blocks = [[]]
+    for line in open(input_file):
+        # Check for empty/commented lines
+        if not line or line.startswith('#') or line.startswith('\n'):
+            # If 1st one: new block
+            if empty_lines == 0:
+                blocks.append([])
+            empty_lines += 1
+        # Non empty line: add line in current(last) block
+        else:
+            empty_lines = 0
+            line.replace("\n", "")
+            blocks[-1].append([float(e) for e in line.split(" ")])
+    return blocks
+
+
 def main():
     args = parse_args()
 
@@ -60,7 +78,8 @@ def main():
         R_x_ = []
         fs = sorted(os.listdir(folder))
         for f in fs:
-            data = np.loadtxt(os.path.join(folder, f))
+            infile = os.path.join(folder, f)
+            data = np.array(read_blocks(infile)[0])
 
             x = data[:, 1]
             y = data[:, 0]
