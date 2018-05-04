@@ -29,6 +29,7 @@ def method(ts, show=False, save=True, dt=None, fps=25, skip=0,
             phi = -phi
         charge = ts["charge", step][:, 0]
         charge_max = max(ts.max("charge"), -ts.min("charge"))
+        charge_max = max(charge_max, 1e-8)  # Remove numerical noise
         if plot_u and "u" in ts:
             u = ts["u", step]
         else:
