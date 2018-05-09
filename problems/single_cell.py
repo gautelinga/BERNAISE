@@ -38,8 +38,8 @@ class Top(df.SubDomain):
 def problem():
     info_cyan("Flow in a cell with single-phase electrohydrodynamics.")
 
-    solutes = [["c_p",  1, 2., 2., 0., 0.],
-               ["c_m", -1, 2., 2., 0., 0.]]
+    solutes = [["c_p",  1, 0.01, 0.01, 0., 0.],
+               ["c_m", -1, 0.01, 0.01, 0., 0.]]
 
     # Format: name : (family, degree, is_vector)
     base_elements = dict(u=["Lagrange", 2, True],
@@ -59,22 +59,22 @@ def problem():
         stats_intv=5,
         checkpoint_intv=50,
         tstep=0,
-        dt=0.001,
+        dt=0.02,
         t_0=0.,
-        T=1.0,
+        T=10.0,
         grid_spacing=1./64,
         solutes=solutes,
         base_elements=base_elements,
         Lx=1.,
         Ly=2.,
-        concentration_init=1.,
+        concentration_init=5.,
         rad=0.25,
-        surface_charge=20.,
+        surface_charge=1.,
         #
         density=[1., 1.],
-        viscosity=[0.04, 0.04],
-        permittivity=[2., 2.],
-        EC_scheme="L1",
+        viscosity=[0.2, 0.2],
+        permittivity=[0.2, 0.2],
+        EC_scheme="NL2",
         use_iterative_solvers=True,
         grav_const=0.,
         c_cutoff=0.1

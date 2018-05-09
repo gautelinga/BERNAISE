@@ -238,8 +238,9 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
         for ci_, ci_1, dbetai, solute in zip(c_, c_1, dbeta, solutes):
             zi = solute[1]
             F += df.dot(df.grad(ci_), v)*dx \
-                + ci_*dbetai*df.dot(df.grad(phi_), v)*dx \
                 + zi*ci_1*df.dot(df.grad(V_), v)*dx
+            if enable_PF:
+                F += ci_*dbetai*df.dot(df.grad(phi_), v)*dx \
 
     if p_lagrange:
         F += (p*q0 + q*p0)*dx
