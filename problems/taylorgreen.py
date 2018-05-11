@@ -75,6 +75,7 @@ def initialize(Lx, Ly,
                density, viscosity, permittivity,
                restart_folder,
                field_to_subspace,
+               field_to_subproblem,
                concentration_init,
                concentration_init_dev,
                enable_NS, enable_PF, enable_EC,
@@ -87,8 +88,12 @@ def initialize(Lx, Ly,
     if not restart_folder:
         exprs = reference(t=0., **vars())
         for field, expr in exprs.items():
+            if field_to_subproblem[field][1] == -1:
+                S = field_to_subspace[field]
+            else:
+                S = field_to_subspace[field].collapse()
             w_init_field[field] = df.interpolate(
-                expr, field_to_subspace[field].collapse())
+                expr, S)
             #fig = df.plot(w_init_field[field])
             #plt.title(field)
             #plt.colorbar(fig)

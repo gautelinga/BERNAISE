@@ -238,8 +238,9 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
         for ci_, ci_1, dbetai, solute in zip(c_, c_1, dbeta, solutes):
             zi = solute[1]
             F += df.dot(df.grad(ci_), v)*dx \
-                + ci_*dbetai*df.dot(df.grad(phi_), v)*dx \
                 + zi*ci_1*df.dot(df.grad(V_), v)*dx
+            if enable_PF:
+                F += ci_*dbetai*df.dot(df.grad(phi_), v)*dx
 
     if p_lagrange:
         F += (p*q0 + q*p0)*dx
@@ -288,7 +289,6 @@ def setup_PF(w_PF, phi, g, psi, h,
     for boundary_name, costheta in neumann_bcs["phi"].iteritems():
         fw_prime = diff_pf_contact_linearised(phi, unit_interval_filter(phi_1))
         F_g += sigma_bar*costheta*fw_prime*h*ds(boundary_to_mark[boundary_name])
-
         
     if "phi" in q_rhs:        
         F_phi += -q_rhs["phi"]*psi*dx

@@ -53,7 +53,7 @@ def setup(test_functions, trial_functions, w_, w_1,
     veps = df.Constant(permittivity[0])
     rho = df.Constant(density[0])
 
-    if EC_scheme in ["NL1", "NL2"]:
+    if EC_scheme in ["NL2-A", "NL2-B"]:
         nonlinear_EC = True
     else:
         nonlinear_EC = False

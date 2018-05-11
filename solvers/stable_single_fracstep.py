@@ -150,8 +150,8 @@ def setup_NSu(w_NSu, u, v,
     solvers = dict()
 
     F_predict = (1./dt * rho * df.dot(u - u_1, v) * dx
-                 + rho * df.inner(df.grad(u), df.outer(u_1, v)) * dx
-                 + mu * df.inner(df.grad(u), df.grad(v)) * dx
+                 + rho * df.inner(df.nabla_grad(u), df.outer(u_1, v)) * dx
+                 + mu * df.inner(df.nabla_grad(u), df.nabla_grad(v)) * dx
                  - p_1 * df.div(v) * dx
                  - rho * df.dot(grav, v) * dx)
 
@@ -244,8 +244,19 @@ def solve(tstep, w_, w_1, solvers,
     timer_outer.stop()
 
 
-def update(w_, w_1, enable_EC, enable_NS, **namespace):
+def update(t, dt, w_, w_1,
+           q_rhs, bcs,
+           enable_EC, enable_NS, **namespace):
     """ Update work variables at end of timestep. """
+    # Update the time-dependent source terms
+    for qi in q_rhs.values():
+        qi.t = t+dt
+    # Update the time-dependent boundary conditions
+    for boundary_name, bcs_fields in bcs.iteritems():
+        for field, bc in bcs_fields.iteritems():
+            if isinstance(bc.value, df.Expression):
+                bc.value.t = t+dt
+
     for subproblem, enable in zip(
             ["EC", "NSu", "NSp"],
             [enable_EC, enable_NS, enable_NS]):
