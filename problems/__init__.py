@@ -42,6 +42,10 @@ parameters = dict(
     q_rhs=dict(),
     EC_scheme="NL2",
     grav_dir=[1., 0],
+    pf_mobility_coeff=1.,
+    grav_const=0.,
+    surface_tension=0.,
+    interface_thickness=0.
 )
 
 

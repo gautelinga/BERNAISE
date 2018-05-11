@@ -97,6 +97,7 @@ def problem():
         concentration_init_s=10.,  # 10.,
         concentration_init_d=0.,  # 10.,
         contact_angle=np.pi/2.,
+        contact_angle_init=False,
         #
         pf_mobility_coeff=0.000002,  # 0.000010,
         density=[10., 10.],
@@ -146,14 +147,18 @@ def initialize(Lx, Ly, rad_init,
                concentration_init_d,
                concentration_init_s,
                contact_angle,
+               contact_angle_init,
                restart_folder,
                field_to_subspace,
                enable_NS, enable_PF, enable_EC,
                **namespace):
     """ Create the initial state. """
-    rad0 = rad_init*np.sqrt(np.pi/(2*contact_angle - np.sin(2*contact_angle)))
+    if not contact_angle_init:
+        contact_angle_init = contact_angle
+        
+    rad0 = rad_init*np.sqrt(np.pi/(2*contact_angle_init - np.sin(2*contact_angle_init)))
     x0 = 0.
-    y0 = -rad0*np.cos(contact_angle)
+    y0 = -rad0*np.cos(contact_angle_init)
     
     w_init_field = dict()
     if not restart_folder:

@@ -212,7 +212,7 @@ def alpha_prime_approx(ci, ci_1, EC_scheme, c_cutoff):
 def regulate(ci, ci_1, EC_scheme, c_cutoff):
     if EC_scheme in ["NL1", "NL2"]:
         return max_value(ci, 0.)
-    if EC_scheme == ["L2"]:
+    elif EC_scheme == ["L2"]:
         return max_value(ci_1, c_cutoff)
     else:
         return max_value(ci_1, 0.)
@@ -223,6 +223,7 @@ def setup_EC(w_EC, c, V, V0, b, U, U0,
              dx, ds, normal,
              dirichlet_bcs_EC, neumann_bcs, boundary_to_mark,
              c_1, u_1, K, veps,
+             rho,
              dt,
              enable_NS,
              solutes,
@@ -234,8 +235,8 @@ def setup_EC(w_EC, c, V, V0, b, U, U0,
     """ Set up electrochemistry subproblem. """
     if enable_NS:
         # Projected velocity
-        u_star = u_1 - dt*sum([ci_1*grad_g_ci
-                               for ci_1, grad_g_ci in zip(c_1, grad_g_c)])
+        u_star = u_1 - dt/rho*sum([ci_1*grad_g_ci
+                                   for ci_1, grad_g_ci in zip(c_1, grad_g_c)])
 
     F_c = []
     for ci, ci_1, bi, Ki, grad_g_ci, solute, ci_reg in zip(
@@ -243,7 +244,7 @@ def setup_EC(w_EC, c, V, V0, b, U, U0,
         F_ci = (1./dt*(ci-ci_1)*bi*dx +
                 Ki*ci_reg*df.dot(grad_g_ci, df.grad(bi))*dx)
         if enable_NS:
-            F_ci += df.dot(u_star, df.grad(ci_1))*bi*dx
+            F_ci += - ci_1*df.dot(u_star, df.grad(bi))*dx
         if solute[0] in q_rhs:
             F_ci += - q_rhs[solute[0]]*bi*dx
         if enable_NS:
