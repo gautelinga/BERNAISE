@@ -45,7 +45,10 @@ parameters = dict(
     pf_mobility_coeff=1.,
     grav_const=0.,
     surface_tension=0.,
-    interface_thickness=0.
+    interface_thickness=0.,
+    reactions=[],
+    density_per_concentration=None,
+    viscosity_per_concentration=None
 )
 
 

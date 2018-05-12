@@ -39,7 +39,8 @@ def problem():
     info_cyan("Flow in a cell with single-phase electrohydrodynamics.")
 
     solutes = [["c_p",  1, 0.01, 0.01, 0., 0.],
-               ["c_m", -1, 0.01, 0.01, 0., 0.]]
+               ["c_m", -1, 0.01, 0.01, 0., 0.],
+               ["c_n", 0, 0.01, 0.01, 0., 0.]]
 
     # Format: name : (family, degree, is_vector)
     base_elements = dict(u=["Lagrange", 2, True],
@@ -69,7 +70,7 @@ def problem():
         Ly=2.,
         concentration_init=5.,
         rad=0.25,
-        surface_charge=1.,
+        surface_charge=2.,
         #
         density=[1., 1.],
         viscosity=[0.2, 0.2],
@@ -77,7 +78,10 @@ def problem():
         EC_scheme="NL2",
         use_iterative_solvers=True,
         grav_const=0.,
-        c_cutoff=0.1
+        c_cutoff=0.1,
+        density_per_concentration=[0.02, 0.02, 0.04],
+        viscosity_per_concentration=[0.005, 0.005, 0.01],
+        reactions=[[1.0, [-1, -1, 1]]]
     )
     return parameters
 

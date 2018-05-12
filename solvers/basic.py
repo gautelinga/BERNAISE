@@ -21,7 +21,7 @@ GL, 2017-05-29
 import dolfin as df
 import math
 from common.functions import ramp, dramp, diff_pf_potential_linearised, \
-    unit_interval_filter, diff_pf_contact_linearised
+    unit_interval_filter, diff_pf_contact_linearised, pf_potential, alpha
 from . import *
 from . import __all__
 
@@ -121,7 +121,7 @@ def setup(test_functions, trial_functions,
 
     M_ = pf_mobility(phi_flt_, gamma)
     M_1 = pf_mobility(phi_flt_1, gamma)
-    nu_ = ramp(phi_flt_, viscosity)
+    mu_ = ramp(phi_flt_, viscosity)
     rho_ = ramp(phi_flt_, density)
     rho_1 = ramp(phi_flt_1, density)
     veps_ = ramp(phi_flt_, permittivity)
@@ -175,7 +175,7 @@ def setup(test_functions, trial_functions,
                                  dirichlet_bcs["NS"], neumann_bcs,
                                  boundary_to_mark,
                                  u_1, phi_flt_,
-                                 rho_, rho_1, g_, M_, nu_, rho_e_,
+                                 rho_, rho_1, g_, M_, mu_, rho_e_,
                                  c_, V_,
                                  c_1, V_1,
                                  dbeta, solutes,
@@ -191,7 +191,7 @@ def setup(test_functions, trial_functions,
 def setup_NS(w_NS, u, p, v, q, p0, q0,
              dx, ds, normal,
              dirichlet_bcs, neumann_bcs, boundary_to_mark,
-             u_1, phi_, rho_, rho_1, g_, M_, nu_, rho_e_,
+             u_1, phi_, rho_, rho_1, g_, M_, mu_, rho_e_,
              c_, V_,
              c_1, V_1,
              dbeta, solutes,
@@ -204,7 +204,7 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
     # F = (
     #     per_tau * rho_ * df.dot(u - u_1, v)*dx
     #     + rho_*df.inner(df.grad(u), df.outer(u_1, v))*dx
-    #     + 2*nu_*df.inner(df.sym(df.grad(u)), df.grad(v))*dx
+    #     + 2*mu_*df.inner(df.sym(df.grad(u)), df.grad(v))*dx
     #     - p * df.div(v)*dx
     #     + df.div(u)*q*dx
     #     - df.dot(rho_*grav, v)*dx
@@ -215,12 +215,13 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
 
     F = (
         per_tau * rho_1 * df.dot(u - u_1, v) * dx
-        + 2*nu_*df.inner(df.sym(df.nabla_grad(u)),
+        + 2*mu_*df.inner(df.sym(df.nabla_grad(u)),
                          df.sym(df.nabla_grad(v))) * dx
         - p * df.div(v) * dx
         - q * df.div(u) * dx
         + df.inner(df.nabla_grad(u), df.outer(mom_1, v)) * dx
-        + 0.5 * (per_tau * (rho_ - rho_1) + df.div(mom_1)) * df.dot(u, v) * dx
+        + 0.5 * (per_tau * (rho_ - rho_1) * df.dot(u, v)
+                 - df.dot(mom_1, df.nabla_grad(df.dot(u, v)))) * dx
         - rho_*df.dot(grav, v) * dx
     )
     for boundary_name, slip_length in neumann_bcs["u"].iteritems():
@@ -462,3 +463,59 @@ def equilibrium_EC(w_, x_, test_functions,
             solver.parameters["newton_solver"]["preconditioner"] = "hypre_amg"
 
     solver.solve()
+
+
+def discrete_energy(x_, solutes, density, permittivity,
+                    c_cutoff, EC_scheme, dt,
+                    density_per_concentration,
+                    surface_tension, interface_thickness,
+                    enable_NS, enable_PF, enable_EC,
+                    **namespace):
+    if x_ is None:
+        E_list = []
+        if enable_NS:
+            E_list.append("E_kin")
+        if enable_PF:
+            E_list.append("E_phi")
+        if enable_EC:
+            E_list.extend(
+                ["E_{}".format(solute[0])
+                 for solute in solutes] + ["E_V"])
+        return E_list
+
+    if enable_NS:
+        rho = density[0]
+        veps = permittivity[0]
+        u = x_["u"]
+        # grad_p = df.grad(x_["p"])
+
+    if enable_PF:
+        sigma_bar = surface_tension*3./(2*math.sqrt(2))
+        eps = interface_thickness
+        phi = x_["phi"]
+        rho = ramp(phi, density)
+        veps = ramp(phi, permittivity)
+
+    if enable_EC:
+        grad_V = df.grad(x_["V"])
+        M_list = []
+        for solute in solutes:
+            ci = x_[solute[0]]
+            if enable_PF:
+                betai = ramp(phi, solute[4:6])
+            else:
+                betai = solute[4]
+            M_list.append(alpha(ci) + betai*ci)
+
+    E_list = []
+    if enable_NS:
+        E_list.append(0.5*rho*df.dot(u, u))
+    if enable_PF:
+        E_list.append(sigma_bar/eps*pf_potential(phi)
+                      + 0.5*sigma_bar*eps*df.dot(df.nabla_grad(phi),
+                                                 df.nabla_grad(phi)))
+    if enable_EC:
+        E_list.extend(
+            M_list + [0.5*veps*df.dot(grad_V, grad_V)])
+
+    return E_list

@@ -38,14 +38,18 @@ def setup(test_functions, trial_functions, w_, w_1,
           c_cutoff,
           q_rhs,
           mesh,
+          reactions,
           V_lagrange, p_lagrange,
+          density_per_concentration,
+          viscosity_per_concentration,
           **namespace):
     """ Set up problem. """
     # Constant
     grav = df.Constant(tuple(grav_const*np.array(grav_dir)))
-    mu = viscosity[0]
-    veps = permittivity[0]
-    rho = density[0]
+    veps = df.Constant(permittivity[0])
+
+    mu_0 = df.Constant(viscosity[0])
+    rho_0 = df.Constant(density[0])
 
     if EC_scheme in ["NL1", "NL2"]:
         nonlinear_EC = True
@@ -90,14 +94,43 @@ def setup(test_functions, trial_functions, w_, w_1,
     else:
         c_ = V_ = c_1 = V_1 = None
 
+    rho = rho_0
+    rho_ = rho_0
+    rho_1 = rho_0
+
+    if enable_EC and density_per_concentration is not None:
+        for drhodci, ci, ci_, ci_1 in zip(
+                density_per_concentration, c, c_, c_1):
+            if drhodci > 0.:
+                rho += drhodci*ci
+                rho_ += drhodci*ci_
+                rho_1 += drhodci*ci_1
+
+    mu = mu_0
+    mu_ = mu_0
+    mu_1 = mu_0
+
+    if enable_EC and viscosity_per_concentration is not None:
+        for dmudci, ci, ci_, ci_1 in zip(
+                viscosity_per_concentration, c, c_, c_1):
+            if dmudci != 0.:
+                mu += dmudci*ci
+                mu_ += dmudci*ci_
+                mu_1 += dmudci*ci_1
+
     z = []  # Charge z[species]
     K = []  # Diffusivity K[species]
     beta = []
 
-    for solute in solutes:
-        z.append(solute[1])
-        K.append(solute[2])
-        beta.append(solute[4])
+    if enable_EC:
+        for solute in solutes:
+            z.append(solute[1])
+            K.append(solute[2])
+            beta.append(solute[4])
+    else:
+        z = None
+        K = None
+        beta = None
 
     if enable_EC:
         rho_e = sum([c_e*z_e for c_e, z_e in zip(c, z)])  # Sum of trial func.
@@ -106,16 +139,24 @@ def setup(test_functions, trial_functions, w_, w_1,
         rho_e_ = None
 
     if enable_EC:
+        g_c = []
+        g_c_ = []
         grad_g_c = []
         grad_g_c_ = []
         c_reg = []
-        for ci, ci_, ci_1, zi in zip(c, c_, c_1, z):
-            grad_g_c.append(df.grad(
-                alpha_prime_approx(ci, ci_1, EC_scheme, c_cutoff) + zi*V))
-            grad_g_c_.append(df.grad(
-                alpha_prime_approx(ci_, ci_1, EC_scheme, c_cutoff) + zi*V_))
+        for ci, ci_, ci_1, zi, betai in zip(c, c_, c_1, z, beta):
+            g_ci = alpha_prime_approx(
+                ci, ci_1, EC_scheme, c_cutoff) + betai + zi*V
+            g_ci_ = alpha_prime_approx(
+                ci_, ci_1, EC_scheme, c_cutoff) + betai + zi*V_
+            g_c.append(g_ci)
+            g_c_.append(g_ci_)
+            grad_g_c.append(df.grad(g_ci))
+            grad_g_c_.append(df.grad(g_ci_))
             c_reg.append(regulate(ci, ci_1, EC_scheme, c_cutoff))
     else:
+        g_c = None
+        g_c_ = None
         grad_g_c = None
         grad_g_c_ = None
         c_reg = None
@@ -139,21 +180,35 @@ def setup(test_functions, trial_functions, w_, w_1,
 def setup_NSu(w_NSu, u, v,
               dx, ds, normal,
               dirichlet_bcs_NSu, neumann_bcs, boundary_to_mark,
-              u_, p_, u_1, p_1, rho, mu, c_1, grad_g_c_,
+              u_, p_, u_1, p_1, rho_, rho_1, mu_, c_1, grad_g_c_,
               dt, grav,
               enable_EC,
               trial_functions,
               use_iterative_solvers,
               mesh,
+              density_per_concentration,
+              viscosity_per_concentration,
+              K,
               **namespace):
     """ Set up the Navier-Stokes velocity subproblem. """
     solvers = dict()
 
-    F_predict = (1./dt * rho * df.dot(u - u_1, v) * dx
-                 + rho * df.inner(df.nabla_grad(u), df.outer(u_1, v)) * dx
-                 + mu * df.inner(df.nabla_grad(u), df.nabla_grad(v)) * dx
+    mom_1 = rho_1 * u_1
+    if enable_EC and density_per_concentration is not None:
+        for drhodci, ci_1, grad_g_ci_, Ki in zip(
+                density_per_concentration, c_1, grad_g_c_, K):
+            if drhodci > 0.:
+                mom_1 += -drhodci*Ki*ci_1*grad_g_ci_
+
+    F_predict = (1./dt * rho_1 * df.dot(u - u_1, v) * dx
+                 + df.inner(df.nabla_grad(u), df.outer(mom_1, v)) * dx
+                 + 2*mu_*df.inner(df.sym(df.nabla_grad(u)),
+                                  df.sym(df.nabla_grad(v))) * dx
+                 + 0.5*(
+                     1./dt * (rho_ - rho_1) * df.dot(u, v)
+                     - df.inner(mom_1, df.grad(df.dot(u, v)))) * dx
                  - p_1 * df.div(v) * dx
-                 - rho * df.dot(grav, v) * dx)
+                 - rho_ * df.dot(grav, v) * dx)
 
     for boundary_name, pressure in neumann_bcs["p"].iteritems():
         F_predict += pressure * df.inner(
@@ -173,7 +228,7 @@ def setup_NSu(w_NSu, u, v,
         solvers["predict"].parameters["preconditioner"] = "amg"
 
     F_correct = (
-        rho * df.inner(u - u_, v) * dx
+        rho_ * df.inner(u - u_, v) * dx
         - dt * (p_ - p_1) * df.div(v) * dx
     )
     a_correct, L_correct = df.lhs(F_correct), df.rhs(F_correct)
@@ -193,13 +248,13 @@ def setup_NSu(w_NSu, u, v,
 
 
 def setup_NSp(w_NSp, p, q, dirichlet_bcs_NSp,
-              dt, u_, p_1, rho,
+              dt, u_, p_1, rho_0,
               use_iterative_solvers,
               **namespace):
     """ Set up Navier-Stokes pressure subproblem. """
     F = (
-        df.dot(df.grad(p - p_1), df.grad(q)) * df.dx
-        + 1./dt * rho * df.div(u_) * q * df.dx
+        df.dot(df.nabla_grad(p - p_1), df.nabla_grad(q)) * df.dx
+        + 1./dt * rho_0 * df.div(u_) * q * df.dx
     )
 
     a, L = df.lhs(F), df.rhs(F)
@@ -211,7 +266,7 @@ def setup_NSp(w_NSp, p, q, dirichlet_bcs_NSp,
     if use_iterative_solvers:
         solver.parameters["linear_solver"] = "bicgstab"
         solver.parameters["preconditioner"] = "amg"
-    
+
     return solver
 
 
@@ -251,6 +306,7 @@ def update(t, dt, w_, w_1,
     # Update the time-dependent source terms
     for qi in q_rhs.values():
         qi.t = t+dt
+
     # Update the time-dependent boundary conditions
     for boundary_name, bcs_fields in bcs.iteritems():
         for field, bc in bcs_fields.iteritems():
@@ -265,21 +321,48 @@ def update(t, dt, w_, w_1,
 
 
 def discrete_energy(x_, solutes, density, permittivity,
-                    c_cutoff, EC_scheme, dt, **namespace):
+                    c_cutoff, EC_scheme, dt,
+                    density_per_concentration,
+                    enable_NS, enable_EC,
+                    **namespace):
     if x_ is None:
-        return ["E_kin"] + ["E_{}".format(solute[0])
-                            for solute in solutes] + ["E_V"] + ["E_p"]
+        E_list = []
+        if enable_NS:
+            E_list.append("E_kin")
+        if enable_EC:
+            E_list.extend(
+                ["E_{}".format(solute[0])
+                 for solute in solutes] + ["E_V"])
+        if enable_NS:
+            E_list.append("E_p")
+        return E_list
 
-    u = x_["u"]
-    grad_V = df.grad(x_["V"])
-    veps = permittivity[0]
-    grad_p = df.grad(x_["p"])
-    rho = density[0]
+    if enable_NS:
+        rho_0 = density[0]
+        u = x_["u"]
+        grad_p = df.grad(x_["p"])
 
-    alpha_list = [alpha_generalized(x_[solute[0]], c_cutoff, EC_scheme)
-                  for solute in solutes]
+    if enable_EC:
+        veps = permittivity[0]
+        grad_V = df.grad(x_["V"])
 
-    return ([0.5*rho*df.dot(u, u)]
-            + alpha_list
-            + [0.5*veps*df.dot(grad_V, grad_V)]
-            + [0.5*dt**2*df.dot(grad_p, grad_p)])
+        alpha_list = [alpha_generalized(x_[solute[0]], c_cutoff, EC_scheme)
+                      + solute[4]*x_[solute[0]]
+                      for solute in solutes]
+
+    if enable_NS:
+        rho = rho_0
+        if enable_EC and density_per_concentration is not None:
+            for drhodci, solute in zip(density_per_concentration, solutes):
+                rho += drhodci*x_[solute[0]]
+
+    E_list = []
+    if enable_NS:
+        E_list.append(0.5*rho*df.dot(u, u))
+    if enable_EC:
+        E_list.extend(
+            alpha_list + [0.5*veps*df.dot(grad_V, grad_V)])
+    if enable_NS:
+        E_list.append(0.5*dt**2*df.dot(grad_p, grad_p)/rho_0)
+
+    return E_list
