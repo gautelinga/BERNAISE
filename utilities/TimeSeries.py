@@ -329,7 +329,7 @@ class TimeSeries:
 
     def nodal_values(self, f):
         """ Convert dolfin function to nodal values. """
-        farray = f.vector().array()
+        farray = f.vector().get_local()
         fdim = len(farray)/len(self.indices)
         farray = farray.reshape((len(self.indices), fdim))
 

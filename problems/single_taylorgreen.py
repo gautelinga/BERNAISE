@@ -183,8 +183,8 @@ def rhs_source(t, solutes, viscosity, permittivity, density,
                concentration_init, concentration_init_dev,
                **namespace):
     """ Source term on the right hand side of ion transport. """
-    C_str, U_str = reference_prefactors()
-    code_string = ("-0.5*K*pow(c0*{C_str}, 2)/veps*"
+    U_str, C_str = reference_prefactors()
+    code_string = ("0.5*K*pow(c0*{C_str}, 2)/veps*"
                    "(cos(2*x[0])+cos(2*x[1])"
                    "+2*cos(2*x[0])*cos(2*x[1]))").format(C_str=C_str)
 
@@ -206,7 +206,9 @@ def rhs_source(t, solutes, viscosity, permittivity, density,
 
 def reference(t, viscosity, density,
               concentration_init, concentration_init_dev,
-              solutes, permittivity, **namespace):
+              solutes, permittivity,
+              enable_NS, enable_EC,
+              **namespace):
     """ This contains the analytical reference for convergence analysis. """
     mu = viscosity[0]
     rho_0 = density[0]
@@ -218,10 +220,13 @@ def reference(t, viscosity, density,
     code_strings = reference_code(solutes)
     expr = dict()
     for key, code_string in code_strings.iteritems():
-        expr[key] = df.Expression(code_string, t=t,
-                                  mu=mu, rho_0=rho_0,
-                                  chi=chi, c0=c0, veps=veps, K=K,
-                                  degree=2)
+        if bool((enable_NS and key in ["u", "p"]) or
+                (enable_EC and key in ["V"]
+                 + [solute[0] for solute in solutes])):
+            expr[key] = df.Expression(code_string, t=t,
+                                      mu=mu, rho_0=rho_0,
+                                      chi=chi, c0=c0, veps=veps, K=K,
+                                      degree=2)
     return expr
 
 
@@ -239,7 +244,7 @@ def reference_code(solutes):
                          "  +{factor_str}*cos(2*x[0])*cos(2*x[1]))").format(
                              U_str=U_str, factor_str=factor_str)
     for solute in solutes:
-        code_strings[solute[0]] = ("c0*(1+{z}*cos(x[0])*cos(x[1])*{C_str})").format(
+        code_strings[solute[0]] = ("c0*(1+({z})*cos(x[0])*cos(x[1])*{C_str})").format(
                                        C_str=C_str, z=solute[1])
     code_strings["V"] = ("c0/veps*cos(x[0])*cos(x[1])*{C_str}").format(C_str=C_str)
 
@@ -247,6 +252,6 @@ def reference_code(solutes):
 
 
 def reference_prefactors():
-    U_str = "(exp(-2*mu*t/rho_0))"
-    C_str = "(chi*exp(-2*K*(1+c0/veps)*t))"
+    U_str = "(exp(-2.*mu*t/rho_0))"
+    C_str = "(chi*exp(-2.*K*(1.+c0/veps)*t))"
     return U_str, C_str
