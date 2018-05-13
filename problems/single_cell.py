@@ -38,9 +38,11 @@ class Top(df.SubDomain):
 def problem():
     info_cyan("Flow in a cell with single-phase electrohydrodynamics.")
 
-    solutes = [["c_p",  1, 0.01, 0.01, 0., 0.],
-               ["c_m", -1, 0.01, 0.01, 0., 0.],
-               ["c_n", 0, 0.01, 0.01, 0., 0.]]
+    solutes = [
+        ["c_p",  1, 0.01, 0.01, 0., 0.],
+        ["c_m", -1, 0.01, 0.01, 0., 0.]  # ,
+        # ["c_n", 0, 0.01, 0.01, 0., 0.]
+    ]
 
     # Format: name : (family, degree, is_vector)
     base_elements = dict(u=["Lagrange", 2, True],
@@ -68,19 +70,19 @@ def problem():
         base_elements=base_elements,
         Lx=1.,
         Ly=2.,
-        concentration_init=5.,
+        concentration_init=3.,
         rad=0.25,
-        surface_charge=2.,
+        surface_charge=1.,
         #
         density=[1., 1.],
-        viscosity=[0.2, 0.2],
-        permittivity=[0.2, 0.2],
+        viscosity=[0.08, 0.08],
+        permittivity=[0.5, 0.5],
         EC_scheme="NL2",
         use_iterative_solvers=True,
         grav_const=0.,
         c_cutoff=0.1,
         density_per_concentration=[0.02, 0.02, 0.04],
-        viscosity_per_concentration=[0.005, 0.005, 0.01],
+        viscosity_per_concentration=[0.001, 0.001, 0.002],
         reactions=[[1.0, [-1, -1, 1]]]
     )
     return parameters
@@ -105,7 +107,7 @@ def initialize(Lx, Ly,
                 c_init_expr = df.Expression(
                     "c0*1./(2*DOLFIN_PI*rad*rad)*exp("
                     "- (pow(x[0]-0.5*Lx+0.5*zi*rad, 2)"
-                    "+ pow(x[1]-0.5*Ly+0.5*zi*rad, 2))/(2*rad*rad))",
+                    "+ pow(x[1]-0.5*Ly+2.0*zi*rad, 2))/(2*rad*rad))",
                     Lx=Lx,
                     Ly=Ly,
                     c0=concentration_init,

@@ -90,16 +90,12 @@ def alpha_cc_reg(c, c_cutoff):
 
 def alpha_c_reg(c, c_cutoff):
     c_max = max_value(c, c_cutoff)
-    dc = c_max - c_cutoff
-    return (alpha_c(c_max) - alpha_c(c_cutoff)
-            + alpha_cc(c_cutoff)*c
-            - alpha_cc(c_cutoff)*dc)
+    c_min = min_value(c, c_cutoff)
+    return (alpha_c(c_max) + alpha_cc(c_cutoff)*(c_min-c_cutoff))
 
 
 def alpha_reg(c, c_cutoff):
     c_max = max_value(c, c_cutoff)
-    dc = c_max-c_cutoff
-    return (alpha(c_max) - alpha(c_cutoff)
-            + 0.5*alpha_cc(c_cutoff)*c**2
-            - alpha_c(c_cutoff)*dc
-            - 0.5*alpha_cc(c_cutoff)*dc**2, c_cutoff)
+    c_min = min_value(c, c_cutoff)
+    return (alpha(c_max) + alpha_c(c_cutoff)*(c_min-c_cutoff)
+            + 0.5*alpha_cc(c_cutoff)*(c_min-c_cutoff)**2)
