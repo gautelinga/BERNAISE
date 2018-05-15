@@ -42,8 +42,6 @@ class Right(RectBoun):
 
 def problem():
     info_cyan("Porous media flow with electrohydrodynamics.")
-    # GL: Note that these parameters are NOT physical.
-    #     Awaiting Asger's realistic ones.
     # GL 2018-01-11: Updating to realistic ones.
 
     Re = 0.1
