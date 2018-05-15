@@ -301,7 +301,9 @@ def setup_EC(w_EC, c, V, V0, b, U, U0,
         F_ci = (1./dt*(ci-ci_1)*bi*dx +
                 Ki*ci_reg*df.dot(grad_g_ci, df.grad(bi))*dx)
         if enable_NS:
+            # F_ci += df.dot(df.div(ci_1*u_1), bi)*dx
             F_ci += - ci_1*df.dot(u_star, df.grad(bi))*dx
+            # F_ci += - ci_1*df.dot(du_star, df.grad(bi))*dx
         if solute[0] in q_rhs:
             F_ci += - q_rhs[solute[0]]*bi*dx
         if enable_NS:

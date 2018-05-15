@@ -46,7 +46,7 @@ def problem():
     #     Awaiting Asger's realistic ones.
     # GL 2018-01-11: Updating to realistic ones.
 
-    Re = 0.001
+    Re = 0.1
     Pe = 1./2.189
     lambda_D = 1.5
     c_inf = 1.0
