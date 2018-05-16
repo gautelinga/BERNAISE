@@ -8,8 +8,12 @@ __author__ = "Gaute Linga"
 
 
 class Left(df.SubDomain):
+    def __init__(self, Lx):
+        self.Lx = Lx
+        df.SubDomain.__init__(self)
+
     def inside(self, x, on_boundary):
-        return bool(df.near(x[0], 0.0) and on_boundary)
+        return bool(df.near(x[0], -self.Lx/2) and on_boundary)
 
 
 class Right(df.SubDomain):
@@ -18,7 +22,7 @@ class Right(df.SubDomain):
         df.SubDomain.__init__(self)
 
     def inside(self, x, on_boundary):
-        return bool(df.near(x[0], self.Lx) and on_boundary)
+        return bool(df.near(x[0], self.Lx/2) and on_boundary)
 
 
 class Bottom(df.SubDomain):
@@ -42,8 +46,8 @@ class Top(df.SubDomain):
 def problem():
     info_cyan("Flow and reaction in a cell with single-phase electrohydrodynamics.")
 
-    solutes = [["c_p",  1, 0.01, 0.01, -np.log(1.), -np.log(1.)],
-               ["c_m", -1, 0.01, 0.01, -np.log(1.), -np.log(1.)],
+    solutes = [["c_p",  1, 0.01, 0.01, -np.log(3.), -np.log(1.)],
+               ["c_m", -1, 0.01, 0.01, -np.log(3.), -np.log(1.)],
                ["c_n", 0, 0.01, 0.01, -np.log(1.), -np.log(1.)]]
 
     # Format: name : (family, degree, is_vector)
@@ -71,10 +75,10 @@ def problem():
         solutes=solutes,
         base_elements=base_elements,
         Lx=1.,
-        Ly=2.,
-        concentration_init=2.,
-        rad=0.25,
-        surface_charge=1.,
+        Ly=1.,
+        concentration_init=10.,
+        rad=0.15,
+        surface_charge=2.0,
         #
         density=[1., 1.],
         viscosity=[0.1, 0.1],
@@ -83,15 +87,15 @@ def problem():
         use_iterative_solvers=True,
         grav_const=0.,
         c_cutoff=0.1,
-        reactions=[[1.0, [-1, -1, 1]]],
+        reactions=[[10., [-1, -1, 1]]],
         density_per_concentration=[0.1, 0.1, 0.2],
-        viscosity_per_concentration=[0.1, 0.1, 0.2]
+        viscosity_per_concentration=[0.02, 0.02, 0.04]
     )
     return parameters
 
 
-def mesh(Lx=1., Ly=2., grid_spacing=1./16., **namespace):
-    return df.RectangleMesh(df.Point(0., -Ly/2), df.Point(Lx, Ly/2),
+def mesh(Lx=1., Ly=1., grid_spacing=1./16., **namespace):
+    return df.RectangleMesh(df.Point(-Lx/2, -Ly/2), df.Point(Lx/2, Ly/2),
                             int(Lx/grid_spacing), int(Ly/grid_spacing))
 
 
@@ -113,11 +117,8 @@ def initialize(Lx, Ly,
                     df.Constant(1e-4), field_to_subspace[solute].collapse())
             c_init = df.interpolate(
                 df.Expression("1./(2*DOLFIN_PI*rad*rad)*exp("
-                              "- (pow(x[0]-0.5*Lx-0.5*rad, 2)"
-                              " + pow(x[1]-rad, 2)"
-                              ")/(2*rad*rad))",
-                              Lx=Lx, Ly=Ly, rad=rad,
-                              degree=2),
+                              "- (pow(x[0], 2) + pow(x[1], 2))/(2*rad*rad))",
+                              Lx=Lx, Ly=Ly, rad=rad, degree=2),
                 field_to_subspace["c_n"].collapse())
             C_tot = df.assemble(c_init*dx)
             c_init.vector()[:] *= concentration_init*Lx*Ly/C_tot
@@ -137,7 +138,7 @@ def create_bcs(Lx, Ly, mesh,
     """ The boundaries and boundary conditions are defined here. """
     boundaries = dict(
         right=[Right(Lx)],
-        left=[Left()],
+        left=[Left(Lx)],
         bottom=[Bottom(Ly)],
         top=[Top(Ly)]
     )
@@ -158,7 +159,8 @@ def create_bcs(Lx, Ly, mesh,
         bcs["bottom"]["u"] = noslip
         bcs_pointwise["p"] = (
             0.,
-            "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS-{Ly}/2".format(Ly=Ly))
+            "x[0] < DOLFIN_EPS-{Lx}/2 && "
+            "x[1] < DOLFIN_EPS-{Ly}/2".format(Lx=Lx, Ly=Ly))
 
     if enable_EC:
         bcs["top"]["V"] = Fixed(0.)

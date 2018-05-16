@@ -7,6 +7,7 @@ from meshpy import triangle as tri
 from common import info
 import os
 import dolfin as df
+import matplotlib.pyplot as plt
 
 
 def description(**kwargs):
@@ -180,12 +181,17 @@ def method(Lx=6., Ly=4., Lx_inner=4., num_obstacles=32,
         "periodic_porous_Lx{}_Ly{}_rad{}_N{}_dx{}.dat".format(
             Lx, Ly, rad, num_obstacles, dx))
 
-    all_obstacles = np.vstack((np.array(exterior_obstacles),
-                               np.array(interior_obstacles)))
+    if len(exterior_obstacles) > 0 and len(interior_obstacles) > 0:
+        all_obstacles = np.vstack((np.array(exterior_obstacles),
+                                   np.array(interior_obstacles)))
+    elif len(exterior_obstacles) > 0:
+        all_obstacles = np.array(exterior_obstacles)
+    else:
+        all_obstacles = np.array(interior_obstacles)
     np.savetxt(obstacles_path,
                np.hstack((all_obstacles,
                           np.ones((len(all_obstacles), 1))*rad)))
 
     if do_plot:
         df.plot(msh)
-        df.interactive()
+        plt.show()
