@@ -56,6 +56,7 @@ def setup(test_functions, trial_functions,
           enable_PF, enable_EC, enable_NS,
           surface_tension, dt, interface_thickness,
           grav_const,
+          grav_dir,
           pf_mobility,
           pf_mobility_coeff,
           use_iterative_solvers, use_pressure_stabilization,
@@ -66,7 +67,7 @@ def setup(test_functions, trial_functions,
     # Constant
     sigma_bar = surface_tension*3./(2*math.sqrt(2))
     per_tau = df.Constant(1./dt)
-    grav = df.Constant((0., -grav_const))
+    grav = df.Constant(tuple([grav_const*e for e in grav_dir]))
     gamma = pf_mobility_coeff
     eps = interface_thickness
 
@@ -382,7 +383,7 @@ def update(t, dt, w_, w_1, bcs, bcs_pointwise,
         for field, bc in bcs_fields.iteritems():
             if isinstance(bc.value, df.Expression):
                 bc.value.t = t+dt
-                
+
     # Update fields
     for subproblem, enable in zip(["PF", "EC", "NS"],
                                   [enable_PF, enable_EC, enable_NS]):

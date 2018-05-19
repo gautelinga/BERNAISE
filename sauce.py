@@ -205,7 +205,8 @@ if w_init_fields:
                         w_init_vector.append(w_init_field.sub(j))
             assert len(w_init_vector) == w_[name].value_size()
             w_init = df.project(
-                df.as_vector(tuple(w_init_vector)), w_[name].function_space())
+                df.as_vector(tuple(w_init_vector)), w_[name].function_space(),
+                solver_type="gmres", preconditioner_type="default")
         else:
             field = subproblem[0]["name"]
             if field in w_init_fields:
@@ -213,7 +214,8 @@ if w_init_fields:
             else:
                 # Take default value...
                 w_init_field = w_[name]
-            w_init = df.project(w_init_field, w_[name].function_space())
+            w_init = df.project(w_init_field, w_[name].function_space(),
+                                solver_type="gmres", preconditioner_type="default")
         w_[name].interpolate(w_init)
         w_1[name].interpolate(w_init)
 

@@ -80,6 +80,7 @@ def problem():
         V_btm=0.,
         surface_tension=24.5,
         grav_const=0.98,
+        grav_dir=[0, -1.],
         #
         pf_mobility_coeff=factor*0.000040,
         density=[1000., 100.],
