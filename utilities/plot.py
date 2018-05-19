@@ -8,6 +8,12 @@ from matplotlib.tri import TriContourSet
 from mpi4py.MPI import COMM_WORLD as comm
 from common.io import remove_safe
 
+ENABLE_TEX = True
+if ENABLE_TEX:  # Hacked for pretty output
+    from matplotlib import rc
+    rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
+    rc('text', usetex=True)
+
 rank = comm.Get_rank()
 size = comm.Get_size()
 
@@ -29,8 +35,8 @@ class Figure:
         self.colorbar = colorbar
         self.subplots = subplots
         self.colorbar_ax = None
-        self.xlabel = xlabel
-        self.ylabel = ylabel
+        self.xlabel = tex_escape(xlabel)
+        self.ylabel = tex_escape(ylabel)
         self.tight_layout = tight_layout
         self.ticks = ticks
 
@@ -52,7 +58,7 @@ class Figure:
             plt.ylabel(self.ylabel)
 
         if isinstance(clabel, str):
-            self.clabel = clabel
+            self.clabel = tex_escape(clabel)
         else:
             self.clabel = ""
 
@@ -76,6 +82,10 @@ class Figure:
             plt.show()
         else:
             plt.close()
+
+
+def tex_escape(string):
+    return "${}$".format(string)
 
 
 def plot_edges(pts, edges, title=None, clabel=None,
@@ -196,7 +206,8 @@ def plot_fancy(nodes, elems, phi=None, charge=None, u=None, charge_max=None,
                      xlabel="", ylabel="", save=save, ticks=False)
     else:
         fig = Figure(colorbar=True, tight_layout=False, show=show,
-                     xlabel="x", ylabel="y", save=save, ticks=True)
+                     xlabel=tex_escape("x"), ylabel=tex_escape("y"),
+                     save=save, ticks=True)
 
     if phi is None:
         phi = -np.ones(len(nodes))

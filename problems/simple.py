@@ -207,3 +207,10 @@ def pf_mobility(phi, gamma):
 def start_hook(newfolder, **namespace):
     statsfile = os.path.join(newfolder, "Statistics/stats.dat")
     return dict(statsfile=statsfile)
+
+
+def end_hook(x_, enable_NS, dx, **namespace):
+    u_norm = 0.
+    if enable_NS:
+        u_norm = df.assemble(df.dot(x_["u"], x_["u"])*dx)
+    info("Velocity norm = {:e}".format(u_norm))

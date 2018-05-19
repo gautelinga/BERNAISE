@@ -46,8 +46,8 @@ class Top(df.SubDomain):
 def problem():
     info_cyan("Flow and reaction in a cell with single-phase electrohydrodynamics.")
 
-    solutes = [["c_p",  1, 0.01, 0.01, -np.log(3.), -np.log(1.)],
-               ["c_m", -1, 0.01, 0.01, -np.log(3.), -np.log(1.)],
+    solutes = [["c_p",  1, 0.01, 0.01, -np.log(3.), -np.log(3.)],
+               ["c_m", -1, 0.01, 0.01, -np.log(3.), -np.log(3.)],
                ["c_n", 0, 0.01, 0.01, -np.log(1.), -np.log(1.)]]
 
     # Format: name : (family, degree, is_vector)
@@ -71,7 +71,7 @@ def problem():
         dt=0.01,
         t_0=0.,
         T=10.0,
-        grid_spacing=1./64,
+        grid_spacing=1./128.,
         solutes=solutes,
         base_elements=base_elements,
         Lx=1.,

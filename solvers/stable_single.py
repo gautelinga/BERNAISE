@@ -159,6 +159,7 @@ def setup(test_functions, trial_functions, w_, w_1,
     if enable_EC:
         g_c = []
         g_c_ = []
+        g_c_1 = []
         grad_g_c = []
         grad_g_c_ = []
         c_reg = []
@@ -167,8 +168,10 @@ def setup(test_functions, trial_functions, w_, w_1,
                 ci, ci_1, EC_scheme, c_cutoff) + betai + zi*V
             g_ci_ = alpha_prime_approx(
                 ci_, ci_1, EC_scheme, c_cutoff) + betai + zi*V_
+            g_ci_1 = alpha_c(ci_1) + betai + zi*V_1
             g_c.append(g_ci)
             g_c_.append(g_ci_)
+            g_c_1.append(g_ci_1)
             grad_g_c.append(df.grad(g_ci))
             grad_g_c_.append(df.grad(g_ci_))
             c_reg.append(regulate(ci, ci_1, EC_scheme, c_cutoff))
@@ -287,6 +290,7 @@ def setup_EC(w_EC, c, V, V0, b, U, U0,
              q_rhs,
              reactions,
              beta,
+             g_c_1,
              **namespace):
     """ Set up electrochemistry subproblem. """
     if enable_NS:
@@ -316,11 +320,11 @@ def setup_EC(w_EC, c, V, V0, b, U, U0,
     for reaction_constant, nu in reactions:
         g_less = []
         g_more = []
-        for nui, ci_1, betai in zip(nu, c_1, beta):
+        for nui, g_ci_1 in zip(nu, g_c_1):
             if nui < 0:
-                g_less.append(-nui*(df.ln(ci_1)+betai))
+                g_less.append(-nui*g_ci_1)
             elif nui > 0:
-                g_more.append(nui*(df.ln(ci_1)+betai))
+                g_more.append(nui*g_ci_1)
         g_less = sum(g_less)
         g_more = sum(g_more)
 

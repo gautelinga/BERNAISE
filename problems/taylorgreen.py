@@ -22,11 +22,11 @@ def problem():
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
-        solver="basic",  # "stable_single",
+        solver="basic",
         folder="results_taylorgreen",
         restart_folder=False,
         enable_NS=True,
-        enable_PF=True,  # False,
+        enable_PF=True,
         enable_EC=True,
         save_intv=5,
         stats_intv=5,
@@ -207,10 +207,10 @@ def reference(t,
         for solute in solutes:
             code_strings[solute[0]] = code[solute[0]]
         code_strings["V"] = code["V"]
-    
+
     expr = dict()
     for key, code_string in code_strings.iteritems():
-        expr[key] = df.Expression(code_string, t=t, degree=2,
+        expr[key] = df.Expression(code_string, t=t, degree=5,
                                   **replace_vals)
     return expr
 
@@ -218,6 +218,7 @@ def reference(t,
 def mean(a):
     """ Same as np.mean """
     return (a[0]+a[1])/2
+
 
 def dmean(a):
     """ Consider moving somewhere else. """
@@ -257,3 +258,24 @@ def replace_dict(concentration_init, concentration_init_dev,
         Phi0=pf_init if enable_PF else 0
     )
     return replace_vals
+
+
+def end_hook(x_, t,
+             field_to_subspace,
+             concentration_init, concentration_init_dev,
+             surface_tension, interface_thickness,
+             pf_init, pf_mobility_coeff,
+             solutes, density, permittivity, viscosity,
+             enable_NS, enable_PF, enable_EC,
+             testing,
+             **namespace):
+    if testing:
+        exprs = reference(**vars())
+
+        output = "Final error norms:"
+        for field in ["u", "phi", "c_p", "c_m", "V"]:
+            f = df.project(x_[field],
+                           field_to_subspace[field].collapse())
+            f_ref = exprs[field]
+            output += " {} = {:e}".format(field, df.errornorm(f_ref, f, "L2"))
+        info(output)

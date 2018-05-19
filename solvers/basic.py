@@ -233,7 +233,7 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
             normal, v) * ds(boundary_to_mark[boundary_name])
 
     if enable_PF:
-        F += phi_*df.dot(df.grad(g_), v)*dx
+        F += phi_*df.dot(df.nabla_grad(g_), v)*dx
 
     if enable_EC:
         for ci_, ci_1, dbetai, solute in zip(c_, c_1, dbeta, solutes):
@@ -275,9 +275,10 @@ def setup_PF(w_PF, phi, g, psi, h,
     F_phi = (per_tau*(phi-unit_interval_filter(phi_1))*psi*dx +
              M_1*df.dot(df.grad(g), df.grad(psi))*dx)
     if enable_NS:
-        F_phi += df.dot(u_1, df.grad(phi))*psi*dx
+        F_phi += -phi*df.dot(u_1, df.grad(psi))*dx
+        # F_phi += df.div(phi*u_1)*psi*dx
     F_g = (g*h*dx
-           - sigma_bar*eps*df.dot(df.grad(phi), df.grad(h))*dx
+           - sigma_bar*eps*df.dot(df.nabla_grad(phi), df.nabla_grad(h))*dx
            - sigma_bar/eps*(
                diff_pf_potential_linearised(phi,
                                             unit_interval_filter(
@@ -285,12 +286,12 @@ def setup_PF(w_PF, phi, g, psi, h,
     if enable_EC:
         F_g += (-sum([dbeta_i*ci_1*h*dx
                       for dbeta_i, ci_1 in zip(dbeta, c_1)])
-                + 0.5*dveps*df.dot(df.grad(V_1), df.grad(V_1))*h*dx)
+                + 0.5*dveps*df.dot(df.nabla_grad(V_1), df.nabla_grad(V_1))*h*dx)
 
     for boundary_name, costheta in neumann_bcs["phi"].iteritems():
         fw_prime = diff_pf_contact_linearised(phi, unit_interval_filter(phi_1))
         F_g += sigma_bar*costheta*fw_prime*h*ds(boundary_to_mark[boundary_name])
-        
+
     if "phi" in q_rhs:        
         F_phi += -q_rhs["phi"]*psi*dx
     
@@ -320,21 +321,22 @@ def setup_EC(w_EC, c, V, b, U, rho_e,
     F_c = []
     for ci, ci_1, bi, Ki_, zi, dbetai, solute in zip(c, c_1, b, K_, z, dbeta, solutes):
         F_ci = (per_tau*(ci-ci_1)*bi*dx +
-                Ki_*df.dot(df.grad(ci), df.grad(bi))*dx)
+                Ki_*df.dot(df.nabla_grad(ci), df.nabla_grad(bi))*dx)
         if zi != 0:
-            F_ci += Ki_*zi*ci_1*df.dot(df.grad(V), df.grad(bi))*dx
+            F_ci += Ki_*zi*ci_1*df.dot(df.nabla_grad(V), df.nabla_grad(bi))*dx
 
         if enable_PF:
-            F_ci += Ki_*ci*dbetai*df.dot(df.grad(phi_), df.grad(bi))*dx
+            F_ci += Ki_*ci*dbetai*df.dot(df.nabla_grad(phi_), df.nabla_grad(bi))*dx
 
         if enable_NS:
-            F_ci += df.dot(u_1, df.grad(ci))*bi*dx
+            # F_ci += df.div(ci*u_1)*bi*dx
+            F_ci += - ci*df.dot(u_1, df.grad(bi))*dx
 
         if solute[0] in q_rhs:
             F_ci += - q_rhs[solute[0]]*bi*dx
-            
+
         F_c.append(F_ci)
-    F_V = veps_*df.dot(df.grad(V), df.grad(U))*dx
+    F_V = veps_*df.dot(df.nabla_grad(V), df.nabla_grad(U))*dx
     for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
         F_V += -sigma_e*U*ds(boundary_to_mark[boundary_name])
     if rho_e != 0:
@@ -436,12 +438,12 @@ def equilibrium_EC(w_, x_, test_functions,
             c, b, c0, b0, solutes, q, beta, K):
         zi = solute[1]
         F_ci = Ki*(df.dot(
-            df.grad(bi),
-            df.grad(ci) + df.grad(betai) + zi*ci*df.grad(V)))*dx
+            df.nabla_grad(bi),
+            df.nabla_grad(ci) + df.nabla_grad(betai) + zi*ci*df.nabla_grad(V)))*dx
         if c_lagrange:
             F_ci += b0i*(ci-df.Constant(qi))*dx + c0i*bi*dx
 
-    F_V = veps*df.dot(df.grad(U), df.grad(V))*dx
+    F_V = veps*df.dot(df.nabla_grad(U), df.nabla_grad(V))*dx
     for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
         F_V += -sigma_e*U*ds(boundary_to_mark[boundary_name])
     if rho_e != 0:
@@ -497,7 +499,7 @@ def discrete_energy(x_, solutes, density, permittivity,
         veps = ramp(phi, permittivity)
 
     if enable_EC:
-        grad_V = df.grad(x_["V"])
+        grad_V = df.nabla_grad(x_["V"])
         M_list = []
         for solute in solutes:
             ci = x_[solute[0]]

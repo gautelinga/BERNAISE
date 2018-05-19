@@ -4,7 +4,7 @@ described in the paper.
 GL, 2017
 """
 from stable_single import setup_EC, alpha_prime_approx, alpha_generalized, \
-    regulate
+    regulate, alpha_c
 import dolfin as df
 from . import *
 from . import __all__
@@ -141,6 +141,7 @@ def setup(test_functions, trial_functions, w_, w_1,
     if enable_EC:
         g_c = []
         g_c_ = []
+        g_c_1 = []
         grad_g_c = []
         grad_g_c_ = []
         c_reg = []
@@ -149,8 +150,10 @@ def setup(test_functions, trial_functions, w_, w_1,
                 ci, ci_1, EC_scheme, c_cutoff) + betai + zi*V
             g_ci_ = alpha_prime_approx(
                 ci_, ci_1, EC_scheme, c_cutoff) + betai + zi*V_
+            g_ci_1 = alpha_c(ci_1) + betai + zi*V_1
             g_c.append(g_ci)
             g_c_.append(g_ci_)
+            g_c_1.append(g_ci_1)
             grad_g_c.append(df.grad(g_ci))
             grad_g_c_.append(df.grad(g_ci_))
             c_reg.append(regulate(ci, ci_1, EC_scheme, c_cutoff))

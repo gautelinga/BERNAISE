@@ -234,12 +234,13 @@ def setup_PF(w_PF, phi, g, psi, h,
              use_iterative_solvers):
     """ Set up phase field subproblem. """
     # Projected velocity (for energy stability)
-    u_proj = u_1 - dt*phi_1*df.grad(g)/rho_1
+    if enable_NS:
+        u_proj = u_1 - dt*phi_1*df.grad(g)/rho_1
 
     F_phi = (1./dt*(phi - phi_1)*psi*dx
              + M_1*df.dot(df.grad(g), df.grad(psi))*dx)
     if enable_NS:
-        F_phi += df.dot(u_proj, df.grad(phi_1))*psi*dx
+        F_phi += - phi_1 * df.dot(u_proj, df.grad(psi))*dx
     F_g = (g*h*dx
            - sigma_bar/eps * (phi - phi_1) * h * dx  # Damping term (makes the system elliptic)
            - sigma_bar*eps * df.dot(df.grad(phi), df.grad(h))*dx
@@ -283,7 +284,7 @@ def setup_EC(w_EC, c, V, b, U, rho_e,
             F_ci += Ki_*ci*dbetai*df.dot(df.grad(phi_), df.grad(bi))*dx
             u_proj_i += -dt/rho_1 * ci_1 * dbetai*df.grad(phi_)
         if enable_NS:
-            F_ci += df.dot(u_proj_i, df.grad(ci_1))*bi*dx
+            F_ci += - ci_1 * df.dot(u_proj_i, df.grad(bi))*dx
         F_c.append(F_ci)
     F_V = veps_*df.dot(df.grad(V), df.grad(U))*dx
     for boundary_name, sigma_e in neumann_bcs["V"].iteritems():

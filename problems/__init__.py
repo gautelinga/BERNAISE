@@ -48,7 +48,8 @@ parameters = dict(
     interface_thickness=0.,
     reactions=[],
     density_per_concentration=None,
-    viscosity_per_concentration=None
+    viscosity_per_concentration=None,
+    testing=False
 )
 
 
