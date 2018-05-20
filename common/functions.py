@@ -10,8 +10,18 @@ def pf_potential(phi):
 
 
 def diff_pf_potential(phi):
-    """ Derivative pf the phase field potential. """
+    """ Derivative of the phase field potential. """
     return phi**3-phi
+
+
+def diff_pf_potential_c(phi):
+    """ Convex decomposition of the phase field potential. Positive part. """
+    return phi**3
+
+
+def diff_pf_potential_e(phi):
+    """ Convex decomposition of the phase field potential. Negative part. """
+    return phi
 
 
 def diff_pf_potential_linearised(phi, phi0):

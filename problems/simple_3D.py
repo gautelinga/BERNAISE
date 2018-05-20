@@ -41,7 +41,7 @@ def problem():
                ["c_m", -1, 1., 1., 1., 1.]]
 
     # Format: name : (family, degree, is_vector)
-    base_elements = dict(u=["Lagrange", 2, True],
+    base_elements = dict(u=["Lagrange", 1, True],
                          p=["Lagrange", 1, False],
                          phi=["Lagrange", 1, False],
                          g=["Lagrange", 1, False],
@@ -60,26 +60,26 @@ def problem():
         stats_intv=5,
         checkpoint_intv=50,
         tstep=0,
-        dt=0.01,
+        dt=0.001,
         t_0=0.,
         T=20.,
-        grid_spacing=1./10.,
-        interface_thickness=0.10,
+        grid_spacing=1./32.,
+        interface_thickness=0.04,
         solutes=solutes,
         base_elements=base_elements,
         Lx=1.,
         Ly=1.,
-        Lz=2.,
+        Lz=1.,
         rad_init=0.25,
         #
         V_top=1.,
         V_btm=0.,
-        surface_tension=1,  # 24.5,
-        grav_const=0.98,
+        surface_tension=1.0,  # 24.5,
+        grav_const=0.98*1.,
         grav_dir=[0., 0., -1.],
         #
         pf_mobility_coeff=0.000040,
-        density=[100., 100.],
+        density=[1000., 100.],
         viscosity=[10., 1.],
         permittivity=[1., 5.],
         #
@@ -166,8 +166,8 @@ def create_bcs(Lz, V_top, V_btm,
 
 
 def initial_phasefield(x0, y0, z0, rad, eps, function_space):
-    expr_str = ("tanh(sqrt(2)*(sqrt(pow(x[0]-x0,2)"
-                "+pow(x[1]-y0,2)+pow(x[2]-z0,2))-rad)/eps)")
+    expr_str = ("tanh((sqrt(pow(x[0]-x0,2)"
+                "+pow(x[1]-y0,2)+pow(x[2]-z0,2))-rad)/(sqrt(2)*eps))")
     phi_init_expr = df.Expression(expr_str, x0=x0, y0=y0, z0=z0,
                                   rad=rad, eps=eps, degree=2)
     phi_init = df.interpolate(phi_init_expr, function_space)

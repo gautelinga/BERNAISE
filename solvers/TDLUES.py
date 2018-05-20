@@ -20,7 +20,8 @@ GL, 2017-05-29
 """
 import dolfin as df
 import math
-from common.functions import ramp, dramp, diff_pf_potential
+from common.functions import ramp, dramp, diff_pf_potential, \
+    diff_pf_potential_c, diff_pf_potential_e
 from common.cmd import info_red
 from basic import unit_interval_filter  # GL: Move this to common.functions?
 from . import *
@@ -59,7 +60,7 @@ def unpack_quantities(surface_tension, grav_const, grav_dir,
     grav = df.Constant(tuple(grav_const*np.array(grav_dir)))
     gamma = pf_mobility_coeff
     eps = interface_thickness
-    rho_min = min(density)
+    rho_min = min(density) if enable_PF else density[0]
 
     # Navier-Stokes
     if enable_NS:
@@ -86,6 +87,8 @@ def unpack_quantities(surface_tension, grav_const, grav_dir,
         phi_1, g_1 = df.split(w_1["PF"])
     else:
         # Defaults to phase 1 if phase field is disabled
+        phi = 1.
+        g = psi = h = None
         phi_ = phi_1 = 1.
         g_ = g_1 = None
 
@@ -109,6 +112,8 @@ def unpack_quantities(surface_tension, grav_const, grav_dir,
     phi_flt_1 = unit_interval_filter(phi_1)
     # phi_flt_ = phi_
     # phi_flt_1 = phi_1
+    #phi_ = phi_flt_
+    phi_1 = phi_flt_1
 
     M_ = pf_mobility(phi_flt_, gamma)
     M_1 = pf_mobility(phi_flt_1, gamma)
@@ -173,14 +178,15 @@ def setup(tstep, test_functions, trial_functions, w_, w_1,
          solutes, dt, enable_EC,
          enable_PF, enable_NS)
 
-    # if tstep == 0 and enable_NS and False:
-    #     solve_initial_pressure(w_["NSp"], p, q, u, v,
-    #                            dx, ds,
-    #                            dirichlet_bcs["NSp"],
-    #                            neumann_bcs, boundary_to_mark,
-    #                            M_, g_, phi_flt_, rho_, rho_e_, V_,
-    #                            drho, sigma_bar, eps, grav, dveps,
-    #                            enable_PF, enable_EC)
+    if tstep == 0 and enable_NS:
+        solve_initial_pressure(w_["NSp"], p, q, u, v,
+                               dx, ds,
+                               dirichlet_bcs["NSp"],
+                               neumann_bcs, boundary_to_mark,
+                               M_, g_, phi_, rho_, rho_e_, V_,
+                               drho, sigma_bar, eps, grav, dveps,
+                               enable_PF, enable_EC,
+                               use_iterative_solvers)
 
     #x = df.Expression(tuple(["x[0]", "x[1]", "x[2]"][:len(grav_dir)]),
     #                  degree=1)
@@ -189,6 +195,8 @@ def setup(tstep, test_functions, trial_functions, w_, w_1,
     if enable_PF:
         w_PF = w_["PF"]
         dirichlet_bcs_PF = dirichlet_bcs["PF"]
+        #phi = phi_
+        #g = g_
         solvers["PF"] = setup_PF(**vars())
 
     if enable_EC:
@@ -250,8 +258,57 @@ def setup_PF(w_PF, phi, g, psi, h,
     solver = df.LinearVariationalSolver(problem)
 
     if use_iterative_solvers:
-        solver.parameters["linear_solver"] = "gmres"
-        solver.parameters["preconditioner"] = "amg"
+        solver.parameters["linear_solver"] = "bicgstab"  # "gmres"
+        solver.parameters["preconditioner"] = "jacobi"  #"amg"
+        # solver.parameters["preconditioner"] = "hypre_euclid"
+
+    return solver
+
+
+def setup_PFEC(w_PF, phi, g, psi, h,
+               dx, ds,
+               dirichlet_bcs_PF, neumann_bcs, boundary_to_mark,
+               phi_1, u_1, M_, M_1, c_1, V_1, rho_1,
+               dt, sigma_bar, eps,
+               drho, dbeta, dveps, grav,
+               enable_NS, enable_EC,
+               use_iterative_solvers,
+               **namespace):
+    """ Set up phase field subproblem. """
+    # Projected velocity (for energy stability)
+    if enable_NS:
+        u_proj = u_1 - dt*phi_1*df.grad(g)/rho_1
+
+    F_phi = (1./dt*(phi - phi_1)*psi*dx
+             + M_1*df.dot(df.grad(g), df.grad(psi))*dx)
+    if enable_NS:
+        F_phi += - phi_1 * df.dot(u_proj, df.grad(psi))*dx
+    F_g = (g*h*dx
+           #- sigma_bar/eps * (phi - phi_1) * h * dx
+           # Damping term (makes the system elliptic)
+           - sigma_bar*eps * df.dot(df.grad(phi), df.grad(h))*dx
+           - sigma_bar/eps * (diff_pf_potential_c(phi) -
+                              diff_pf_potential_e(phi_1))*h*dx)
+    # Add gravity
+    # F_g += drho * df.dot(grav, x) * h * dx
+
+    if enable_EC:
+        F_g += (-sum([dbeta_i*ci_1*h*dx
+                      for dbeta_i, ci_1 in zip(dbeta, c_1)])
+                + 0.5*dveps*df.dot(df.grad(V_1), df.grad(V_1))*h*dx)
+    F = F_phi + F_g
+    # a, L = df.lhs(F), df.rhs(F)
+
+    J = df.derivative(F, w_PF)
+
+    problem = df.NonlinearVariationalProblem(F, w_PF, dirichlet_bcs_PF, J)
+    solver = df.NonlinearVariationalSolver(problem)
+
+    solver.parameters["newton_solver"]["relative_tolerance"] = 1e-7
+
+    if use_iterative_solvers:
+        solver.parameters["newton_solver"]["linear_solver"] = "bicgstab"  # "gmres"
+        solver.parameters["newton_solver"]["preconditioner"] = "jacobi"  #"amg"
         # solver.parameters["preconditioner"] = "hypre_euclid"
 
     return solver
@@ -356,7 +413,7 @@ def setup_NSu(w_NSu, u, v,
 
     if use_iterative_solvers:
         solvers["predict"].parameters["linear_solver"] = "bicgstab"
-        solvers["predict"].parameters["preconditioner"] = "amg"
+        solvers["predict"].parameters["preconditioner"] = "jacobi"  # "amg"
 
     F_correct = (
         rho_ * df.inner(u - u_, v) * dx
@@ -368,8 +425,8 @@ def setup_NSu(w_NSu, u, v,
     solvers["correct"] = df.LinearVariationalSolver(problem_correct)
 
     if use_iterative_solvers:
-        solvers["correct"].parameters["linear_solver"] = "bicgstab"
-        solvers["correct"].parameters["preconditioner"] = "amg"
+        solvers["correct"].parameters["linear_solver"] = "cg"  # "bicgstab"
+        solvers["correct"].parameters["preconditioner"] = "jacobi"  # "amg"
 
     return solvers
 
@@ -391,7 +448,7 @@ def setup_NSp(w_NSp, p, q,
 
     if use_iterative_solvers:
         solver.parameters["linear_solver"] = "gmres"
-        solver.parameters["preconditioner"] = "amg"
+        solver.parameters["preconditioner"] = "hypre_amg"  # "amg"
         # solver.parameters["preconditioner"] = "hypre_euclid"
 
     return solver
@@ -461,9 +518,11 @@ def stress(u, p, mu):
 
 
 def solve_initial_pressure(w_NSp, p, q, u, v, dx, ds, dirichlet_bcs_NSp,
+                           neumann_bcs, boundary_to_mark,
                            M_, g_, phi_, rho_, rho_e_, V_,
                            drho, sigma_bar, eps, grav, dveps,
-                           enable_PF, enable_EC):
+                           enable_PF, enable_EC,
+                           use_iterative_solvers):
     V = u.function_space()
     grad_p = df.TrialFunction(V)
     grad_p_out = df.Function(V)
@@ -485,13 +544,27 @@ def solve_initial_pressure(w_NSp, p, q, u, v, dx, ds, dirichlet_bcs_NSp,
                              df.grad(V_))*dx
 
     info_red("Solving initial grad_p...")
-    df.solve(df.lhs(F_grad_p) == df.rhs(F_grad_p), grad_p_out)
-
+    problem_grad_p = df.LinearVariationalProblem(
+        df.lhs(F_grad_p), df.rhs(F_grad_p), grad_p_out)
+    # df.solve(df.lhs(F_grad_p) == df.rhs(F_grad_p), grad_p_out)
+    solver_grad_p = df.LinearVariationalSolver(problem_grad_p)
+    if use_iterative_solvers:
+        solver_grad_p.parameters["linear_solver"] = "gmres"
+        solver_grad_p.parameters["preconditioner"] = "amg"
+    solver_grad_p.solve()
+        
     F_p = (
         df.dot(df.grad(q), df.grad(p))*dx
         - df.dot(df.grad(q), grad_p_out)*dx
     )
     info_red("Solving initial p...")
-    df.solve(df.lhs(F_p) == df.rhs(F_p), w_NSp, dirichlet_bcs_NSp)
-
+    problem_p = df.LinearVariationalProblem(
+        df.lhs(F_p), df.rhs(F_p), w_NSp, dirichlet_bcs_NSp)
+    # df.solve(df.lhs(F_p) == df.rhs(F_p), w_NSp, dirichlet_bcs_NSp)
+    solver_p = df.LinearVariationalSolver(problem_p)
+    if use_iterative_solvers:
+        solver_p.parameters["linear_solver"] = "gmres"
+        solver_p.parameters["preconditioner"] = "amg"
+    solver_p.solve()
+    
     info_red("Done with the initials.")
