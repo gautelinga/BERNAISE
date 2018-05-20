@@ -48,8 +48,6 @@ def problem():
                          c=["Lagrange", 1, False],
                          V=["Lagrange", 1, False])
 
-    factor = 1./2.
-
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
         solver="basic",
@@ -62,11 +60,11 @@ def problem():
         stats_intv=5,
         checkpoint_intv=50,
         tstep=0,
-        dt=factor*0.08,
+        dt=0.01,
         t_0=0.,
         T=20.,
-        grid_spacing=factor/10.,
-        interface_thickness=factor*0.040,
+        grid_spacing=1./10.,
+        interface_thickness=0.10,
         solutes=solutes,
         base_elements=base_elements,
         Lx=1.,
@@ -76,16 +74,16 @@ def problem():
         #
         V_top=1.,
         V_btm=0.,
-        surface_tension=24.5,
+        surface_tension=1,  # 24.5,
         grav_const=0.98,
         grav_dir=[0., 0., -1.],
         #
-        pf_mobility_coeff=factor*0.000040,
-        density=[1000., 100.],
+        pf_mobility_coeff=0.000040,
+        density=[100., 100.],
         viscosity=[10., 1.],
         permittivity=[1., 5.],
         #
-        use_iterative_solvers=False,
+        use_iterative_solvers=True,
         use_pressure_stabilization=False
     )
     return parameters
