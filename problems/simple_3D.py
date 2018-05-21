@@ -37,8 +37,8 @@ def problem():
     # Define solutes
     # Format: name, valency, diffusivity in phase 1, diffusivity in phase
     #         2, beta in phase 1, beta in phase 2
-    solutes = [["c_p",  1, 1., 1., 1., 1.],
-               ["c_m", -1, 1., 1., 1., 1.]]
+    solutes = [["c_p",  1, 0.0001, 0.1, 2., 0.],
+               ["c_m", -1, 0.0001, 0.1, 2., 0.]]
 
     # Format: name : (family, degree, is_vector)
     base_elements = dict(u=["Lagrange", 1, True],
@@ -55,16 +55,16 @@ def problem():
         restart_folder=False,
         enable_NS=True,
         enable_PF=True,
-        enable_EC=False,
+        enable_EC=True,
         save_intv=5,
         stats_intv=5,
         checkpoint_intv=50,
         tstep=0,
-        dt=0.001,
+        dt=0.01,
         t_0=0.,
         T=20.,
         grid_spacing=1./32.,
-        interface_thickness=0.04,
+        interface_thickness=0.02,
         solutes=solutes,
         base_elements=base_elements,
         Lx=1.,
@@ -77,11 +77,12 @@ def problem():
         surface_tension=1.0,  # 24.5,
         grav_const=0.98*1.,
         grav_dir=[0., 0., -1.],
+        concentration_init=4.5,
         #
-        pf_mobility_coeff=0.000040,
+        pf_mobility_coeff=0.000010,
         density=[1000., 100.],
         viscosity=[10., 1.],
-        permittivity=[1., 5.],
+        permittivity=[1., 10.],
         #
         use_iterative_solvers=True,
         use_pressure_stabilization=False
@@ -99,7 +100,7 @@ def mesh(Lx=1., Ly=1., Lz=2., grid_spacing=1./16, **namespace):
                       int(Lz/grid_spacing))
 
 
-def initialize(Lx, Ly, rad_init,
+def initialize(Lx, Ly, Lz, rad_init, concentration_init,
                interface_thickness, solutes, restart_folder,
                field_to_subspace,
                enable_NS, enable_PF, enable_EC, **namespace):
@@ -123,10 +124,14 @@ def initialize(Lx, Ly, rad_init,
         # Electrochemistry
         if enable_EC:
             # c_init = df.Function(field_to_subspace[solutes[0][0]].collapse())
-            # c_init.vector()[:] = 0.
-            # for solute in solutes:
-            #     w_init_field[solute[0]] = c_init
-            V_init_expr = df.Expression("x[1]/Ly", Ly=Ly, degree=1)
+            c_init = initial_phasefield(
+                Lx/2, Ly/2, Lx/2, rad_init, interface_thickness,
+                field_to_subspace[solutes[0][0]].collapse())
+            c_init.vector()[:] = 0.5*(
+                1.-c_init.vector().get_local()) * concentration_init
+            for solute in solutes:
+                w_init_field[solute[0]] = c_init
+            V_init_expr = df.Expression("x[2]/Lz", Lz=Lz, degree=1)
             w_init_field["V"] = df.interpolate(
                 V_init_expr, field_to_subspace["V"].collapse())
 

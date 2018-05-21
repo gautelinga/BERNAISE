@@ -21,7 +21,7 @@ GL, 2017-05-29
 import dolfin as df
 import math
 from common.functions import ramp, dramp, diff_pf_potential, \
-    diff_pf_potential_c, diff_pf_potential_e
+    diff_pf_potential_c, diff_pf_potential_e, diff_pf_potential_linearised
 from common.cmd import info_red
 from basic import unit_interval_filter  # GL: Move this to common.functions?
 from . import *
@@ -233,17 +233,19 @@ def setup_PF(w_PF, phi, g, psi, h,
     """ Set up phase field subproblem. """
     # Projected velocity (for energy stability)
     if enable_NS:
-        u_proj = u_1 - dt*phi_1*df.grad(g)/rho_1
+        u_proj = u_1  # - dt*phi_1*df.grad(g)/rho_1
+        phi_adv = phi  # phi_1
 
     F_phi = (1./dt*(phi - phi_1)*psi*dx
              + M_1*df.dot(df.grad(g), df.grad(psi))*dx)
     if enable_NS:
-        F_phi += - phi_1 * df.dot(u_proj, df.grad(psi))*dx
+        F_phi += - phi_adv * df.dot(u_proj, df.grad(psi))*dx
     F_g = (g*h*dx
-           - sigma_bar/eps * (phi - phi_1) * h * dx
+           # - sigma_bar/eps * (phi - phi_1) * h * dx
            # Damping term (makes the system elliptic)
            - sigma_bar*eps * df.dot(df.grad(phi), df.grad(h))*dx
-           - sigma_bar/eps * diff_pf_potential(phi_1)*h*dx)
+           # - sigma_bar/eps * diff_pf_potential(phi_1)*h*dx
+           - sigma_bar/eps * diff_pf_potential_linearised(phi, phi_1)*h*dx)
     # Add gravity
     # F_g += drho * df.dot(grav, x) * h * dx
 
@@ -277,7 +279,7 @@ def setup_PFEC(w_PF, phi, g, psi, h,
     """ Set up phase field subproblem. """
     # Projected velocity (for energy stability)
     if enable_NS:
-        u_proj = u_1 - dt*phi_1*df.grad(g)/rho_1
+        u_proj = u_1 #- dt*phi_1*df.grad(g)/rho_1
 
     F_phi = (1./dt*(phi - phi_1)*psi*dx
              + M_1*df.dot(df.grad(g), df.grad(psi))*dx)
@@ -304,7 +306,7 @@ def setup_PFEC(w_PF, phi, g, psi, h,
     problem = df.NonlinearVariationalProblem(F, w_PF, dirichlet_bcs_PF, J)
     solver = df.NonlinearVariationalSolver(problem)
 
-    solver.parameters["newton_solver"]["relative_tolerance"] = 1e-7
+    solver.parameters["newton_solver"]["relative_tolerance"] = 1e-5
 
     if use_iterative_solvers:
         solver.parameters["newton_solver"]["linear_solver"] = "bicgstab"  # "gmres"
@@ -320,27 +322,34 @@ def setup_EC(w_EC, c, V, b, U, rho_e,
              c_1, u_1, K_, veps_, phi_, rho_1,
              dt, z, dbeta,
              enable_NS, enable_PF,
-             use_iterative_solvers):
+             use_iterative_solvers,
+             **namespace):
     """ Set up electrochemistry subproblem. """
 
     F_c = []
     for ci, ci_1, bi, Ki_, zi, dbetai in zip(c, c_1, b, K_, z, dbeta):
-        u_proj_i = u_1 - dt/rho_1*df.grad(ci)
+        u_proj_i = u_1  # - dt/rho_1*df.grad(ci)
+        ci_adv = ci  # ci_1
 
         F_ci = (1./dt*(ci-ci_1)*bi*dx +
-                Ki_*df.dot(df.grad(ci), df.grad(bi))*dx)
+                Ki_*df.dot(df.nabla_grad(ci),
+                           df.nabla_grad(bi))*dx)
         if zi != 0:
-            F_ci += Ki_*zi*ci_1*df.dot(df.grad(V), df.grad(bi))*dx
-            u_proj_i += -dt/rho_1 * zi * ci_1 * df.grad(V)
+            F_ci += Ki_*zi*ci_1*df.dot(df.nabla_grad(V),
+                                       df.nabla_grad(bi))*dx
+            # u_proj_i += -dt/rho_1 * zi * ci_1 * df.grad(V)
         if enable_PF:
-            F_ci += Ki_*ci*dbetai*df.dot(df.grad(phi_), df.grad(bi))*dx
-            u_proj_i += -dt/rho_1 * ci_1 * dbetai*df.grad(phi_)
+            F_ci += Ki_*ci*dbetai*df.dot(df.nabla_grad(phi_),
+                                         df.nabla_grad(bi))*dx
+            # u_proj_i += -dt/rho_1 * ci_1 * dbetai*df.grad(phi_)
         if enable_NS:
-            F_ci += - ci_1 * df.dot(u_proj_i, df.grad(bi))*dx
+            F_ci += - ci_adv * df.dot(u_proj_i,
+                                      df.nabla_grad(bi))*dx
         F_c.append(F_ci)
-    F_V = veps_*df.dot(df.grad(V), df.grad(U))*dx
+    F_V = veps_*df.dot(df.nabla_grad(V),
+                       df.nabla_grad(U))*dx
     for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
-        F_V += sigma_e*U*ds(boundary_to_mark[boundary_name])
+        F_V += -sigma_e*U*ds(boundary_to_mark[boundary_name])
     if rho_e != 0:
         F_V += -rho_e*U*dx
     F = sum(F_c) + F_V
@@ -351,7 +360,7 @@ def setup_EC(w_EC, c, V, b, U, rho_e,
 
     if use_iterative_solvers:
         solver.parameters["linear_solver"] = "gmres"
-        # solver.parameters["preconditioner"] = "hypre_euclid"
+        solver.parameters["preconditioner"] = "amg"
 
     return solver
 
