@@ -260,7 +260,7 @@ def setup_PF(w_PF, phi, g, psi, h,
     solver = df.LinearVariationalSolver(problem)
 
     if use_iterative_solvers:
-        solver.parameters["linear_solver"] = "bicgstab"  # "gmres"
+        solver.parameters["linear_solver"] = "gmres"  # "bicgstab"  # "gmres"
         solver.parameters["preconditioner"] = "jacobi"  #"amg"
         # solver.parameters["preconditioner"] = "hypre_euclid"
 
@@ -286,8 +286,6 @@ def setup_PFEC(w_PF, phi, g, psi, h,
     if enable_NS:
         F_phi += - phi_1 * df.dot(u_proj, df.grad(psi))*dx
     F_g = (g*h*dx
-           #- sigma_bar/eps * (phi - phi_1) * h * dx
-           # Damping term (makes the system elliptic)
            - sigma_bar*eps * df.dot(df.grad(phi), df.grad(h))*dx
            - sigma_bar/eps * (diff_pf_potential_c(phi) -
                               diff_pf_potential_e(phi_1))*h*dx)
