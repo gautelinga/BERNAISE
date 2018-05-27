@@ -53,8 +53,18 @@ def compute_norms(err, vector_norms=["l2", "linf"],
 def path_length(paths, total_length=True):
     lengths = []
     for x in paths:
-        dx = x[:-1, :]-x[1:, :]
-        length = np.sum(np.sqrt(dx[:, 0]**2 + dx[:, 1]**2))
+        dim = x.shape[0]
+        if dim == 2:
+            dx = x[:-1, :]-x[1:, :]
+            length = np.sum(np.sqrt(dx[:, 0]**2 + dx[:, 1]**2))
+        if dim == 3:
+            # FIXME: This is actually an area...
+            # Heron's formula
+            a = np.linalg.norm(x[0, :] - x[1, :])
+            b = np.linalg.norm(x[1, :] - x[2, :])
+            c = np.linalg.norm(x[2, :] - x[0, :])
+            s = (a + b + c)/2.0
+            length = np.sqrt(s*(s-a)*(s-b)*(s-c))
         lengths.append(length)
     if total_length:
         return sum(lengths)

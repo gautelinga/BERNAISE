@@ -145,6 +145,11 @@ def numpy_to_dolfin(nodes, elements):
     """ Convert nodes and elements to a dolfin mesh object. """
     tmpfile = "tmp.h5"
 
+    dim = elements.shape[1]-1
+    cell_type = "triangle"
+    if dim == 3:
+        cell_type = "tetrahedron"
+
     if rank == 0:
         with h5py.File(tmpfile, "w") as h5f:
             cell_indices = h5f.create_dataset(
@@ -154,7 +159,7 @@ def numpy_to_dolfin(nodes, elements):
                 "mesh/topology", data=elements, dtype='int64')
             coordinates = h5f.create_dataset(
                 "mesh/coordinates", data=nodes, dtype='float64')
-            topology.attrs["celltype"] = np.string_("triangle")
+            topology.attrs["celltype"] = np.string_(cell_type)
             topology.attrs["partition"] = np.array([0], dtype='uint64')
 
     comm.Barrier()

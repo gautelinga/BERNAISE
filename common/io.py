@@ -86,9 +86,10 @@ def create_initial_folders(folder, restart_folder, fields, tstep,
     return newfolder, tstepfiles
 
 
-def save_solution(tstep, t, T, w_, w_1, folder, newfolder,
+def save_solution(tstep, t, T, mesh, w_, w_1, folder, newfolder,
                   save_intv, checkpoint_intv,
-                  parameters, tstepfiles, subproblems, **namespace):
+                  parameters, tstepfiles, subproblems,
+                  **namespace):
     """ Save solution either to  """
     if tstep % save_intv == 0:
         # Save snapshot to xdmf
@@ -97,7 +98,7 @@ def save_solution(tstep, t, T, w_, w_1, folder, newfolder,
     stop = check_if_kill(folder) or t >= T
     if tstep % checkpoint_intv == 0 or stop:
         # Save checkpoint
-        save_checkpoint(tstep, t, w_, w_1, newfolder, parameters)
+        save_checkpoint(tstep, t, mesh, w_, w_1, newfolder, parameters)
 
     return stop
 
@@ -134,7 +135,7 @@ def save_xdmf(t, w_, subproblems, tstepfiles):
                 tstepfiles[field].write(q, float(t))
 
 
-def save_checkpoint(tstep, t, w_, w_1, newfolder, parameters):
+def save_checkpoint(tstep, t, mesh, w_, w_1, newfolder, parameters):
     """ Save checkpoint files.
 
     A part of this is taken from the Oasis code."""
@@ -159,12 +160,14 @@ def save_checkpoint(tstep, t, w_, w_1, newfolder, parameters):
         os.system("mv {0} {1}".format(h5filename, h5filename_old))
     h5file = HDF5File(mpi_comm_world(), h5filename, "w")
     h5file.flush()
+    info_red("Storing mesh")
+    h5file.write(mesh, "mesh")
     for field in w_:
         info_red("Storing subproblem: " + field)
         MPI.barrier(mpi_comm_world())
-        h5file.write(w_[field], field + "/current")
+        h5file.write(w_[field], "{}/current".format(field))
         if field in w_1:
-            h5file.write(w_1[field], field + "/previous")
+            h5file.write(w_1[field], "{}/previous".format(field))
         MPI.barrier(mpi_comm_world())
     h5file.close()
     # Since program is still running, delete the old files.
@@ -178,18 +181,19 @@ def load_checkpoint(checkpointfolder, w_, w_1):
         h5filename = os.path.join(checkpointfolder, "fields.h5")
         h5file = HDF5File(mpi_comm_world(), h5filename, "r")
         for field in w_:
-            info_red("Loading subproblem: " + field)
-            h5file.read(w_[field], field + "/current")
-            h5file.read(w_1[field], field + "/previous")
+            info_red("Loading subproblem: {}".format(field))
+            h5file.read(w_[field], "{}/current".format(field))
+            h5file.read(w_1[field], "{}/previous".format(field))
         h5file.close()
 
 
-def load_mesh(filename):
-    """ Loads in the mesh specified by the argument filename. """
+def load_mesh(filename, subdir="mesh",
+              use_partition_from_file=False):
+    """ Loads the mesh specified by the argument filename. """
     info_cyan("Loading mesh: " + filename)
     mesh = Mesh()
     h5file = HDF5File(mesh.mpi_comm(), filename, "r")
-    h5file.read(mesh, "mesh", False)
+    h5file.read(mesh, subdir, use_partition_from_file)
     h5file.close()
     return mesh
 
@@ -203,7 +207,7 @@ def parse_xdmf(xml_file, get_mesh_address=False):
 
     geometry_found = not get_mesh_address
     topology_found = not get_mesh_address
-    
+
     for i, step in enumerate(root[0][0]):
         if step.tag == "Time":
             # Support for earlier dolfin formats

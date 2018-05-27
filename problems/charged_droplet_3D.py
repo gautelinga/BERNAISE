@@ -3,9 +3,8 @@ import os
 from . import *
 from common.io import mpi_is_root
 from common.bcs import Fixed
+import numpy as np
 __author__ = "Gaute Linga"
-
-info_cyan("Welcome to the simple problem in 3D!")
 
 
 class Top(df.SubDomain):
@@ -34,6 +33,8 @@ class Wall(df.SubDomain):
 
 
 def problem():
+    info_cyan("Charged droplet in 3D")
+
     # Define solutes
     # Format: name, valency, diffusivity in phase 1, diffusivity in phase
     #         2, beta in phase 1, beta in phase 2
@@ -50,8 +51,8 @@ def problem():
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
-        solver="basic",
-        folder="results_simple_3D",
+        solver="TDLUES",
+        folder="results_charged_droplet_3D",
         restart_folder=False,
         enable_NS=True,
         enable_PF=True,
@@ -63,7 +64,7 @@ def problem():
         dt=0.005,
         t_0=0.,
         T=20.,
-        grid_spacing=1./64.,
+        grid_spacing=1./32.,
         interface_thickness=0.02,
         solutes=solutes,
         base_elements=base_elements,
@@ -72,17 +73,17 @@ def problem():
         Lz=1.,
         rad_init=0.25,
         #
-        V_top=1.,
+        V_top=10.,
         V_btm=0.,
         surface_tension=5.0,  # 24.5,
-        grav_const=0.98*1.,
+        grav_const=0.98*0.,
         grav_dir=[0., 0., -1.],
-        concentration_init=4.5,
+        concentration_init=3.0,
         #
         pf_mobility_coeff=0.000010,
         density=[1000., 100.],
-        viscosity=[10., 1.],
-        permittivity=[1., 10.],
+        viscosity=[1., 10.],
+        permittivity=[2., 1.],
         #
         use_iterative_solvers=True,
         use_pressure_stabilization=False
@@ -95,9 +96,12 @@ def constrained_domain(Lx, **namespace):
 
 
 def mesh(Lx=1., Ly=1., Lz=2., grid_spacing=1./16, **namespace):
-    return df.BoxMesh(df.Point(0., 0., 0.), df.Point(Lx, Ly, Lz),
-                      int(Lx/grid_spacing), int(Ly/grid_spacing),
-                      int(Lz/grid_spacing))
+    m = df.BoxMesh(df.Point(0., 0., 0.), df.Point(Lx, Ly, Lz),
+                   int(Lx/(2*grid_spacing)),
+                   int(Ly/(2*grid_spacing)),
+                   int(Lz/(2*grid_spacing)))
+    m = df.refine(m)
+    return m
 
 
 def initialize(Lx, Ly, Lz, rad_init, concentration_init,
@@ -124,11 +128,10 @@ def initialize(Lx, Ly, Lz, rad_init, concentration_init,
         # Electrochemistry
         if enable_EC:
             # c_init = df.Function(field_to_subspace[solutes[0][0]].collapse())
-            c_init = initial_phasefield(
+            c_init = initial_c_field(
+                concentration_init,
                 Lx/2, Ly/2, Lx/2, rad_init, interface_thickness,
                 field_to_subspace[solutes[0][0]].collapse())
-            c_init.vector()[:] = 0.5*(
-                1.-c_init.vector().get_local()) * concentration_init
             for solute in solutes:
                 w_init_field[solute[0]] = c_init
             V_init_expr = df.Expression("x[2]/Lz", Lz=Lz, degree=1)
@@ -179,26 +182,22 @@ def initial_phasefield(x0, y0, z0, rad, eps, function_space):
     return phi_init
 
 
+def initial_c_field(c0, x0, y0, z0, rad, eps, function_space):
+    expr_str = ("c0*pow(rad*sqrt(2*pi), -3)*exp("
+                "-(pow(x[0]-x0,2)+pow(x[1]-y0,2)+pow(x[2]-z0,2))"
+                "/(2*pow(rad, 2)))")
+    phi_init_expr = df.Expression(expr_str, x0=x0, y0=y0, z0=z0,
+                                  rad=rad/3., eps=eps,
+                                  c0=c0*4.*np.pi*rad**3/3.,
+                                  degree=2)
+    phi_init = df.interpolate(phi_init_expr, function_space)
+    return phi_init
+
+
 def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
                field_to_subproblem, subproblems, w_, enable_PF,
                dx, ds, **namespace):
     info_blue("Timestep = {}".format(tstep))
-
-    if False and stats_intv and tstep % stats_intv == 0 and enable_PF:
-        # GL: Seems like a rather awkward way of doing this, but any
-        # other way seems to fuck up the simulation.  Anyhow, a better
-        # idea could be to move some of this to a post-processing
-        # stage.
-        subproblem_name, subproblem_i = field_to_subproblem["phi"]
-        Q = w_[subproblem_name].split(deepcopy=True)[subproblem_i]
-        bubble = df.interpolate(Q, field_to_subspace["phi"].collapse())
-        bubble = 0.5*(1.-df.sign(bubble))
-        mass = df.assemble(bubble*dx)
-        massy = df.assemble(
-            bubble*df.Expression("x[1]", degree=1)*dx)
-        if mpi_is_root():
-            with file(statsfile, "a") as outfile:
-                outfile.write("{} {} {} \n".format(t, mass, massy))
 
 
 def pf_mobility(phi, gamma):
