@@ -44,7 +44,7 @@ def problem():
                ["c_m", -1, 1., 1., 1., 1.]]
 
     # Format: name : (family, degree, is_vector)
-    base_elements = dict(u=["Lagrange", 2, True],
+    base_elements = dict(u=["Lagrange", 1, True],
                          p=["Lagrange", 1, False],
                          phi=["Lagrange", 1, False],
                          g=["Lagrange", 1, False],
@@ -65,7 +65,7 @@ def problem():
         stats_intv=5,
         checkpoint_intv=50,
         tstep=0,
-        dt=factor*0.08,
+        dt=factor*0.005,
         t_0=0.,
         T=20.,
         grid_spacing=factor/16.,
@@ -98,8 +98,10 @@ def constrained_domain(Lx, **namespace):
 
 
 def mesh(Lx=1, Ly=5, grid_spacing=1./16, **namespace):
-    return df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly),
-                            int(Lx/grid_spacing), int(Ly/grid_spacing))
+    m = df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly),
+                         int(Lx/(grid_spacing)),
+                         int(Ly/(grid_spacing)))
+    return m
 
 
 def initialize(Lx, Ly, rad_init,
@@ -166,8 +168,8 @@ def initial_phasefield(x0, y0, rad, eps, function_space, shape="circle"):
     if shape == "flat":
         expr_str = "tanh((x[1]-y0)/(sqrt(2)*eps))"
     elif shape == "circle":
-        expr_str = ("tanh(sqrt(2)*(sqrt(pow(x[0]-x0,2)" +
-                    "+pow(x[1]-y0,2))-rad)/eps)")
+        expr_str = ("tanh((sqrt(pow(x[0]-x0,2)" +
+                    "+pow(x[1]-y0,2))-rad)/(sqrt(2)*eps))")
     else:
         info_red("Unrecognized shape: " + shape)
         exit()

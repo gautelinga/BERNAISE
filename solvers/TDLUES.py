@@ -21,7 +21,8 @@ GL, 2017-05-29
 import dolfin as df
 import math
 from common.functions import ramp, dramp, diff_pf_potential, \
-    diff_pf_potential_c, diff_pf_potential_e, diff_pf_potential_linearised
+    diff_pf_potential_c, diff_pf_potential_e, diff_pf_potential_linearised, \
+    ramp_harmonic, ramp_geometric
 from common.cmd import info_red
 from basic import unit_interval_filter  # GL: Move this to common.functions?
 from . import *
@@ -134,7 +135,7 @@ def unpack_quantities(surface_tension, grav_const, grav_dir,
 
     for solute in solutes:
         z.append(solute[1])
-        K_.append(ramp(phi_flt_, [solute[2], solute[3]]))
+        K_.append(ramp_geometric(phi_flt_, [solute[2], solute[3]]))
         beta_.append(ramp(phi_flt_, [solute[4], solute[5]]))
         dbeta.append(dramp([solute[4], solute[5]]))
 

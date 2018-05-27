@@ -47,7 +47,7 @@ def ddiff_pf_contact(phi):
 def diff_pf_contact_linearised(phi, phi0):
     """ Linearised derivative of phase field contact function. """
     return diff_pf_contact(phi0) + ddiff_pf_contact(phi0)*(phi-phi0)
-    
+
 
 # Phase field auxiliary fields
 def ramp(phi, A):
@@ -61,6 +61,16 @@ def ramp(phi, A):
 def dramp(A):
     """ Derivative of ramping function above. Returns df.Constant."""
     return df.Constant(0.5*(A[0]-A[1]))
+
+
+def ramp_harmonic(phi, A):
+    """ Weighted harmonic mean according to phi. """
+    return (A[0]**(-1)*0.5*(1.+phi) + A[1]**(-1)*0.5*(1.-phi))**(-1)
+
+
+def ramp_geometric(phi, A):
+    """ Weighted geometric mean according to phi. """
+    return A[0]**(0.5*(1.+phi))*A[1]**(0.5*(1.-phi))
 
 
 # Filters

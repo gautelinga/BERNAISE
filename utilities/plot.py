@@ -7,6 +7,9 @@ from matplotlib.tri import tricontour
 from matplotlib.tri import TriContourSet
 from mpi4py.MPI import COMM_WORLD as comm
 from common.io import remove_safe
+from skimage import measure
+from scipy.interpolate import griddata
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 ENABLE_TEX = True
 if ENABLE_TEX:  # Hacked for pretty output
@@ -301,32 +304,86 @@ def plot_any_field(nodes, elems, values, save=None, show=True, label=None):
                      show=show)
 
 
-def zero_level_set(nodes, elems, vals, show=False, save_file=False):
+def zero_level_set(nodes, elems, vals, show=False, save_file=False, num_intp=32):
     """ Returns the zero level set of the phase field, i.e. the phase boundary.
     GL: Possibly not a plot function?
     """
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
-    cs = ax.tricontour(nodes[:, 0], nodes[:, 1], elems, vals, levels=[0.])
-    paths = cs.collections[0].get_paths()
-    x, y = zip(*paths[0].vertices)
-    plt.close(fig)
-
-    if rank == 0 and show:
+    dim = elems.shape[1]-1
+    if dim == 2:
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1)
-        ax.set_aspect('equal')
-        ax.plot(x, y, '*-')
-        plt.show()
+        cs = ax.tricontour(nodes[:, 0], nodes[:, 1], elems, vals, levels=[0.])
+        paths = cs.collections[0].get_paths()
+        x, y = zip(*paths[0].vertices)
+        plt.close(fig)
+
+        if rank == 0 and show:
+            fig = plt.figure()
+            ax = fig.add_subplot(1, 1, 1)
+            ax.set_aspect('equal')
+            ax.plot(x, y, '*-')
+            plt.show()
+
+    elif dim == 3:
+        Lx = nodes[:, 0].max()-nodes[:, 0].min()
+        Ly = nodes[:, 1].max()-nodes[:, 1].min()
+        Lz = nodes[:, 2].max()-nodes[:, 2].min()
+        dx = max([Lx, Ly, Lz])/num_intp
+        Nx = int(Lx/dx)
+        Ny = int(Ly/dx)
+        Nz = int(Lz/dx)
+
+        x_i, y_i, z_i = np.meshgrid(
+            np.linspace(nodes[:, 0].min(),
+                        nodes[:, 0].max(), Nx),
+            np.linspace(nodes[:, 1].min(),
+                        nodes[:, 1].max(), Ny),
+            np.linspace(nodes[:, 2].min(),
+                        nodes[:, 2].max(), Nz))
+
+        phi_i = griddata(nodes, vals, (x_i, y_i, z_i), method="nearest")
+
+        verts, faces, normals, values = measure.marching_cubes(phi_i, 0.)
+
+        verts[:, 0] = ((nodes[:, 0].max() -
+                        nodes[:, 0].min())*verts[:, 0]/Nx
+                       + nodes[:, 0].min())
+        verts[:, 1] = ((nodes[:, 1].max() -
+                        nodes[:, 1].min())*verts[:, 1]/Ny
+                       + nodes[:, 1].min())
+        verts[:, 2] = ((nodes[:, 2].max() -
+                        nodes[:, 2].min())*verts[:, 2]/Nz
+                       + nodes[:, 2].min())
+
+        if rank == 0 and show:
+            fig = plt.figure(figsize=(10, 10))
+            ax = fig.add_subplot(111, projection='3d')
+
+            mesh = Poly3DCollection(verts[faces])
+            mesh.set_edgecolor('k')
+            ax.add_collection3d(mesh)
+
+            ax.set_xlim(nodes[:, 0].min(), nodes[:, 0].max())
+            ax.set_ylim(nodes[:, 1].min(), nodes[:, 1].max())
+            ax.set_zlim(nodes[:, 2].min(), nodes[:, 2].max())
+
+            plt.tight_layout()
+            plt.show()
 
     if rank == 0 and save_file:
         remove_safe(save_file)
         with open(save_file, "ab+") as f:
-            for path in paths:
-                np.savetxt(f, path.vertices)
-                f.write("\n")
+            if dim == 2:
+                for path in paths:
+                    np.savetxt(f, path.vertices)
+                    f.write("\n")
+            elif dim == 3:
+                np.savetxt(f, verts)
 
-    paths_out = []
-    for path in paths:
-        paths_out.append(path.vertices)
-    return paths_out
+    if dim == 2:
+        paths_out = []
+        for path in paths:
+            paths_out.append(path.vertices)
+        return paths_out
+    elif dim == 3:
+        return verts[faces]

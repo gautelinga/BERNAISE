@@ -74,7 +74,7 @@ def problem():
         #
         V_top=1.,
         V_btm=0.,
-        surface_tension=1.0,  # 24.5,
+        surface_tension=5.0,  # 24.5,
         grav_const=0.98*1.,
         grav_dir=[0., 0., -1.],
         concentration_init=4.5,

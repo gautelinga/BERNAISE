@@ -34,6 +34,10 @@ if restart_folder:
     internalize_cmd_kwargs(parameters, cmd_kwargs)
     vars().update(parameters)
 
+    info_red("Loading mesh from checkpoint.")
+    mesh = load_mesh(os.path.join(restart_folder, "fields.h5"),
+                     use_partition_from_file=True)
+
 # Import solver functionality
 exec("from solvers.{} import *".format(solver))
 
@@ -215,7 +219,8 @@ if w_init_fields:
                 # Take default value...
                 w_init_field = w_[name]
             w_init = df.project(w_init_field, w_[name].function_space(),
-                                solver_type="gmres", preconditioner_type="default")
+                                solver_type="gmres",
+                                preconditioner_type="default")
         w_[name].interpolate(w_init)
         w_1[name].interpolate(w_init)
 
