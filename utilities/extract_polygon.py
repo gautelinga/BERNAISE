@@ -14,20 +14,22 @@ from plot import plot_edges
 from skimage import measure
 from scipy import ndimage, misc
 
+
 def main():
     cmd_kwargs = parse_command_line()
 
     image_path = cmd_kwargs.get("image", False)
 
     name = os.path.splitext(os.path.basename(image_path))[0]
-    print name    
+    print name
 
     if not image_path or not os.path.exists(image_path):
         info_on_red("Image does not exist.")
         exit()
 
     image = misc.imread(image_path)
-    image = np.array(np.array(np.mean(image[:, :, :3], 2), dtype=int)/255, dtype=float)
+    image = np.array(np.array(np.mean(image[:, :, :3], 2),
+                              dtype=int)/255, dtype=float)
 
     contours = measure.find_contours(image, 0.5)
 
@@ -47,6 +49,7 @@ def main():
     np.savetxt(savefile_prefix + ".edges", edges, fmt='%i')
 
     plot_edges(nodes, edges)
+
 
 if __name__ == "__main__":
     main()

@@ -31,6 +31,7 @@ base_elements = dict(u=["Lagrange", 2, True],
 # Set default parameters
 parameters = dict(
     folder="results",  # default folder to store results in
+    restart_folder=False,
     info_intv=10,
     use_iterative_solvers=False,
     use_pressure_stabilization=False,
@@ -50,7 +51,13 @@ parameters = dict(
     density_per_concentration=None,
     viscosity_per_concentration=None,
     testing=False,
-    tstep=0
+    tstep=0,
+    enable_PF=True,
+    enable_EC=True,
+    enable_NS=True,
+    save_intv=5,
+    checkpoint_intv=50,
+    stat_intv=5
 )
 
 
