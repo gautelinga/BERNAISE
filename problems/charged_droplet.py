@@ -34,94 +34,59 @@ def problem():
     info_cyan("Charged droplet in an electric field.")
 
     # Define solutes
-    # Format: name, valency, diffusivity in phase 1, diffusivity in phase
+    # Format: name, valency, diffusivity in phase 1, diffusivity in phase 2
     solutes = [["c_p",  1, 1e-5, 1e-3, 4., 1.]]
-
-    # Format: name : (family, degree, is_vector)
-    base_elements = dict(u=["Lagrange", 2, True],
-                         p=["Lagrange", 1, False],
-                         phi=["Lagrange", 1, False],
-                         g=["Lagrange", 1, False],
-                         c=["Lagrange", 1, False],
-                         V=["Lagrange", 1, False])
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
         solver="basic",
         folder="results_charged_droplet",
-        restart_folder=False,
-        enable_NS=True,
-        enable_PF=True,
-        enable_EC=True,
-        save_intv=5,
-        stats_intv=5,
-        checkpoint_intv=50,
-        tstep=0,
-        dt=0.08,  # 0.02,
+        dt=0.08,
         t_0=0.,
         T=8.,
-        grid_spacing=1./32,  # 1./64,
-        interface_thickness=0.03,  # 0.02,
+        grid_spacing=1./32,
+        interface_thickness=0.03,
         solutes=solutes,
-        base_elements=base_elements,
         Lx=2.,
         Ly=1.,
         rad_init=0.25,
-        #
         V_left=10.,
         V_right=0.,
-        surface_tension=5.,  # 24.5,
-        grav_const=0.,
+        surface_tension=5.,
         concentration_init=10.,
-        #
-        pf_mobility_coeff=0.00002,  # 0.000010,
+        pf_mobility_coeff=0.00002,
         density=[200., 100.],
         viscosity=[10., 1.],
-        permittivity=[1., 1.],
-        #
-        use_iterative_solvers=False,
-        use_pressure_stabilization=False
+        permittivity=[1., 1.]
     )
     return parameters
 
 
 def mesh(Lx=1, Ly=5, grid_spacing=1./16, **namespace):
     m = df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly),
-                         int(Lx/(2*grid_spacing)),
-                         int(Ly/(2*grid_spacing)))
+                         int(Lx/(2*grid_spacing)), int(Ly/(2*grid_spacing)))
     m = df.refine(m)
     return m
 
 
-def initialize(Lx, Ly, rad_init,
-               interface_thickness, solutes,
-               concentration_init,
-               restart_folder,
-               field_to_subspace,
+def initialize(Lx, Ly, rad_init, interface_thickness, solutes,
+               concentration_init, restart_folder, field_to_subspace,
                enable_NS, enable_PF, enable_EC, **namespace):
     """ Create the initial state. """
-    x0 = [Lx/4]
-    y0 = [Ly/2]
-    rad0 = [rad_init]
-    c0 = [concentration_init]
-
     w_init_field = dict()
     if not restart_folder:
-        # Phase field
+        x0, y0, rad0, c0 = Lx/4, Ly/2, rad_init, concentration_init
+        # Initialize phase field
         if enable_PF:
             w_init_field["phi"] = initial_pf(
                 x0, y0, rad0, interface_thickness,
                 field_to_subspace["phi"].collapse())
 
-        # Electrochemistry
+        # Initialize electrochemistry
         if enable_EC:
-            for x, y, rad, ci, solute in zip(x0, y0, rad0, c0, solutes):
-                c_init = initial_c(x, y, rad/3., ci, interface_thickness,
-                                   field_to_subspace[solute[0]].collapse())
-                w_init_field[solute[0]] = c_init
-            V_init_expr = df.Expression("0.", degree=1)
-            w_init_field["V"] = df.interpolate(
-                V_init_expr, field_to_subspace["V"].collapse())
+            w_init_field[solutes[0][0]] = initial_c(
+                x0, y0, rad0/3., c0, interface_thickness,
+                field_to_subspace[solutes[0][0]].collapse())
 
     return w_init_field
 
@@ -161,6 +126,7 @@ def create_bcs(field_to_subspace, Lx, Ly, solutes,
 
 
 def initial_pf(x0, y0, rad0, eps, function_space):
+    """ Function describing the initial phase field. """
     expr_str = "1."
     for x, y, rad in zip(x0, y0, rad0):
         expr_str += ("-(1.-tanh(sqrt(2)*(sqrt(pow(x[0]-{x}, 2)"
@@ -172,9 +138,7 @@ def initial_pf(x0, y0, rad0, eps, function_space):
 
 
 def initial_c(x, y, rad, c_init, eps, function_space):
-    # expr_str = ("{c_init}*0.5*(1.-tanh(sqrt(2)*(sqrt(pow(x[0]-{x}, 2)"
-    #             "+pow(x[1]-{y}, 2))-{rad})/{eps}))").format(
-    #                 x=x, y=y, rad=rad, eps=eps, c_init=c_init)
+    """ Function describing the initial concentration field. """
     expr_str = ("c_init*1./(2*pi*pow(sigma, 2)) * "
                 "exp(- 0.5*pow((x[0]-x0)/sigma, 2)"
                 " - 0.5*pow((x[1]-y0)/sigma, 2))")

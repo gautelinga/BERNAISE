@@ -49,7 +49,8 @@ parameters = dict(
     reactions=[],
     density_per_concentration=None,
     viscosity_per_concentration=None,
-    testing=False
+    testing=False,
+    tstep=0
 )
 
 

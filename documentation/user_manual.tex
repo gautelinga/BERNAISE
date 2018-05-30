@@ -1,0 +1,467 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{minted}
+
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage{minted}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{forest}
+
+\title{User manual for Bernaise}
+\author{Gaute Linga}
+
+\begin{document}
+
+\maketitle
+
+%\begin{abstract}
+\emph{Bernaise} (Binary Elect\textsc{r}ohydrody\textsc{na}m\textsc{i}c Solver) is a flexible high-level finite element solver of two-phase electrohydrodynamic flow in complex geometries.
+\emph{Bernaise} is implemented in the Python interface to FEniCS, which effectively utilizes MPI and domain decomposition.
+The software should therefore suitable for large-scale/high-performance computing.
+
+In this document, we demonstrate briefly how to install \emph{Bernaise}, and how new solvers and problem set-ups can be implemented and added to the Bernaise framework by experienced Python users.
+For the physical (and industrial) motivation, the underlying equations and a description of the solution schemes, we refer to the paper \cite{linga2018b}.
+
+%\end{abstract}
+\section{Prerequisites}
+To work with \emph{Bernaise}, a basic familiarity with Python programming is needed.
+Further, the user should be familiar with the finite element method (FEM) and how to solve partial differential equations (PDEs), in particular using FEM and FEniCS through the Python interface.
+Otherwise, we refer readers to the tutorial by \citet{langtangen2017}.
+Experience with the \emph{Oasis} flow solver \cite{mortensen2015}, which targets high-level/high-performance numerical solution of the Navier--Stokes equations, is also an advantage, since \emph{Bernaise} is inspired both in implementation and use of the latter.
+You can find the \emph{Oasis} git repository on \url{github.com/mikaem/Oasis}.
+
+On the software side, a working installation of Python 2.7 is needed, with the FEniCS/Dolfin package installed.
+We refer to the FEniCS project's webpage \url{fenicsproject.org} for download and installation instructions.
+Further, several other packages are required to benefit from the full functionality of Bernaise:
+\begin{itemize}
+\item \texttt{dolfin} and \texttt{mshr}: fundamental components (these are usually parts of the FEniCS install).
+\item \texttt{numpy}: for calculations (necessary).
+\item \texttt{scipy}: for analyzing/visualising data.
+\item \texttt{simplejson}: for parsing the parameters.
+\item \texttt{meshpy}: for generating periodic meshes.
+\item \texttt{matplotlib}: for plotting/visualising data.
+\item \texttt{argparse}: for some utility functionality.
+\item \texttt{h5py} (parallel install): for accessing the output data.
+\item \texttt{mpi4py}: for MPI.
+\item \texttt{pytest}: for testing.
+\item \texttt{scikit-image}: for utilities (mesh creation from images).
+\end{itemize}
+
+\section{Installation instructions}
+You can install \emph{Bernaise} by cloning the Git repository (recommended) or by downloading a packaged version.
+Packaged versions will be sought to be launched shortly after new stable versions of FEniCS.
+At the time of writing, version 2017.2.0 is the latest stable FEniCS version, which is compatible with version 1.0 of \emph{Bernaise}.
+
+\subsection{Installation via Git}
+To install \emph{Bernaise} by cloning the GitHub repository.
+\begin{minted}{bash}
+>> git clone https://github.com/gautelinga/BERNAISE.git
+>> cd BERNAISE
+\end{minted}
+To switch to, e.g., version 1.0 of \emph{Bernaise}, you can type:
+\begin{minted}{bash}
+>> git checkout v1.0
+\end{minted}
+which gives you the (as of writing) latest ``stable'' realease.
+
+\subsection{Installation of the packaged version}
+To install \emph{Bernaise} from a packaged file, you can navigate to \url{github.com/gautelinga/Bernaise/releases}.
+In a Unix terminal, you can then install by performing the following commands:
+\begin{minted}{bash}
+>> wget https://github.com/gautelinga/Bernaise/archive/v1.0.tar.gz
+>> tar -xvf v1.0.tar.gz
+>> cd Bernaise-v1.0
+\end{minted}
+
+\subsection{Installing the dependencies}
+The usually fastest way to install up-to-date dependencies is via \texttt{pip}:
+\begin{minted}{bash}
+>> pip install numpy scipy simplejson meshpy matplotlib \
+>> argparse mpi4py pytest skimage
+\end{minted}
+Guides to install \texttt{h5py} in \emph{parallel} can be found several places on the web; one way is the following:
+\begin{minted}{bash}
+>> sudo apt-get install libhdf5-openmpi-10 libhdf5-openmpi-dev hdf5-tools
+>> git clone https://github.com/h5py/h5py.git
+>> cd h5py
+>> git checkout 2.6.0 #(or a newer version)
+>> export CC=mpicc.openmpi
+>> python setup.py configure --mpi --hdf5=/usr/lib/x86_64-linux-gnu/hdf5/openmpi/
+>> python setup.py build
+>> sudo python setup.py install
+\end{minted}
+If you do not want to install systemwide, the last \texttt{sudo} can be skipped.
+
+\section{Code structure}
+\emph{Bernaise} is designed as a Python package, and its main executable script for running simulations is \texttt{sauce.py}.
+For postprocessing, the main executable script is \texttt{postprocessing.py}.
+The base level of the directory structure is shown in Fig.\ \ref{fig:dirtree}.
+
+\begin{figure}[H]
+  \begin{forest}
+    for tree={
+      font=\ttfamily,
+      grow'=0,
+      child anchor=west,
+      parent anchor=south,
+      anchor=west,
+      calign=first,
+      edge path={
+        \noexpand\path [draw, \forestoption{edge}]
+        (!u.south west) +(7.5pt,0) |- node[fill,inner sep=1.25pt] {} (.child anchor)\forestoption{edge label};
+      },
+      before typesetting nodes={
+        if n=1
+        {insert before={[,phantom]}}
+        {}
+      },
+      fit=band,
+      before computing xy={l=15pt},
+    }
+    [BERNAISE
+      [README.md]
+      [sauce.py]
+      [postprocess.py]
+      [common
+        %[\_\_init\_\_.py]
+        %[bcs.py]
+        %[cmd.py]
+        %[functions.py]
+        %[io.py]
+        [...]
+      ]
+      [problems
+        %[\_\_init\_\_.py]
+        %[charged\_droplet.py]
+        %[taylorgreen.py]
+        %[snoevsen.py]
+        %[charged\_droplets\_3D.py]
+        [...]
+      ]
+      [solvers
+        %[\_\_init\_\_.py]
+        %[basic.py]
+        %[basicnewton.py]
+        %[fracstep.py]
+        [...]
+      ]
+      [utilities
+        [...]
+      ]
+      [tests
+        [...]
+      ]
+      [data
+        [...]
+      ]
+      [meshes
+        [...]
+      ]
+      [scripts
+        [...]
+      ]
+      [...]
+    ]
+  \end{forest}
+  \caption{\label{fig:dirtree}
+    First level of the directory structure of Bernaise.}
+\end{figure}
+
+\subsection{\texttt{sauce.py}}
+The task of the main module \texttt{sauce.py} is initializing the necessary variables to run a simulation, importing routines from the specified \texttt{problem} and \texttt{solver}, to iterate the solver in time, and to output and store data at appropriate times.
+In particular, various \texttt{hooks} are called at various places in the code, where users can perform actions of choice within the code.
+
+A simulation is typically run from a terminal, pointing to the \emph{Bernaise} directory, using the command
+\begin{minted}[fontsize=\small]{bash}
+>> python sauce.py problem=charged_droplet
+\end{minted}
+where \texttt{charged\_droplet} may be exchanged with another problem script of choice.
+The main script \texttt{sauce.py} fetches a \texttt{problem}, from the folder \texttt{problems} (see below), and connects it with the \texttt{solver}, fetched from the folder \texttt{solvers} (see below).
+It sets up the finite element problem with all the given parameters, initializes the finite element fields with the specified initial state, and solves it with the specified boundary condition at each time step, until the specified (physical) simulation time \texttt{T} is exceeded.
+
+All default parameters in a problem by specifying an additional keyword from the command line; for example, the simulation time can be set to 1000 by running the command:
+
+\begin{minted}[fontsize=\small]{bash}
+>> python sauce.py problem=charged_droplet T=1000
+\end{minted}
+
+After every given interval of steps, specified by the parameter \texttt{checkpoint\_interval}, a checkpoint is stored, including all fields, and all problem parameters at the time of writing to file.
+The checkpoint can be loaded, and the simulation can be continued, by running the command:
+\begin{minted}[fontsize=\small]{bash}
+>> python sauce.py problem=charged_droplet \
+   restart_folder=results_charged_droplet/1/Checkpoint/
+\end{minted}
+where the \texttt{restart\_folder} points to an appropriate checkpoint folder.
+Here, the problem parameters stored within the checkpoint have precedence over the default parameters given in the \texttt{problem} script.
+Further, any parameters specified by command line keywords have precedence over the checkpoint parameters.
+
+\subsection{\texttt{problems}}
+The \texttt{problems} submodule (in the folder \texttt{problems}) contains the various problems that can be run in \emph{Bernaise}.
+An incomplete list of problems that are currently implemented is shown in Fig.\ \ref{fig:dirtree_problems}.
+\begin{figure}[H]
+  \begin{forest}
+    for tree={
+      font=\ttfamily,
+      grow'=0,
+      child anchor=west,
+      parent anchor=south,
+      anchor=west,
+      calign=first,
+      edge path={
+        \noexpand\path [draw, \forestoption{edge}]
+        (!u.south west) +(7.5pt,0) |- node[fill,inner sep=1.25pt] {} (.child anchor)\forestoption{edge label};
+      },
+      before typesetting nodes={
+        if n=1
+        {insert before={[,phantom]}}
+        {}
+      },
+      fit=band,
+      before computing xy={l=15pt},
+    }
+    [problems
+      [\_\_init\_\_.py]
+      [charged\_droplet.py]
+      [charged\_droplets.py]
+      [charhed\_droplets\_3D.py]
+      [taylorgreen.py]
+      [snoevsen.py]
+      [charged\_droplets\_3D.py]
+      [barbell\_capilar.py]
+      [dielectric.py]
+      [dolphin.py]
+      [electrowetting.py]
+      [hourglass.py]
+      [intrusion\_bulk.py]
+      [porous.py]
+      [simple.py]
+      [simple\_3D.py]
+      [single\_cell.py]
+      [single\_reaction.py]
+      [single\_taylorgreen.py]
+      [...]
+      ]
+  \end{forest}
+  \caption{\label{fig:dirtree_problems}
+    The directory structure of the \texttt{problems} submodule.}
+\end{figure}
+
+Code that is shared between various solvers, in particular default values of the \texttt{hooks}, are placed in the top level \texttt{\_\_init\_\_.py} script.
+For example, a list of ``base elements'' is defined:
+\begin{minted}{python}
+# Default base elements
+# Format: name : (family, degree, is_vector)
+base_elements = dict(u=["Lagrange", 2, True],
+                     p=["Lagrange", 1, False],
+                     phi=["Lagrange", 1, False],
+                     g=["Lagrange", 1, False],
+                     c=["Lagrange", 1, False],
+                     V=["Lagrange", 1, False],
+                     p0=["Real", 0, False],
+                     c0=["Real", 0, False],
+                     V0=["Real", 0, False])
+\end{minted}
+This \texttt{dict} defines which finite elements are automatically created by the \texttt{sauce.py} script (and can be overruled in the particular \texttt{problem}). 
+
+A list of default \texttt{parameters} is also defined:
+\begin{minted}{python}
+# Set default parameters
+parameters = dict(
+    folder="results",  # default folder to store results in
+    info_intv=10,
+    use_iterative_solvers=False,
+    use_pressure_stabilization=False,
+    dump_subdomains=False,
+    V_lagrange=False,
+    p_lagrange=False,
+    base_elements=base_elements,
+    c_cutoff=0.,
+    q_rhs=dict(),
+    EC_scheme="NL2",
+    grav_dir=[1., 0],
+    pf_mobility_coeff=1.,
+    grav_const=0.,
+    surface_tension=0.,
+    interface_thickness=0.,
+    reactions=[],
+    density_per_concentration=None,
+    viscosity_per_concentration=None,
+    testing=False,
+    tstep=0
+)
+\end{minted}
+We will not go into detail on the meaning of all these entries; they should be explained in the source code or in \cite{linga2018b}.
+These can also be overruled in a \texttt{problem}; in particular, the function \texttt{problem} in any problem script is required to return a \texttt{dict}.
+We shall look at a concrete example in Sec.\ \ref{sec:test_problem}.
+
+Further, the following functions can be overruled:
+\begin{itemize}
+\item \texttt{constrained\_domain}: Returns e.g. periodic domain.
+\item \texttt{initialize}: Initialize solution, i.e., the initial conditions.
+\item \texttt{create\_bcs}: Returns a \texttt{dict} of Dirichlet boundary conditions.
+\item \texttt{start\_hook}: Called just before entering the time loop.
+\item \texttt{tstep\_hook}: Called in the beginning of timestep loop.
+\item \texttt{end\_hook}: Called just before program ends.
+\item \texttt{import\_problem\_hook}: Called after importing problem.
+\item \texttt{rhs\_source}: for adding source terms, e.g., for validation purposes.
+\item \texttt{pf\_mobility}: default phase field mobility function (see \cite{linga2018b}).
+\end{itemize}
+Note that all of these functions (with the exception of \texttt{pf\_mobility}) can import \emph{any parameter returned by the} \texttt{problem} \emph{function}, which will be exemplified in Sec.\ \ref{sec:test_problem}.
+
+\subsection{\texttt{solvers}}
+Similarly to the \texttt{problems} submodule, there are several solvers implemented in the \texttt{solvers} module.
+In particular, a solver can be defined in the \texttt{dict} returned by the \texttt{problem} function in a problem, or it can be set from the command line by running:
+\begin{minted}{bash}
+>> python sauce.py problem=charged_dropet solver=basicnewton
+\end{minted}
+if, by chance, we wanted to use the \texttt{basicnewton} scheme instead of \texttt{basic}.
+A list of implemented solver is shown Fig.\ \ref{fig:dirtree_solvers}.
+\begin{figure}[H]
+  \begin{forest}
+    for tree={
+      font=\ttfamily,
+      grow'=0,
+      child anchor=west,
+      parent anchor=south,
+      anchor=west,
+      calign=first,
+      edge path={
+        \noexpand\path [draw, \forestoption{edge}]
+        (!u.south west) +(7.5pt,0) |- node[fill,inner sep=1.25pt] {} (.child anchor)\forestoption{edge label};
+      },
+      before typesetting nodes={
+        if n=1
+        {insert before={[,phantom]}}
+        {}
+      },
+      fit=band,
+      before computing xy={l=15pt},
+    }
+    [solvers
+      [\_\_init\_\_.py]
+      [basic.py]
+      [basicnewton.py]
+      [fracstep.py]
+      [stable\_single.py]
+      [stable\_single\_fracstep.py]
+      [...]
+      ]
+  \end{forest}
+  \caption{\label{fig:dirtree_solvers}
+    The directory structure of the \texttt{solvers} submodule.}
+\end{figure}
+The solvers that start with the name \texttt{stable\_single} only support single-phase flow, and have been documented in Ref.\ \cite{linga2018decoupled}.
+
+Code that is shared across the different solvers is defined in the top level file \texttt{\_\_init\_\_.py}.
+In common with its counterpart in the \texttt{problems} submodule, \texttt{\_\_init\_\_.py} defines a set of placeholder functions that should be overloaded in the specific \texttt{solver} instance.
+\begin{itemize}
+\item \texttt{get\_subproblems}: Returns \texttt{dict} of subproblems as defined by the solver.
+\item \texttt{setup}: Sets up all equations that should be solved.
+  Returns \texttt{dict} of solvers.
+\item \texttt{solve}: Solves equations at each timestep.
+\item \texttt{update}: Update work arrays at the end of timestep.
+\end{itemize} 
+We will examplify these for the \texttt{basic} solver in Sec.\ \ref{sec:basic_solver}.
+
+\subsection{\texttt{utilities}}
+\emph{Bernaise} comes with a set of utility scripts that are located in the \texttt{utilities} folder.
+This subdirectory is shown Fig.\ \ref{fig:dirtree_utilities}.
+\begin{figure}[H]
+  \begin{forest}
+    for tree={
+      font=\ttfamily,
+      grow'=0,
+      child anchor=west,
+      parent anchor=south,
+      anchor=west,
+      calign=first,
+      edge path={
+        \noexpand\path [draw, \forestoption{edge}]
+        (!u.south west) +(7.5pt,0) |- node[fill,inner sep=1.25pt] {} (.child anchor)\forestoption{edge label};
+      },
+      before typesetting nodes={
+        if n=1
+        {insert before={[,phantom]}}
+        {}
+      },
+      fit=band,
+      before computing xy={l=15pt},
+    }
+    [utilities
+      [extract\_polygons.py]
+      [generate\_mesh.py]
+      [get\_info.py]
+      [TimeSeries.py]
+      [...]
+      ]
+  \end{forest}
+  \caption{\label{fig:dirtree_utilities}
+    The directory structure of the \texttt{utilities} submodule.}
+\end{figure}
+
+Here, \texttt{generate\_mesh.py} is somewhat similar to \texttt{sauce.py} in that it pulls in a required mesh generation script from the folder \texttt{utilities/mesh\_scripts}.
+For example, an hourglass mesh can be generated by navigating into the \texttt{utilities} folder and running the command:
+\begin{minted}{bash}
+>> python generate_mesh.py mesh=hourglass
+\end{minted}
+An hourglass mesh will then be created in the \texttt{meshes} folder (see Fig.\ \ref{fig:dirtree}.
+An incomplete list of meshes that can be generated, and thus are stored in the latter folder, is the following:
+\begin{itemize}
+\item \texttt{barbell\_capilar}
+\item \texttt{extended\_polygon.py}
+\item \texttt{hourglass.py}
+\item \texttt{periodic\_porous.py}
+\item \texttt{snoevsen.py}
+\item \texttt{straight\_capilar.py}
+\end{itemize}
+
+
+\texttt{TimeSeries.py} is fundamental for the post-processing procedures, which will be covered in Sec.\ \ref{sec:postproc}.
+
+\subsection{\texttt{postprocessing.py}}
+\label{sec:postproc}
+
+\section{The \texttt{basic} solver}
+\label{sec:basic_solver}
+Now we briefly explain the implementation of the \texttt{basic} solver.
+
+\subsection{\texttt{get\_subproblems}}
+The overloaded \texttt{get\_subproblems} function in \texttt{basic} consists of:
+\begin{minted}{python}
+def get_subproblems(base_elements, solutes, p_lagrange,
+                    enable_NS, enable_PF, enable_EC,
+                    **namespace):
+    subproblems = dict()
+    if enable_NS:
+        subproblems["NS"] = [dict(name="u", element="u"),
+                             dict(name="p", element="p")]
+        if p_lagrange:
+            subproblems["NS"].append(dict(name="p0", element="p0"))
+    if enable_PF:
+        subproblems["PF"] = [dict(name="phi", element="phi"),
+                             dict(name="g", element="g")]
+    if enable_EC:
+        subproblems["EC"] = ([dict(name=solute[0], element="c")
+                              for solute in solutes]
+                             + [dict(name="V", element="V")])
+    return subproblems
+\end{minted}
+First, note that any parameter that has been defined in the namespace, can inter into the list of arguments.
+Here, \texttt{base\_elements} were defined in the \texttt{problem} that has called the \texttt{basic} solver, and the entries of the \textttt{subproblems} \texttt{dict} are the subproblems that the solver splits the full problem into, here \texttt{NS} (Navier--Stokes), \texttt{PF} (phase field) and \texttt{EC} (electrochemistry).
+Within each entry, a list of \texttt{dict}s that make up mixed finite elements is specified.
+The \texttt{name} key gives the name of the field and \texttt{element} points to the element whose key is the value.
+The \texttt{solutes} parameter is an array of arrays which give (1) name, (2) valency, (3) diffusivity in phase 1, (4) diffusivity in phase 2, (5) solubility energy in phase 1, and (6) solubility energy in phase 2.
+See Sec.\ \ref{sec:test_problem} for an example.
+The boolean parameter \texttt{p\_lagrange} states whether a Lagrange multiplier should be used to fix the pressure gauge (this enters as an additional degree of freedom in the subproblem).
+The parameters \texttt{enable\_NS}, \texttt{enable\_PF}, and \texttt{enable\_EC} are boolean values that determine whether the various subproblems should be enabled.
+
+
+
+\section{A test problem}
+\label{sec:test_problem}
+
+\bibliographystyle{abbrvnat}
+\bibliography{references}
+
+\end{document}
