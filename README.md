@@ -1,6 +1,5 @@
 # BERNAISE
-[![Build Status](https://travis-ci.org/gautelinga/BERNAISE.svg?branch=master)](https://travis-ci.org/gautelinga/BERNAISE)
- _BERNAISE_ (Binary ElectRohydrodyNAmIc SolvEr) is a flexible, high-level solver of electrohydrodynamic flows in complex geometries currently under development.
+ _BERNAISE_ (Binary ElectRohydrodyNAmIc SolvEr) is a flexible high-level solver of electrohydrodynamic flows in complex geometries.
 It is written in Python and built on the FEniCS project, which in turn effectively interfaces to optimized linear algebra backends such as PETSc.
 
 <p align="center">
@@ -49,50 +48,12 @@ It is written in Python and built on the FEniCS project, which in turn effective
 </p>
 
 ### Features
-* Simulates time-dependent two-phase electrohydrodynamics in 2D using a phase-field approach.
+* Simulates time-dependent two-phase electrohydrodynamics in two and three dimensions using a phase-field approach.
 * Supports complex geometries represented by unstructured meshes.
 * Easy implementation of new problems and solvers.
 
-### Planned features (but currently not supported)
-* Adaptive time-stepping.
-* Two-phase EHD in 3D.
-
-### Folder structure
-```
-* BERNAISE
-  * common
-    * __init__.py
-    * bcs.py
-    * cmd.py
-    * functions.py
-    * io.py
-    * recipe.txt
-  * problems
-    * __init__.py
-    * simple.py
-    * ...
-  * solvers
-    * __init__.py
-    * basic.py
-    * ...
-  * tests
-    * ...
-  * meshes
-    * ...
-  * utilities
-    * extract_polygon.py
-    * generate_mesh.py
-    * load_mesh.py
-    * plot.py
-    * units.py
-  * documentation
-    * ...
-  * articles
-    * ...
-  * README.md
-  * sauce.py
-  * postprocess.py
-```
+### Planned features
+* Adaptive time-stepping based on a local Courant number.
 
 ### Dependencies
 * FEniCS/Dolfin
@@ -107,5 +68,3 @@ It is written in Python and built on the FEniCS project, which in turn effective
 ### Contributors
 * Asger Bolet
 * Gaute Linga
-* Joachim Mathiesen
-* Marek Misztal
