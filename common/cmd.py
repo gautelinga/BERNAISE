@@ -1,6 +1,7 @@
+from __future__ import print_function
 import sys
 import json
-from dolfin import MPI, mpi_comm_world
+from dolfin import MPI
 import os
 
 
@@ -11,6 +12,13 @@ YELLOW = "\033[1;37;33m{s}\033[0m"
 CYAN = "\033[1;37;36m{s}\033[0m"
 NORMAL = "{s}"
 ON_RED = "\033[41m{s}\033[0m"
+
+
+__all__ = ["convert", "str2list", "parseval", "parse_command_line",
+           "info_style", "info_red", "info_blue", "info_yellow",
+           "info_green", "info_cyan", "info", "info_on_red",
+           "info_split_style", "info_split", "info_warning",
+           "print_dir", "print_recipe", "help_menu"]
 
 
 # Stolen from Oasis
@@ -74,8 +82,8 @@ def parse_command_line():
 
 
 def info_style(message, check=True, style=NORMAL):
-    if MPI.rank(mpi_comm_world()) == 0 and check:
-        print style.format(s=message)
+    if MPI.rank(MPI.comm_world) == 0 and check:
+        print(style.format(s=message))
 
 
 def info_red(message, check=True):
@@ -107,8 +115,8 @@ def info_on_red(message, check=True):
 
 
 def info_split_style(msg_1, msg_2, style_1=BLUE, style_2=NORMAL, check=True):
-    if MPI.rank(mpi_comm_world()) == 0 and check:
-        print style_1.format(s=msg_1) + " " + style_2.format(s=msg_2)
+    if MPI.rank(MPI.comm_world()) == 0 and check:
+        print(style_1.format(s=msg_1) + " " + style_2.format(s=msg_2))
 
 
 def info_split(msg_1, msg_2, check=True):
@@ -159,7 +167,7 @@ def help_menu():
 
     print_dir("solvers")
 
-    rank = mpi_comm_world().rank
+    rank = MPI.comm_world().rank
 
     info("\n...or were you looking for the recipe "
          "for Bearnaise sauce? [y/N] ")

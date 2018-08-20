@@ -1,5 +1,6 @@
 import dolfin as df
 from common import *
+from common.cmd import info_cyan, info_blue, info_red, info_green
 
 """
 This module contains general functions that can or should be overloaded by
@@ -95,7 +96,7 @@ def internalize_cmd_kwargs(parameters, cmd_kwargs):
     """ Integrate command line arguments into parameters.
     Consider moving this to common/cmd.py
     """
-    for key, val in cmd_kwargs.iteritems():
+    for key, val in cmd_kwargs.items():
         if isinstance(val, dict):
             parameters[key].update(val)
         else:

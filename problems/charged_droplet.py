@@ -127,10 +127,9 @@ def create_bcs(field_to_subspace, Lx, Ly, solutes,
 
 def initial_pf(x0, y0, rad0, eps, function_space):
     """ Function describing the initial phase field. """
-    expr_str = "1."
-    expr_str += ("-(1.-tanh(sqrt(2)*(sqrt(pow(x[0]-{x}, 2)"
-                 "+pow(x[1]-{y}, 2))-{rad})/{eps}))").format(
-                     x=x0, y=y0, rad=rad0, eps=eps)
+    expr_str = ("1.-(1.-tanh(sqrt(2)*(sqrt(pow(x[0]-{x}, 2)"
+                "+pow(x[1]-{y}, 2))-{rad})/{eps}))").format(
+                    x=x0, y=y0, rad=rad0, eps=eps)
     phi_init_expr = df.Expression(expr_str, degree=2)
     phi_init = df.interpolate(phi_init_expr, function_space)
     return phi_init

@@ -225,11 +225,11 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
                  - df.dot(mom_1, df.nabla_grad(df.dot(u, v)))) * dx
         - rho_*df.dot(grav, v) * dx
     )
-    for boundary_name, slip_length in neumann_bcs["u"].iteritems():
+    for boundary_name, slip_length in neumann_bcs["u"].items():
         F += 1./slip_length * \
              df.dot(u, v) * ds(boundary_to_mark[boundary_name])
 
-    for boundary_name, pressure in neumann_bcs["p"].iteritems():
+    for boundary_name, pressure in neumann_bcs["p"].items():
         F += pressure * df.inner(
             normal, v) * ds(boundary_to_mark[boundary_name])
 
@@ -289,8 +289,9 @@ def setup_PF(w_PF, phi, g, psi, h,
                       for dbeta_i, ci_1 in zip(dbeta, c_1)])
                 + 0.5*dveps*df.dot(df.nabla_grad(V_1), df.nabla_grad(V_1))*h*dx)
 
-    for boundary_name, costheta in neumann_bcs["phi"].iteritems():
+    for boundary_name, costheta in neumann_bcs["phi"].items():
         fw_prime = diff_pf_contact_linearised(phi, unit_interval_filter(phi_1))
+        # Should be just surface tension!
         F_g += sigma_bar*costheta*fw_prime*h*ds(boundary_to_mark[boundary_name])
 
     if "phi" in q_rhs:        
@@ -338,7 +339,7 @@ def setup_EC(w_EC, c, V, b, U, rho_e,
 
         F_c.append(F_ci)
     F_V = veps_*df.dot(df.nabla_grad(V), df.nabla_grad(U))*dx
-    for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
+    for boundary_name, sigma_e in neumann_bcs["V"].items():
         F_V += -sigma_e*U*ds(boundary_to_mark[boundary_name])
     if rho_e != 0:
         F_V += -rho_e*U*dx
@@ -365,7 +366,7 @@ def solve(w_, solvers, enable_PF, enable_EC, enable_NS, **namespace):
                                   [enable_PF, enable_EC, enable_NS]):
         if enable:
             timer_inner = df.Timer("Solve subproblem " + subproblem)
-            df.mpi_comm_world().barrier()
+            df.MPI.comm_world.barrier()
             solvers[subproblem].solve()
             timer_inner.stop()
 
@@ -379,8 +380,8 @@ def update(t, dt, w_, w_1, bcs, bcs_pointwise,
     for qi in q_rhs.values():
         qi.t = t+dt
     # Update the time-dependent boundary conditions
-    for boundary_name, bcs_fields in bcs.iteritems():
-        for field, bc in bcs_fields.iteritems():
+    for boundary_name, bcs_fields in bcs.items():
+        for field, bc in bcs_fields.items():
             if isinstance(bc.value, df.Expression):
                 bc.value.t = t+dt
 
@@ -445,7 +446,7 @@ def equilibrium_EC(w_, x_, test_functions,
             F_ci += b0i*(ci-df.Constant(qi))*dx + c0i*bi*dx
 
     F_V = veps*df.dot(df.nabla_grad(U), df.nabla_grad(V))*dx
-    for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
+    for boundary_name, sigma_e in neumann_bcs["V"].items():
         F_V += -sigma_e*U*ds(boundary_to_mark[boundary_name])
     if rho_e != 0:
         F_V += -rho_e*U*dx

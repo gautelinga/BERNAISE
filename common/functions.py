@@ -74,12 +74,15 @@ def ramp_geometric(phi, A):
 
 
 # Filters
+def dfabs(a):
+    return df.sqrt(a*a)
+
 def max_value(a, b):
-    return 0.5*(a+b+df.sign(a-b)*(a-b))
+    return 0.5*(a+b+dfabs(a-b))
 
 
 def min_value(a, b):
-    return 0.5*(a+b-df.sign(a-b)*(a-b))
+    return 0.5*(a+b-dfabs(a-b))
 
 
 def unit_interval_filter(phi):
@@ -87,7 +90,7 @@ def unit_interval_filter(phi):
 
 
 def absolute(q):
-    return df.sign(q)*q
+    return dfabs(q)
 
 
 # Chemical potential functions

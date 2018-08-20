@@ -3,7 +3,8 @@ This is the main module for running the BERNAISE code.
 More specific info will follow in a later commit.
 """
 import dolfin as df
-from common import *
+from common.cmd import parse_command_line, help_menu
+from common.io import create_initial_folders, load_checkpoint, save_solution
 
 __author__ = "Gaute Linga"
 
@@ -46,7 +47,7 @@ subproblems = get_subproblems(**vars())
 
 # Declare finite elements
 elements = dict()
-for name, (family, degree, is_vector) in base_elements.iteritems():
+for name, (family, degree, is_vector) in base_elements.items():
     if is_vector:
         elements[name] = df.VectorElement(family, mesh.ufl_cell(), degree)
     else:
@@ -54,7 +55,7 @@ for name, (family, degree, is_vector) in base_elements.iteritems():
 
 # Declare function spaces
 spaces = dict()
-for name, subproblem in subproblems.iteritems():
+for name, subproblem in subproblems.items():
     if len(subproblem) > 1:
         spaces[name] = df.FunctionSpace(
             mesh, df.MixedElement(
@@ -75,7 +76,7 @@ for name, subproblem in subproblems.iteritems():
 fields = []
 field_to_subspace = dict()
 field_to_subproblem = dict()
-for name, subproblem in subproblems.iteritems():
+for name, subproblem in subproblems.items():
     if len(subproblem) > 1:
         for i, s in enumerate(subproblem):
             field = s["name"]
@@ -96,7 +97,7 @@ newfolder, tstepfiles = create_initial_folders(folder, restart_folder,
 # Create overarching test and trial functions
 test_functions = dict()
 trial_functions = dict()
-for name, subproblem in subproblems.iteritems():
+for name, subproblem in subproblems.items():
     if len(subproblem) > 1:
         test_functions[name] = df.TestFunctions(spaces[name])
         trial_functions[name] = df.TrialFunctions(spaces[name])
@@ -106,15 +107,15 @@ for name, subproblem in subproblems.iteritems():
 
 # Create work dictionaries for all subproblems
 w_ = dict((subproblem, df.Function(space, name=subproblem))
-           for subproblem, space in spaces.iteritems())
+           for subproblem, space in spaces.items())
 w_1 = dict((subproblem, df.Function(space, name=subproblem+"_1"))
-            for subproblem, space in spaces.iteritems())
+            for subproblem, space in spaces.items())
 w_tmp = dict((subproblem, df.Function(space, name=subproblem+"_tmp"))
-             for subproblem, space in spaces.iteritems())
+             for subproblem, space in spaces.items())
 
 # Shortcuts to the fields
 x_ = dict()
-for name, subproblem in subproblems.iteritems():
+for name, subproblem in subproblems.items():
     if len(subproblem) > 1:
         w_loc = df.split(w_[name])
         for i, field in enumerate(subproblem):
@@ -141,7 +142,7 @@ subdomains = df.MeshFunction("size_t", mesh, mesh.topology().dim()-1)
 subdomains.set_all(0)
 boundary_to_mark = dict()
 mark_to_boundary = dict()
-for i, (boundary_name, markers) in enumerate(boundaries.iteritems()):
+for i, (boundary_name, markers) in enumerate(boundaries.items()):
     for marker in markers:
         marker.mark(subdomains, i+1)
     boundary_to_mark[boundary_name] = i+1
@@ -161,8 +162,8 @@ neumann_bcs = dict()
 for field in fields:
     neumann_bcs[field] = dict()
 
-for boundary_name, bcs_fields in bcs.iteritems():
-    for field, bc in bcs_fields.iteritems():
+for boundary_name, bcs_fields in bcs.items():
+    for field, bc in bcs_fields.items():
         subproblem_name = field_to_subproblem[field][0]
         subspace = field_to_subspace[field]
         mark = boundary_to_mark[boundary_name]
@@ -173,7 +174,7 @@ for boundary_name, bcs_fields in bcs.iteritems():
             neumann_bcs[field][boundary_name] = bc.nbc()
 
 # Pointwise dirichlet bcs
-for field, (value, c_code) in bcs_pointwise.iteritems():
+for field, (value, c_code) in bcs_pointwise.items():
     subproblem_name = field_to_subproblem[field][0]
     subspace = field_to_subspace[field]
     if not isinstance(value, df.Expression):
@@ -189,7 +190,7 @@ normal = df.FacetNormal(mesh)
 # Initialize solutions
 w_init_fields = initialize(**vars())
 if w_init_fields:
-    for name, subproblem in subproblems.iteritems():
+    for name, subproblem in subproblems.items():
         w_init_vector = []
         if len(subproblem) > 1:
             for i, s in enumerate(subproblem):
@@ -205,9 +206,9 @@ if w_init_fields:
                 if num_subspaces == 0:
                     w_init_vector.append(w_init_field)
                 else:
-                    for j in xrange(num_subspaces):
+                    for j in range(num_subspaces):
                         w_init_vector.append(w_init_field.sub(j))
-            assert len(w_init_vector) == w_[name].value_size()
+            # assert len(w_init_vector) == w_[name].value_size()  
             w_init = df.project(
                 df.as_vector(tuple(w_init_vector)), w_[name].function_space(),
                 solver_type="gmres", preconditioner_type="default")
@@ -243,7 +244,10 @@ total_computing_time = 0.
 total_num_tsteps = 0
 
 tstep_0 = tstep
-df.tic()
+
+timer = df.Timer("Simulation loop")
+timer.start()
+
 while not stop:
 
     tstep_hook(**vars())
@@ -259,9 +263,9 @@ while not stop:
 
     if tstep % info_intv == 0 or stop:
         info_green("Time = {0:f}, timestep = {1:d}".format(t, tstep))
-        split_computing_time = df.toc()
+        split_computing_time = timer.stop()
         split_num_tsteps = tstep-tstep_0
-        df.tic()
+        timer.start()
         tstep_0 = tstep
         total_computing_time += split_computing_time
         total_num_tsteps += split_num_tsteps
@@ -270,7 +274,7 @@ while not stop:
                   " ({2:f} seconds/timestep)".format(
                       split_num_tsteps, split_computing_time,
                       split_computing_time/split_num_tsteps))
-        df.list_timings(df.TimingClear_clear, [df.TimingType_wall])
+        df.list_timings(df.TimingClear.clear, [df.TimingType.wall])
 
 if total_num_tsteps > 0:
     info_cyan("Total computing time for all {0:d}"
