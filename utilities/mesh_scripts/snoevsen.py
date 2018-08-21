@@ -5,13 +5,14 @@ import dolfin as df
 import numpy as np
 import os
 from generate_mesh import MESHES_DIR, store_mesh_HDF5
+import matplotlib.pyplot as plt
 
 
 def description(**kwargs):
     info("")
 
 
-def method(L=3., H=1., R=0.3, n_segments=40, res=60, **kwargs):
+def method(L=3., H=1., R=0.3, n_segments=40, res=60, show=False, **kwargs):
     """
     Generates mesh of Snausen/Snoevsen.
     """
@@ -49,3 +50,7 @@ def method(L=3., H=1., R=0.3, n_segments=40, res=60, **kwargs):
     mesh_path = os.path.join(MESHES_DIR,
                              "snoevsen_res" + str(res))
     store_mesh_HDF5(mesh, mesh_path)
+
+    if show:
+        df.plot(mesh, "Mesh")
+        plt.show()

@@ -22,6 +22,7 @@ import dolfin as df
 import math
 from common.functions import ramp, dramp, diff_pf_potential_linearised, \
     unit_interval_filter, diff_pf_contact_linearised, pf_potential, alpha
+from common.io import mpi_barrier
 from . import *
 from . import __all__
 
@@ -366,7 +367,7 @@ def solve(w_, solvers, enable_PF, enable_EC, enable_NS, **namespace):
                                   [enable_PF, enable_EC, enable_NS]):
         if enable:
             timer_inner = df.Timer("Solve subproblem " + subproblem)
-            df.MPI.comm_world.barrier()
+            mpi_barrier()
             solvers[subproblem].solve()
             timer_inner.stop()
 

@@ -53,7 +53,7 @@ def compute_norms(err, vector_norms=["l2", "linf"],
 def path_length(paths, total_length=True):
     lengths = []
     for x in paths:
-        dim = x.shape[0]
+        dim = x.shape[1]
         if dim == 2:
             dx = x[:-1, :]-x[1:, :]
             length = np.sum(np.sqrt(dx[:, 0]**2 + dx[:, 1]**2))

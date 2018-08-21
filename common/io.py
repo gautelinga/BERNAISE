@@ -1,8 +1,10 @@
 import os
 from dolfin import MPI, XDMFFile, HDF5File, Mesh
-from .cmd import info_red, info_cyan
+import dolfin as df
+from .cmd import info_red, info_cyan, MPI_rank, MPI_size
 import simplejson as json
 from xml.etree import cElementTree as ET
+import mpi4py
 
 __author__ = "Gaute Linga"
 __date__ = "2017-05-26"
@@ -17,7 +19,18 @@ __all__ = ["mpi_is_root", "makedirs_safe", "load_parameters",
 
 def mpi_is_root():
     """ Check if current MPI node is root node. """
-    return MPI.rank(MPI.comm_world) == 0
+    return MPI_rank == 0
+
+
+def mpi_barrier():
+    """ Safe barrier """
+    mpi4py.MPI.COMM_WORLD.Barrier()
+
+
+def mpi_comm():
+    if df.__version__ == "2018.1.0":
+        return MPI.comm_world
+    return df.mpi_comm_world()
 
 
 def makedirs_safe(folder):
@@ -49,7 +62,7 @@ def create_initial_folders(folder, restart_folder, fields, tstep,
     info_cyan("Creating folders.")
 
     makedirs_safe(folder)
-    MPI.barrier(MPI.comm_world)
+    mpi_barrier()
     if restart_folder:
         newfolder = restart_folder.split("Checkpoint")[0]
     else:
@@ -61,7 +74,7 @@ def create_initial_folders(folder, restart_folder, fields, tstep,
                             for entry in previous_list])
             newfolder = os.path.join(folder, str(previous+1))
 
-    MPI.barrier(MPI.comm_world)
+    mpi_barrier()
     tstepfolder = os.path.join(newfolder, "Timeseries")
     makedirs_safe(tstepfolder)
     makedirs_safe(os.path.join(newfolder, "Statistics"))
@@ -74,7 +87,7 @@ def create_initial_folders(folder, restart_folder, fields, tstep,
     for field in fields:
         filename = os.path.join(tstepfolder,
                                 field + "_from_tstep_{}.xdmf".format(tstep))
-        tstepfiles[field] = XDMFFile(MPI.comm_world, filename)
+        tstepfiles[field] = XDMFFile(mpi_comm(), filename)
         tstepfiles[field].parameters["rewrite_function_mesh"] = False
         tstepfiles[field].parameters["flush_output"] = True
 
@@ -108,7 +121,7 @@ def check_if_kill(folder):
     found = 0
     if "kill" in os.listdir(folder):
         found = 1
-    found_all = MPI.sum(MPI.comm_world, found)
+    found_all = MPI.sum(mpi_comm(), found)
     if found_all > 0:
         remove_safe(os.path.join(folder, "kill"))
         info_red("Stopping simulation.")
@@ -140,7 +153,7 @@ def save_checkpoint(tstep, t, mesh, w_, w_1, newfolder, parameters):
 
     A part of this is taken from the Oasis code."""
     checkpointfolder = os.path.join(newfolder, "Checkpoint")
-    parameters["num_processes"] = MPI.size(MPI.comm_world)
+    parameters["num_processes"] = MPI_size
     parameters["t_0"] = t
     parameters["tstep"] = tstep
     parametersfile = os.path.join(checkpointfolder, "parameters.dat")
@@ -152,34 +165,34 @@ def save_checkpoint(tstep, t, mesh, w_, w_1, newfolder, parameters):
                                           parametersfile_old))
         dump_parameters(parameters, parametersfile)
 
-    MPI.barrier(MPI.comm_world)
+    mpi_barrier()
     h5filename = os.path.join(checkpointfolder, "fields.h5")
     h5filename_old = h5filename + ".old"
     # In case of failure, keep old file.
     if mpi_is_root() and os.path.exists(h5filename):
         os.system("mv {0} {1}".format(h5filename, h5filename_old))
-    h5file = HDF5File(MPI.comm_world, h5filename, "w")
+    h5file = HDF5File(mpi_comm(), h5filename, "w")
     h5file.flush()
     info_red("Storing mesh")
     h5file.write(mesh, "mesh")
     for field in w_:
         info_red("Storing subproblem: " + field)
-        MPI.barrier(MPI.comm_world)
+        mpi_barrier()
         h5file.write(w_[field], "{}/current".format(field))
         if field in w_1:
             h5file.write(w_1[field], "{}/previous".format(field))
-        MPI.barrier(MPI.comm_world)
+        mpi_barrier()
     h5file.close()
     # Since program is still running, delete the old files.
     remove_safe(h5filename_old)
-    MPI.barrier(MPI.comm_world)
+    mpi_barrier()
     remove_safe(parametersfile_old)
 
 
 def load_checkpoint(checkpointfolder, w_, w_1):
     if checkpointfolder:
         h5filename = os.path.join(checkpointfolder, "fields.h5")
-        h5file = HDF5File(MPI.comm_world, h5filename, "r")
+        h5file = HDF5File(mpi_comm(), h5filename, "r")
         for field in w_:
             info_red("Loading subproblem: {}".format(field))
             h5file.read(w_[field], "{}/current".format(field))

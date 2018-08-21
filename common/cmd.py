@@ -1,9 +1,12 @@
 from __future__ import print_function
 import sys
 import json
-from dolfin import MPI
+# from dolfin import MPI
 import os
+import mpi4py.MPI as MPI
 
+MPI_rank = MPI.COMM_WORLD.Get_rank()
+MPI_size = MPI.COMM_WORLD.Get_size()
 
 RED = "\033[1;37;31m{s}\033[0m"
 BLUE = "\033[1;37;34m{s}\033[0m"
@@ -82,7 +85,7 @@ def parse_command_line():
 
 
 def info_style(message, check=True, style=NORMAL):
-    if MPI.rank(MPI.comm_world) == 0 and check:
+    if MPI_rank == 0 and check:
         print(style.format(s=message))
 
 
@@ -115,7 +118,7 @@ def info_on_red(message, check=True):
 
 
 def info_split_style(msg_1, msg_2, style_1=BLUE, style_2=NORMAL, check=True):
-    if MPI.rank(MPI.comm_world()) == 0 and check:
+    if MPI_rank == 0 and check:
         print(style_1.format(s=msg_1) + " " + style_2.format(s=msg_2))
 
 
@@ -167,8 +170,6 @@ def help_menu():
 
     print_dir("solvers")
 
-    rank = MPI.comm_world().rank
-
     info("\n...or were you looking for the recipe "
          "for Bearnaise sauce? [y/N] ")
     try:
@@ -176,7 +177,7 @@ def help_menu():
     except:
         pass
 
-    if rank == 0:
+    if MPI_rank == 0:
         if q in ["y", "yes"]:
             with open("common/recipe.txt") as f:
                 lines = f.read().splitlines()
