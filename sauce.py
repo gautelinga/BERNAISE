@@ -4,7 +4,8 @@ More specific info will follow in a later commit.
 """
 import dolfin as df
 from common.cmd import parse_command_line, help_menu
-from common.io import create_initial_folders, load_checkpoint, save_solution
+from common.io import create_initial_folders, load_checkpoint, save_solution, \
+    load_parameters, load_mesh
 
 __author__ = "Gaute Linga"
 

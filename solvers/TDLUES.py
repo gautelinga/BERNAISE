@@ -24,7 +24,8 @@ from common.functions import ramp, dramp, diff_pf_potential, \
     diff_pf_potential_c, diff_pf_potential_e, diff_pf_potential_linearised, \
     ramp_harmonic, ramp_geometric
 from common.cmd import info_red
-from basic import unit_interval_filter  # GL: Move this to common.functions?
+from common.io import mpi_barrier
+from .basic import unit_interval_filter  # GL: Move this to common.functions?
 from . import *
 from . import __all__
 import numpy as np
@@ -347,7 +348,7 @@ def setup_EC(w_EC, c, V, b, U, rho_e,
         F_c.append(F_ci)
     F_V = veps_*df.dot(df.nabla_grad(V),
                        df.nabla_grad(U))*dx
-    for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
+    for boundary_name, sigma_e in neumann_bcs["V"].items():
         F_V += -sigma_e*U*ds(boundary_to_mark[boundary_name])
     if rho_e != 0:
         F_V += -rho_e*U*dx
@@ -390,7 +391,7 @@ def setup_NSu(w_NSu, u, v,
     if enable_PF:
         F_predict += phi_1 * df.dot(df.grad(g_), v) * dx
 
-    for boundary_name, pressure in neumann_bcs["p"].iteritems():
+    for boundary_name, pressure in neumann_bcs["p"].items():
         F_predict += pressure * df.inner(
             normal, v) * ds(boundary_to_mark[boundary_name])
 
@@ -469,12 +470,12 @@ def solve(tstep, w_, w_1, w_tmp, solvers,
     timer_outer = df.Timer("Solve system")
     if enable_PF:
         timer_inner = df.Timer("Solve supproblem PF")
-        df.mpi_comm_world().barrier()
+        mpi_barrier()
         solvers["PF"].solve()
         timer_inner.stop()
     if enable_EC:
         timer_inner = df.Timer("Solve subproblem EC")
-        df.mpi_comm_world().barrier()
+        mpi_barrier()
         solvers["EC"].solve()
         timer_inner.stop()
     if enable_NS:
@@ -505,8 +506,8 @@ def update(t, dt, w_, w_1, enable_PF, enable_EC, enable_NS,
         qi.t = t+dt
 
     # Update the time-dependent boundary conditions
-    for boundary_name, bcs_fields in bcs.iteritems():
-        for field, bc in bcs_fields.iteritems():
+    for boundary_name, bcs_fields in bcs.items():
+        for field, bc in bcs_fields.items():
             if isinstance(bc.value, df.Expression):
                 bc.value.t = t+dt
 

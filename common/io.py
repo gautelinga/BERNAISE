@@ -1,7 +1,7 @@
 import os
 from dolfin import MPI, XDMFFile, HDF5File, Mesh
 import dolfin as df
-from .cmd import info_red, info_cyan, MPI_rank, MPI_size
+from .cmd import info_red, info_cyan, MPI_rank, MPI_size, info_on_red
 import simplejson as json
 from xml.etree import cElementTree as ET
 import mpi4py
@@ -52,6 +52,9 @@ def dump_parameters(parameters, settingsfilename):
 
 
 def load_parameters(parameters, settingsfilename):
+    if not os.path.exists(settingsfilename):
+        info_on_red("File " + settingsfilename + " does not exist.")
+        exit()
     with open(settingsfilename, "r") as settingsfile:
         parameters.update(json.load(settingsfile))
 
