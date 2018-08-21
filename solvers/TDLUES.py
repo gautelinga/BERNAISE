@@ -162,6 +162,7 @@ def setup(tstep, test_functions, trial_functions, w_, w_1,
           surface_tension, dt, interface_thickness,
           grav_const, grav_dir, pf_mobility, pf_mobility_coeff,
           use_iterative_solvers,
+          solve_initial,
           **namespace):
     """ Set up problem. """
 
@@ -188,7 +189,8 @@ def setup(tstep, test_functions, trial_functions, w_, w_1,
                                M_, g_, phi_, rho_, rho_e_, V_,
                                drho, sigma_bar, eps, grav, dveps,
                                enable_PF, enable_EC,
-                               use_iterative_solvers)
+                               use_iterative_solvers,
+                               solve_initial)
 
     #x = df.Expression(tuple(["x[0]", "x[1]", "x[2]"][:len(grav_dir)]),
     #                  degree=1)
@@ -531,49 +533,51 @@ def solve_initial_pressure(w_NSp, p, q, u, v, dx, ds, dirichlet_bcs_NSp,
                            M_, g_, phi_, rho_, rho_e_, V_,
                            drho, sigma_bar, eps, grav, dveps,
                            enable_PF, enable_EC,
-                           use_iterative_solvers):
-    V = u.function_space()
-    grad_p = df.TrialFunction(V)
-    grad_p_out = df.Function(V)
-    F_grad_p = (
-        df.dot(grad_p, v) * dx
-        - rho_*df.dot(grav, v) * dx
-    )
-    if enable_PF:
-        F_grad_p += - drho*M_*df.inner(df.grad(u),
-                                       df.outer(df.grad(g_), v))*dx
-        F_grad_p += - sigma_bar*eps*df.inner(df.outer(df.grad(phi_),
-                                                      df.grad(phi_)),
-                                             df.grad(v))*dx
-    if enable_EC and rho_e_ != 0:
-        F_grad_p += rho_e_ * df.dot(df.grad(V_), v)*dx
-    if enable_PF and enable_EC:
-        F_grad_p += 0.5 * dveps * df.dot(df.grad(
-            phi_), v)*df.dot(df.grad(V_),
-                             df.grad(V_))*dx
+                           use_iterative_solvers,
+                           solve_initial=True):
+    if solve_initial:
+        V = u.function_space()
+        grad_p = df.TrialFunction(V)
+        grad_p_out = df.Function(V)
+        F_grad_p = (
+            df.dot(grad_p, v) * dx
+            - rho_*df.dot(grav, v) * dx
+        )
+        if enable_PF:
+            F_grad_p += - drho*M_*df.inner(df.grad(u),
+                                           df.outer(df.grad(g_), v))*dx
+            F_grad_p += - sigma_bar*eps*df.inner(df.outer(df.grad(phi_),
+                                                          df.grad(phi_)),
+                                                 df.grad(v))*dx
+        if enable_EC and rho_e_ != 0:
+            F_grad_p += rho_e_ * df.dot(df.grad(V_), v)*dx
+        if enable_PF and enable_EC:
+            F_grad_p += 0.5 * dveps * df.dot(df.grad(
+                phi_), v)*df.dot(df.grad(V_),
+                                 df.grad(V_))*dx
 
-    info_red("Solving initial grad_p...")
-    problem_grad_p = df.LinearVariationalProblem(
-        df.lhs(F_grad_p), df.rhs(F_grad_p), grad_p_out)
-    # df.solve(df.lhs(F_grad_p) == df.rhs(F_grad_p), grad_p_out)
-    solver_grad_p = df.LinearVariationalSolver(problem_grad_p)
-    if use_iterative_solvers:
-        solver_grad_p.parameters["linear_solver"] = "gmres"
-        solver_grad_p.parameters["preconditioner"] = "amg"
-    solver_grad_p.solve()
-        
-    F_p = (
-        df.dot(df.grad(q), df.grad(p))*dx
-        - df.dot(df.grad(q), grad_p_out)*dx
-    )
-    info_red("Solving initial p...")
-    problem_p = df.LinearVariationalProblem(
-        df.lhs(F_p), df.rhs(F_p), w_NSp, dirichlet_bcs_NSp)
-    # df.solve(df.lhs(F_p) == df.rhs(F_p), w_NSp, dirichlet_bcs_NSp)
-    solver_p = df.LinearVariationalSolver(problem_p)
-    if use_iterative_solvers:
-        solver_p.parameters["linear_solver"] = "gmres"
-        solver_p.parameters["preconditioner"] = "amg"
-    solver_p.solve()
-    
+        info_red("Solving initial grad_p...")
+        problem_grad_p = df.LinearVariationalProblem(
+            df.lhs(F_grad_p), df.rhs(F_grad_p), grad_p_out)
+        # df.solve(df.lhs(F_grad_p) == df.rhs(F_grad_p), grad_p_out)
+        solver_grad_p = df.LinearVariationalSolver(problem_grad_p)
+        if use_iterative_solvers:
+            solver_grad_p.parameters["linear_solver"] = "gmres"
+            solver_grad_p.parameters["preconditioner"] = "amg"
+        solver_grad_p.solve()
+
+        F_p = (
+            df.dot(df.grad(q), df.grad(p))*dx
+            - df.dot(df.grad(q), grad_p_out)*dx
+        )
+        info_red("Solving initial p...")
+        problem_p = df.LinearVariationalProblem(
+            df.lhs(F_p), df.rhs(F_p), w_NSp, dirichlet_bcs_NSp)
+        # df.solve(df.lhs(F_p) == df.rhs(F_p), w_NSp, dirichlet_bcs_NSp)
+        solver_p = df.LinearVariationalSolver(problem_p)
+        if use_iterative_solvers:
+            solver_p.parameters["linear_solver"] = "gmres"
+            solver_p.parameters["preconditioner"] = "amg"
+        solver_p.solve()
+
     info_red("Done with the initials.")

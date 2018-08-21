@@ -73,7 +73,7 @@ def problem():
         folder="results_snoevsen_3D",
         restart_folder=False,
         enable_NS=True,
-        enable_PF=False,  # True,
+        enable_PF=True,  # True,
         enable_EC=False,  # True,
         save_intv=5,
         stats_intv=5,
@@ -82,19 +82,20 @@ def problem():
         dt=factor*0.04,
         t_0=0.,
         T=20.,
-        res=64,
-        interface_thickness=factor*0.080,
+        res=48,
+        interface_thickness=factor*0.250,
         solutes=solutes,
         base_elements=base_elements,
         Lx=6.,
         Ly=3.,
         Lz=2.,
-        R=0.3,
+        R=1.0,
+        r=0.5,
         surface_charge=sigma_e,
         concentration_init=2.,
-        velocity_top=.2,
+        velocity_top=.4,
         #
-        surface_tension=2.45,
+        surface_tension=1.45,
         grav_const=0.0,
         grav_dir=[0, 0, 1.],
         #
@@ -102,6 +103,8 @@ def problem():
         density=[10., 10.],
         viscosity=[1., 1.],
         permittivity=[1., 1.],
+        use_iterative_solvers=True,
+        solve_initial=False
     )
     return parameters
 
@@ -114,20 +117,29 @@ def mesh(res, **namespace):
     return load_mesh("meshes/snoevsen_3d_periodic_res{}.h5".format(res))
 
 
-def initialize(Lx, Ly, R,
+def initialize(Lx, Ly, Lz, R, r,
                interface_thickness, solutes, restart_folder,
                field_to_subspace,
                concentration_init,
+               velocity_top,
                enable_NS, enable_PF, enable_EC,
                **namespace):
     """ Create the initial state. """
     w_init_field = dict()
     if not restart_folder:
+        # Velocity
+        if enable_NS:
+            u_expr = df.Expression(("0.5*u0*(x[2] + abs(x[2]))/Lz", "0.", "0."),
+                                   u0=velocity_top, Lz=Lz, degree=1)
+            w_init_field["u"] = df.interpolate(u_expr, field_to_subspace["u"])
+
         # Phase field
-        # if enable_PF:
-        #     w_init_field["phi"] = initial_phasefield(
-        #         Lx/2, 0., R, interface_thickness,
-        #         field_to_subspace["phi"])
+        if enable_PF:
+            w_init_field["phi"] = initial_phasefield(
+                0., 0., 0., R, r, interface_thickness,
+                field_to_subspace["phi"])
+
+        # Chemicals
         # if enable_EC:
         #     for solute in solutes:
         #         concentration_init_loc = concentration_init/abs(solute[1])
@@ -170,8 +182,8 @@ def create_bcs(Lx, Ly, Lz,
         bcs_pointwise["p"] = (0.,
                               "x[0] < {x0} + DOLFIN_EPS && "
                               "x[1] < {y0} + DOLFIN_EPS && "
-                              "x[2] < {z0}".format(
-                                  x0=-Lx/2, y0=-Ly/2, z0=-Lz/2))
+                              "x[2] > {Lz} - DOLFIN_EPS".format(
+                                  x0=-Lx/2., y0=-Ly/2., Lz=Lz))
 
     if enable_EC:
         for solute in solutes:
@@ -180,6 +192,14 @@ def create_bcs(Lx, Ly, Lz,
         bcs["bottom"]["V"] = Charged(surface_charge)
 
     return boundaries, bcs, bcs_pointwise
+
+
+def initial_phasefield(x0, y0, z0, R, r, eps, function_space):
+    expr_str = "-tanh(max(x[2]-z0, sqrt(pow(x[0]-x0, 2) + pow(x[1]-y0, 2))-R-r)/(sqrt(2)*eps))"
+    phi_init_expr = df.Expression(expr_str, x0=x0, y0=y0, z0=z0, R=R, r=r,
+                                  eps=eps, degree=2)
+    phi_init = df.interpolate(phi_init_expr, function_space.collapse())
+    return phi_init
 
 
 def pf_mobility(phi, gamma):
