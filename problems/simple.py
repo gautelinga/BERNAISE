@@ -3,6 +3,7 @@ import os
 from . import *
 from common.io import mpi_is_root
 from common.bcs import Fixed
+from common.functions import sign, max_value
 __author__ = "Gaute Linga"
 
 info_cyan("Welcome to the simple problem!")
@@ -139,7 +140,7 @@ def initialize(Lx, Ly, rad_init,
 
 
 def create_bcs(Ly, V_top, V_btm,
-         enable_NS, enable_PF, enable_EC, **namespace):
+               enable_NS, enable_PF, enable_EC, **namespace):
     """ The boundaries and boundary conditions are defined here. """
     boundaries = dict(
         top=[Top(Ly)],
@@ -180,7 +181,8 @@ def initial_phasefield(x0, y0, rad, eps, function_space, shape="circle"):
 
 
 def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
-               field_to_subproblem, subproblems, w_, enable_PF, dx, ds, **namespace):
+               field_to_subproblem, subproblems, w_,
+               enable_PF, dx, ds, **namespace):
     info_blue("Timestep = {}".format(tstep))
 
     if stats_intv and tstep % stats_intv == 0 and enable_PF:
@@ -191,12 +193,12 @@ def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
         subproblem_name, subproblem_i = field_to_subproblem["phi"]
         Q = w_[subproblem_name].split(deepcopy=True)[subproblem_i]
         bubble = df.interpolate(Q, field_to_subspace["phi"].collapse())
-        bubble = 0.5*(1.-df.sign(bubble))
+        bubble = 0.5*(1.-sign(bubble))
         mass = df.assemble(bubble*dx)
         massy = df.assemble(
             bubble*df.Expression("x[1]", degree=1)*dx)
         if mpi_is_root():
-            with file(statsfile, "a") as outfile:
+            with open(statsfile, "a") as outfile:
                 outfile.write("{} {} {} \n".format(t, mass, massy))
 
 
@@ -204,7 +206,7 @@ def pf_mobility(phi, gamma):
     """ Phase field mobility function. """
     # return gamma * (phi**2-1.)**2
     func = 1.-phi**2
-    return 0.75 * gamma * 0.5 * (1. + df.sign(func)) * func
+    return 0.75 * gamma * max_value(0., func)
 
 
 def start_hook(newfolder, **namespace):

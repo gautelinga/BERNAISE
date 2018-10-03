@@ -77,12 +77,17 @@ def ramp_geometric(phi, A):
 def dfabs(a):
     return df.sqrt(a*a)
 
+
 def max_value(a, b):
     return 0.5*(a+b+dfabs(a-b))
 
 
 def min_value(a, b):
     return 0.5*(a+b-dfabs(a-b))
+
+
+def sign(phi):
+    return phi/dfabs(phi)
 
 
 def unit_interval_filter(phi):
