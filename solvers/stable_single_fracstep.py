@@ -3,9 +3,10 @@ described in the paper.
 
 GL, 2017
 """
-from stable_single import setup_EC, alpha_prime_approx, alpha_generalized, \
+from .stable_single import setup_EC, alpha_prime_approx, alpha_generalized, \
     regulate, alpha_c
 import dolfin as df
+from common.io import mpi_barrier
 from . import *
 from . import __all__
 import numpy as np
@@ -213,7 +214,7 @@ def setup_NSu(w_NSu, u, v,
                  - p_1 * df.div(v) * dx
                  - rho_ * df.dot(grav, v) * dx)
 
-    for boundary_name, pressure in neumann_bcs["p"].iteritems():
+    for boundary_name, pressure in neumann_bcs["p"].items():
         F_predict += pressure * df.inner(
             normal, v) * ds(boundary_to_mark[boundary_name])
 
@@ -280,7 +281,7 @@ def solve(tstep, w_, w_1, solvers,
     timer_outer = df.Timer("Solve system")
     if enable_EC:
         timer_inner = df.Timer("Solve subproblem EC")
-        df.mpi_comm_world().barrier()
+        mpi_barrier()
         solvers["EC"].solve()
         timer_inner.stop()
     if enable_NS:
@@ -311,8 +312,8 @@ def update(t, dt, w_, w_1,
         qi.t = t+dt
 
     # Update the time-dependent boundary conditions
-    for boundary_name, bcs_fields in bcs.iteritems():
-        for field, bc in bcs_fields.iteritems():
+    for boundary_name, bcs_fields in bcs.items():
+        for field, bc in bcs_fields.items():
             if isinstance(bc.value, df.Expression):
                 bc.value.t = t+dt
 
