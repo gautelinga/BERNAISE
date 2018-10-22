@@ -1,4 +1,4 @@
-__author__ = "Asger J. S Bolet <asgerbolet@gmail.com>, Gaute Linga <gaute.linga@gmail.com>"
+__author__ = "Asger Bolet <asgerbolet@gmail.com>, Gaute Linga <gaute.linga@gmail.com>"
 __date__ = "2017-04-28"
 __copyright__ = "Copyright (C) 2017 " + __author__
 __license__ = "MIT"

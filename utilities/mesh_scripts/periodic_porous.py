@@ -119,20 +119,20 @@ def method(Lx=6., Ly=4., Lx_inner=4., num_obstacles=32,
     assert(len(line_segments_top) == len(curve_segments_top)+1)
     assert(len(line_segments_btm) == len(curve_segments_btm)+1)
 
-    pts_top = line_segments_top[0]
+    pts_top = list(line_segments_top[0])
     for i in range(len(curve_segments_top)):
         pts_top.extend(curve_segments_top[i])
         pts_top.extend(line_segments_top[i+1])
     pts_top = pts_top[::-1]
 
-    pts_btm = line_segments_btm[0]
+    pts_btm = list(line_segments_btm[0])
     for i in range(len(curve_segments_btm)):
         pts_btm.extend(curve_segments_btm[i])
         pts_btm.extend(line_segments_btm[i+1])
 
     y_side = y[1:-1]
-    pts_right = zip(x_max*np.ones(N-2), y_side)
-    pts_left = zip(x_min*np.ones(N-2), y_side[::-1])
+    pts_right = list(zip(x_max*np.ones(N-2), y_side))
+    pts_left = list(zip(x_min*np.ones(N-2), y_side[::-1]))
 
     pts = pts_btm + pts_right + pts_top + pts_left
     edges = round_trip_connect(0, len(pts)-1)
