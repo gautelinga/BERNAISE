@@ -4,18 +4,19 @@ from generate_mesh import MESHES_DIR, store_mesh_HDF5, add_vertical_boundary_ver
 import dolfin as df
 import os
 import mshr
+import matplotlib.pyplot as plt
 
 
 def description(**kwargs):
-    info("Generates hourglass")
+    info("Generates hourglass mesh.")
 
 
-def method(L=6., H=2., R=0.3, n_segments=40, res=180, **kwargs):
+def method(L=6., H=2., R=0.3, n_segments=40, res=180, show=False, **kwargs):
     """
     Generates hourglass.
     """
-    info("Generating mesh of a hourglass")
-    
+    info("Generating mesh of an hourglass")
+
     pt_1 = df.Point(0., 0.)
     pt_1star = df.Point(2., 0.)
     pt_1starstar = df.Point(L/(2*res), 0.)
@@ -56,10 +57,10 @@ def method(L=6., H=2., R=0.3, n_segments=40, res=180, **kwargs):
     outlet_polygon.append(pt_4starstar)
 
     inlet1 = mshr.Polygon(inlet_polygon)
-    inlet2 = mshr.Rectangle(pt_1starstar,pt_3)
+    inlet2 = mshr.Rectangle(pt_1starstar, pt_3)
     outlet1 = mshr.Polygon(outlet_polygon)
-    outlet2 = mshr.Rectangle(pt_4,pt_2starstar)
-    channel = mshr.Rectangle(pt_5,pt_8)
+    outlet2 = mshr.Rectangle(pt_4, pt_2starstar)
+    channel = mshr.Rectangle(pt_5, pt_8)
     pos_cir_1 = mshr.Circle(pt_5, R, segments=n_segments)
     pos_cir_2 = mshr.Circle(pt_6, R, segments=n_segments)
     pos_cir_3 = mshr.Circle(pt_7, R, segments=n_segments)
@@ -80,5 +81,6 @@ def method(L=6., H=2., R=0.3, n_segments=40, res=180, **kwargs):
     mesh_path = os.path.join(MESHES_DIR,
                              "hourglass_res" + str(res))
     store_mesh_HDF5(mesh, mesh_path)
-    df.plot(mesh)
-    df.interactive()
+    if show:
+        df.plot(mesh)
+        plt.show()

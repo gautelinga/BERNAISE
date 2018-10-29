@@ -51,10 +51,10 @@ def method(ts, dt=0, **kwargs):
     field_keys = sorted(fields.keys())
 
     savedata = np.array(
-        zip(steps, t, *[data[field] for field in field_keys]))
+        list(zip(steps, t, *[data[field] for field in field_keys])))
 
     if rank == 0:
         header = "Step\tTime\t"+"\t".join(field_keys)
-        filename = os.path.join(ts.analysis_folder,
-                                "value_in_time.dat")
-        np.savetxt(filename, savedata, header=header)
+        with open(os.path.join(ts.analysis_folder, "value_in_time.dat"),
+                  "w") as outfile:
+            np.savetxt(outfile, savedata, header=header)

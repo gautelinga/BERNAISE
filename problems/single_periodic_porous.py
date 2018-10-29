@@ -4,7 +4,7 @@ import os
 from . import *
 from common.io import mpi_is_root, load_mesh
 from common.bcs import Fixed, Charged
-from porous import Obstacles
+from .porous import Obstacles
 from mpi4py import MPI
 __author__ = "Gaute Linga"
 
@@ -64,10 +64,10 @@ def problem():
         T=10.0,
         N=32,
         solutes=solutes,
-        Lx=3.,  # 8.,
-        Ly=3.,  # 8.,
-        rad=0.2,
-        num_obstacles=16,  # 100,
+        Lx=4.,  # 8.,
+        Ly=4.,  # 8.,
+        rad=0.25,
+        num_obstacles=25,  # 100,
         grid_spacing=0.05,
         #
         density=[1., 1.],
@@ -95,9 +95,15 @@ def constrained_domain(Lx, Ly, **namespace):
 
 def mesh(Lx=8., Ly=8., rad=0.25, num_obstacles=100,
          grid_spacing=0.05, **namespace):
-    mesh = load_mesh(
-        "meshes/periodic_porous_Lx{}_Ly{}_rad{}_N{}_dx{}.h5".format(
-            Lx, Ly, rad, num_obstacles, grid_spacing))
+    try:
+        mesh = load_mesh(
+            "meshes/periodic_porous_Lx{}_Ly{}_rad{}_N{}_dx{}.h5".format(
+                Lx, Ly, rad, num_obstacles, grid_spacing))
+    except:
+        info_error("Can't find mesh. Go to utilities/ "
+                   "and run \n\n\t"
+                   "python3 generate_mesh.py mesh=periodic_porous_2d \n\n"
+                   "with default parameters.")
     return mesh
 
 
@@ -222,7 +228,8 @@ def start_hook(w_, x_,
     info("Rescale factor:       {}".format(rescale_factor))
 
     subproblem = field_to_subproblem[solutes[0][0]][0]
-    w_[subproblem].vector()[:] = rescale_factor*w_[subproblem].vector().array()
+    w_[subproblem].vector().set_local(
+        rescale_factor*w_[subproblem].vector().get_local())
 
     total_bulk_charge_after = integrate_bulk_charge(x_, solutes, dx)
     info("Final bulk charge:    {}".format(total_bulk_charge_after))

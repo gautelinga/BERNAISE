@@ -21,6 +21,7 @@ __all__ = ["convert", "str2list", "parseval", "parse_command_line",
            "info_style", "info_red", "info_blue", "info_yellow",
            "info_green", "info_cyan", "info", "info_on_red",
            "info_split_style", "info_split", "info_warning",
+           "info_error",
            "print_dir", "print_recipe", "help_menu"]
 
 
@@ -31,8 +32,8 @@ def convert(data):
                 for key, value in data.iteritems()}
     elif isinstance(data, list):
         return [convert(element) for element in data]
-    elif isinstance(data, unicode):
-        return data.encode('utf-8')
+    # elif isinstance(data, unicode):
+    #     return data.encode('utf-8')
     else:
         return data
 
@@ -130,8 +131,13 @@ def info_warning(message, check=True):
     info_split_style("Warning:", message, style_1=ON_RED, check=check)
 
 
+def info_error(message, check=True):
+    info_split_style("Error:", message, style_1=ON_RED, check=check)
+    exit("")
+
+
 def print_dir(folder):
-    for path in os.listdir(folder):
+    for path in sorted(os.listdir(folder), key=str.lower):
         filename, ext = os.path.splitext(path)
         if ext == ".py" and filename[0].isalpha():
             info("   " + filename)
@@ -172,10 +178,7 @@ def help_menu():
 
     info("\n...or were you looking for the recipe "
          "for Bearnaise sauce? [y/N] ")
-    try:
-        q = raw_input("").lower()
-    except:
-        pass
+    q = str(input("")).lower()
 
     if MPI_rank == 0:
         if q in ["y", "yes"]:

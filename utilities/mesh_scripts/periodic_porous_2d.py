@@ -218,8 +218,8 @@ def draw_curves(obst, theta_low, theta_high, rad, dx):
 
 
 def construct_segments(curve_start, curve_stop, x_min, x_max, y_min, y_max):
-    cross_stop = np.array(curve_stop.keys())
-    cross_start = np.array(curve_start.keys())
+    cross_stop = np.asarray(list(curve_stop.keys()))
+    cross_start = np.asarray(list(curve_start.keys()))
 
     y_left_h = cross_stop[cross_stop[:, 0] == x_min, 1]
     y_left_l = cross_start[cross_start[:, 0] == x_min, 1]
@@ -256,10 +256,10 @@ def construct_segments(curve_start, curve_stop, x_min, x_max, y_min, y_max):
         y_right_l_list = y_right_l_list + [y_max]
         x_top_l_list = x_top_l_list + [x_max]
 
-    y_left = zip(y_left_h_list, y_left_l_list)
-    y_right = zip(y_right_h_list, y_right_l_list)
-    x_top = zip(x_top_h_list, x_top_l_list)
-    x_bottom = zip(x_bottom_h_list, x_bottom_l_list)
+    y_left = list(zip(y_left_h_list, y_left_l_list))
+    y_right = list(zip(y_right_h_list, y_right_l_list))
+    x_top = list(zip(x_top_h_list, x_top_l_list))
+    x_bottom = list(zip(x_bottom_h_list, x_bottom_l_list))
 
     segments = []
     for y_a, y_b in y_left:
@@ -315,7 +315,7 @@ def discretize_loop(pt_start, curve_start, curves, segments, dx):
 
 
 def method(Lx=4., Ly=4., num_obstacles=25,
-           rad=0.25, R=0.3, dx=0.05, seed=123, do_plot=True, **kwargs):
+           rad=0.25, R=0.3, dx=0.05, seed=123, show=False, **kwargs):
     x_min, x_max = -Lx/2, Lx/2
     y_min, y_max = -Ly/2, Ly/2
 
@@ -347,8 +347,8 @@ def method(Lx=4., Ly=4., num_obstacles=25,
         segments = dict(segments)
         pt_start = (x_min, y_min)
 
-    if do_plot:
-        for x_a, x_b in segments.iteritems():
+    if show:
+        for x_a, x_b in segments.items():
             x = np.array([x_a[0], x_b[0]])
             y = np.array([x_a[1], x_b[1]])
             plt.quiver(x[:-1], y[:-1], x[1:]-x[:-1], y[1:]-y[:-1],
@@ -375,7 +375,7 @@ def method(Lx=4., Ly=4., num_obstacles=25,
         pts.extend(pts_obstacle)
         edges.extend(edges_obstacle)
 
-    if do_plot:
+    if show:
         plot_edges(pts, edges)
 
     mi = tri.MeshInfo()
@@ -392,10 +392,10 @@ def method(Lx=4., Ly=4., num_obstacles=25,
     faces = np.array(mesh.elements)
 
     pp = [tuple(point) for point in mesh.points]
-    print "Number of points:", len(pp)
-    print "Number unique points:", len(set(pp))
+    info("Number of points:     {}".format(len(pp)))
+    info("Number unique points: {}".format(len(set(pp))))
 
-    if do_plot:
+    if show:
         plot_faces(coords, faces)
 
     msh = numpy_to_dolfin(coords, faces)

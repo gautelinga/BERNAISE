@@ -3,6 +3,7 @@ import os
 from . import *
 from common.io import mpi_is_root, load_mesh
 from common.bcs import Fixed, Pressure, Charged
+from ufl import sign
 import numpy as np
 __author__ = "Gaute Linga"
 
@@ -178,12 +179,14 @@ def initialize(Lx, Ly, rad_init,
                                  "ions are different; not supported for "
                                  "initialization")
                     exp_beta = np.exp(-solutes[0][4] + solutes[0][5])
-                    c_init.vector()[:] = concentration_init*((1-exp_beta)*0.5*(
-                        1. - c_init.vector().array()) + exp_beta)
+                    c_init.vector().set_local(
+                        concentration_init*((1-exp_beta)*0.5*(
+                            1. - c_init.vector().get_local()) + exp_beta))
                     w_init_field[solute[0]] = c_init
                 else:
-                    c_init.vector()[:] = concentration_init*0.5*(
-                        1.-c_init.vector().array())
+                    c_init.vector().set_local(
+                        concentration_init*0.5*(
+                            1.-c_init.vector().get_local()))
                     w_init_field[solute[0]] = c_init
 
     return w_init_field
@@ -278,12 +281,12 @@ def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
         # GL: Move into common/utilities at a certain point.
         subproblem_name, subproblem_i = field_to_subproblem["phi"]
         phi = w_[subproblem_name].split(deepcopy=True)[subproblem_i]
-        bubble = 0.5*(1.-df.sign(phi))
+        bubble = 0.5*(1.-sign(phi))
         mass = df.assemble(bubble*df.dx)
         massy = df.assemble(
             bubble*df.Expression("x[1]", degree=1)*df.dx)
         if mpi_is_root():
-            with file(statsfile, "a") as outfile:
+            with open(statsfile, "a") as outfile:
                 outfile.write("{} {} {} \n".format(t, mass, massy))
 
 

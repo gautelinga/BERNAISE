@@ -1,3 +1,4 @@
+from __future__ import print_function
 import numpy as np
 import os
 import argparse
@@ -137,7 +138,7 @@ def main():
         relaxation_time[params["V_top"]] = popt[2]
 
     for key in sorted(contact_angle.keys()):
-        print key, contact_angle[key], relaxation_time[key]
+        print(key, contact_angle[key], relaxation_time[key])
 
 
 if __name__ == "__main__":

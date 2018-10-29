@@ -72,7 +72,7 @@ for name, subproblem in subproblems.items():
         info_on_red("Something went wrong here!")
         exit("")
 
-# dim = mesh.geometry().dim()  # In case the velocity fields should be
+# dim = mesh.topology().dim()  # In case the velocity fields should be
 #                              # segregated at some point
 fields = []
 field_to_subspace = dict()

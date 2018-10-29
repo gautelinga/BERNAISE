@@ -8,6 +8,7 @@ from common.functions import max_value, alpha, alpha_c, alpha_cc, \
     alpha_reg, alpha_c_reg, absolute
 from . import *
 from . import __all__
+from common.io import mpi_barrier
 import numpy as np
 
 
@@ -228,7 +229,7 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
          - q * df.div(u) * dx
          - rho_ * df.dot(grav, v) * dx)
 
-    for boundary_name, pressure in neumann_bcs["p"].iteritems():
+    for boundary_name, pressure in neumann_bcs["p"].items():
         F += pressure * df.inner(
             normal, v) * ds(boundary_to_mark[boundary_name])
 
@@ -248,7 +249,7 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
         solver = df.LinearVariationalSolver(problem)
 
     else:
-        solver = df.LUSolver("mumps")
+        solver = df.LUSolver()
         # solver.set_operator(A)
         return solver, a, L, dirichlet_bcs_NS
 
@@ -311,7 +312,7 @@ def setup_EC(w_EC, c, V, V0, b, U, U0,
         if solute[0] in q_rhs:
             F_ci += - q_rhs[solute[0]]*bi*dx
         if enable_NS:
-            for boundary_name, value in neumann_bcs[solute[0]].iteritems():
+            for boundary_name, value in neumann_bcs[solute[0]].items():
                 # F_ci += df.dot(u_1, normal)*bi*ci_1*ds(
                 #     boundary_to_mark[boundary_name])
                 pass
@@ -337,7 +338,7 @@ def setup_EC(w_EC, c, V, V0, b, U, U0,
                 F_c.append(nui*R*bi*dx)
 
     F_V = veps*df.dot(df.grad(V), df.grad(U))*dx
-    for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
+    for boundary_name, sigma_e in neumann_bcs["V"].items():
         F_V += -sigma_e*U*ds(boundary_to_mark[boundary_name])
     if rho_e != 0:
         F_V += -rho_e*U*dx
@@ -376,8 +377,8 @@ def solve(w_, t, dt, q_rhs, solvers, enable_EC, enable_NS,
     for qi in q_rhs.values():
         qi.t = t+dt
     # Update the time-dependent boundary conditions
-    for boundary_name, bcs_fields in bcs.iteritems():
-        for field, bc in bcs_fields.iteritems():
+    for boundary_name, bcs_fields in bcs.items():
+        for field, bc in bcs_fields.items():
             if isinstance(bc.value, df.Expression):
                 bc.value.t = t+dt
 
@@ -385,7 +386,7 @@ def solve(w_, t, dt, q_rhs, solvers, enable_EC, enable_NS,
     for subproblem, enable in zip(["EC", "NS"], [enable_EC, enable_NS]):
         if enable:
             timer_inner = df.Timer("Solve subproblem " + subproblem)
-            df.mpi_comm_world().barrier()
+            mpi_barrier()
             if subproblem == "NS" and use_iterative_solvers:
                 solver, a, L, bcs = solvers[subproblem]
                 A = df.assemble(a)
@@ -499,7 +500,7 @@ def equilibrium_EC(w_, test_functions,
         F_c.append(F_ci)
 
     F_V = veps*df.dot(df.grad(V), df.grad(U))*dx
-    for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
+    for boundary_name, sigma_e in neumann_bcs["V"].items():
         F_V += -sigma_e*U*ds(boundary_to_mark[boundary_name])
     if rho_e != 0:
         F_V += -rho_e*U*dx
@@ -566,7 +567,7 @@ def equilibrium_EC_PNP(w_, test_functions,
         F_c.append(F_ci)
 
     F_V = veps*df.dot(df.grad(V), df.grad(U))*dx
-    for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
+    for boundary_name, sigma_e in neumann_bcs["V"].items():
         F_V += -sigma_e*U*ds(boundary_to_mark[boundary_name])
     if rho_e != 0:
         F_V += -rho_e*U*dx

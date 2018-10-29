@@ -1,2 +1,2 @@
-from cmd import *
-from io import *
+from .cmd import *
+from .io import *

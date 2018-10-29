@@ -65,7 +65,7 @@ def problem():
                          V=["Lagrange", 1, False])
 
     factor = 1./4
-    sigma_e = -10.  # 0.
+    sigma_e = -5.  # 0.
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
@@ -74,16 +74,16 @@ def problem():
         restart_folder=False,
         enable_NS=True,
         enable_PF=True,  # True,
-        enable_EC=False,  # True,
+        enable_EC=True,  # True,
         save_intv=5,
         stats_intv=5,
         checkpoint_intv=50,
         tstep=0,
-        dt=factor*0.04,
+        dt=factor*0.08,
         t_0=0.,
         T=20.,
         res=48,
-        interface_thickness=factor*0.250,
+        interface_thickness=factor*0.150,
         solutes=solutes,
         base_elements=base_elements,
         Lx=6.,
@@ -95,7 +95,7 @@ def problem():
         concentration_init=2.,
         velocity_top=.4,
         #
-        surface_tension=1.45,
+        surface_tension=2.45,
         grav_const=0.0,
         grav_dir=[0, 0, 1.],
         #
@@ -140,17 +140,16 @@ def initialize(Lx, Ly, Lz, R, r,
                 field_to_subspace["phi"])
 
         # Chemicals
-        # if enable_EC:
-        #     for solute in solutes:
-        #         concentration_init_loc = concentration_init/abs(solute[1])
-        #         c_init = initial_phasefield(
-        #             Lx/2, 0., R, interface_thickness,
-        #             field_to_subspace["phi"])
-        #         # Only have ions in phase 2 (phi=-1)
-        #         c_init.vector()[:] = concentration_init_loc*0.5*(
-        #             1.-c_init.vector().get_local())
-        #         w_init_field[solute[0]] = c_init
-        pass
+        if enable_EC:
+            for solute in solutes:
+                concentration_init_loc = concentration_init/abs(solute[1])
+                c_init = initial_phasefield(
+                    0., 0., 0., R, r, interface_thickness,
+                    field_to_subspace["phi"])
+                #         # Only have ions in phase 2 (phi=-1)
+                c_init.vector()[:] = concentration_init_loc*0.5*(
+                    1.-c_init.vector().get_local())
+                w_init_field[solute[0]] = c_init
 
     return w_init_field
 
@@ -204,8 +203,9 @@ def initial_phasefield(x0, y0, z0, R, r, eps, function_space):
 
 def pf_mobility(phi, gamma):
     """ Phase field mobility function. """
-    func = 1.-phi**2
-    return 0.75 * gamma * max_value(0., func)
+    #func = 1.-phi**2
+    #return 0.75 * gamma * max_value(0., func)
+    return gamma
 
 
 def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,

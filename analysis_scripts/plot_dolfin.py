@@ -2,6 +2,7 @@
 from common import info_cyan
 from postprocess import get_step_and_info
 import dolfin as df
+import matplotlib.pyplot as plt
 
 
 def description(ts, **kwargs):
@@ -13,7 +14,8 @@ def method(ts, time=None, step=0, **kwargs):
     info_cyan("Plotting at given timestep using Dolfin.")
     step, time = get_step_and_info(ts, time)
     f = ts.functions()
-    for field in ts.fields:
+    for i, field in enumerate(ts.fields):
         ts.update(f[field], field, step)
-        df.plot(f[field])
-    df.interactive()
+        plt.figure(i)
+        df.plot(f[field], title=field)
+    plt.show()

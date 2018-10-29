@@ -6,6 +6,7 @@ import dolfin as df
 import os
 from common.functions import ramp, dramp, diff_pf_potential_linearised, \
     unit_interval_filter
+import importlib
 
 
 def description(ts, **kwargs):
@@ -23,7 +24,7 @@ class CrossSection(df.SubDomain):
 
 
 def get_boundaries_list(boundaries, pbc, extra_boundaries_keys, nodes):
-    boundaries = boundaries.items()
+    boundaries = list(boundaries.items())
     if pbc is not None:
         boundaries.insert(0, ("periodic", [pbc]))
 
@@ -44,7 +45,7 @@ def get_boundaries_list(boundaries, pbc, extra_boundaries_keys, nodes):
     if len(extra_boundaries) > 0:
         boundaries_list.append(extra_boundaries)
     return boundaries_list
-    
+
 
 def get_boundary_to_mark(subdomains, boundaries_list):
     boundary_to_mark = dict()
@@ -58,12 +59,15 @@ def get_boundary_to_mark(subdomains, boundaries_list):
 
 
 def fetch_boundaries(ts, problem, params, extra_boundaries):
-    exec("from problems.{} import constrained_domain, create_bcs".format(problem))
+    problem_module = importlib.import_module("problems.{}".format(problem))
+    constrained_domain = problem_module.constrained_domain
+    create_bcs = problem_module.create_bcs
 
+    params["mesh"] = ts.mesh
     pbc = constrained_domain(**params)
     boundaries, _, _ = create_bcs(**params)
     extra_boundaries_keys = [s.lower() for s in extra_boundaries.split(",")]
- 
+
     boundaries_list = get_boundaries_list(
         boundaries, pbc, extra_boundaries_keys, ts.nodes)
 
@@ -176,7 +180,7 @@ def method(ts, dt=0, extra_boundaries="", **kwargs):
         for field in x_:
             ts.update(x_[field], field, step)
 
-        for boundary_name, (mark, k) in boundary_to_mark.iteritems():
+        for boundary_name, (mark, k) in boundary_to_mark.items():
             for flux_name, flux in fluxes.items():
                 data[boundary_name][flux_name][i] = df.assemble(
                     df.dot(flux, n)*ds[k](mark))
@@ -187,12 +191,14 @@ def method(ts, dt=0, extra_boundaries="", **kwargs):
     flux_keys = sorted(fluxes.keys())
     for boundary_name in boundary_to_mark:
         savedata[boundary_name] = np.array(
-            zip(steps, t, *[data[boundary_name][flux_name]
-                            for flux_name in flux_keys]))
+            list(zip(steps, t, *[data[boundary_name][flux_name]
+                                 for flux_name in flux_keys])))
 
     if rank == 0:
         header = "Step\tTime\t"+"\t".join(flux_keys)
         for boundary_name in boundary_to_mark:
-            filename = os.path.join(ts.analysis_folder,
-                                    "flux_in_time_{}.dat".format(boundary_name))
-            np.savetxt(filename, savedata[boundary_name], header=header)
+            with open(os.path.join(
+                    ts.analysis_folder,
+                    "flux_in_time_{}.dat".format(boundary_name)),
+                      "w") as outfile:
+                np.savetxt(outfile, savedata[boundary_name], header=header)

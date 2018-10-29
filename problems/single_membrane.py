@@ -2,7 +2,7 @@ import dolfin as df
 import numpy as np
 import os
 from . import *
-from common.io import mpi_is_root
+from common.io import mpi_is_root, mpi_comm
 from common.bcs import Fixed, Charged
 import random
 __author__ = "Gaute Linga"
@@ -96,8 +96,8 @@ def mesh(Lx=1., Ly=1., grid_spacing=1./16, refine_depth=3, **namespace):
     # x[:, 1] = beta*x[:, 1] + (1.-beta)*Ly*(
     #     np.arctan(1.0*np.pi*((x[:, 1]-Ly)/Ly))/np.arctan(np.pi) + 1.)
 
-    for level in xrange(1, refine_depth+1):
-        cell_markers = df.CellFunction("bool", m)
+    for level in range(1, refine_depth+1):
+        cell_markers = df.MeshFunction("bool", m, m.topology().dim())
         cell_markers.set_all(False)
         for cell in df.cells(m):
             y_mean = np.mean([node.x(1) for node in df.vertices(cell)])
@@ -222,8 +222,8 @@ def start_hook(w_, w_1, test_functions,
     return dict()
 
 
-class RandomField(df.Expression):
-    random.seed(2 + df.MPI.rank(df.mpi_comm_world()))
+class RandomField(df.UserExpression):
+    random.seed(2 + df.MPI.rank(mpi_comm()))
 
     def eval(self, values, x):
         values[0] = random.random()-0.5

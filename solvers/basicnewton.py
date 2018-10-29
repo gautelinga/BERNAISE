@@ -205,12 +205,12 @@ def setup_NSPFEC(w_NSPFEC, w_1NSPFEC,
                         + zi*ci_*df.dot(df.grad(V_), v) * dx
 
         # Slip boundary condition
-        for boundary_name, slip_length in neumann_bcs["u"].iteritems():
+        for boundary_name, slip_length in neumann_bcs["u"].items():
             F_NS += 1./slip_length * \
                     df.dot(u_, v) * ds(boundary_to_mark[boundary_name])
 
         # Pressure boundary condition
-        for boundary_name, pressure in neumann_bcs["p"].iteritems():
+        for boundary_name, pressure in neumann_bcs["p"].items():
             F_NS += pressure * df.inner(
                 normal, v) * ds(boundary_to_mark[boundary_name])
 
@@ -241,7 +241,7 @@ def setup_NSPFEC(w_NSPFEC, w_1NSPFEC,
                        + dveps * df.dot(df.grad(V_), df.grad(V_)) * h * dx)
 
         # Contact angle boundary condtions
-        for boundary_name, costheta in neumann_bcs["phi"].iteritems():
+        for boundary_name, costheta in neumann_bcs["phi"].items():
             fw_prime = diff_pf_contact(phi_)
             F_PF_g += sigma_bar * costheta * fw_prime * h * ds(
                 boundary_to_mark[boundary_name])
@@ -282,7 +282,7 @@ def setup_NSPFEC(w_NSPFEC, w_1NSPFEC,
             F_E_V += -rho_e_*U*df.dx
 
         # Surface charge boundary condition
-        for boundary_name, sigma_e in neumann_bcs["V"].iteritems():
+        for boundary_name, sigma_e in neumann_bcs["V"].items():
             F_E_V += -sigma_e*U*ds(boundary_to_mark[boundary_name])
 
         # RHS source terms

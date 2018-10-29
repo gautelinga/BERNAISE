@@ -4,6 +4,7 @@ from postprocess import get_steps, rank
 import numpy as np
 import dolfin as df
 import os
+import importlib
 
 
 def description(ts, **kwargs):
@@ -23,7 +24,8 @@ def method(ts, dt=0, **kwargs):
     solver = params["solver"]
     info("Solver:  {}".format(solver))
 
-    exec("from solvers.{} import discrete_energy".format(solver))
+    solver_module = importlib.import_module("solvers.{}".format(solver))
+    discrete_energy = solver_module.discrete_energy
 
     t = np.zeros(len(steps))
 
@@ -46,9 +48,10 @@ def method(ts, dt=0, **kwargs):
 
         t[i] = ts.times[step]
 
-    data = np.array(zip(steps, t, *F))
+    data = np.array(list(zip(steps, t, *F)))
 
     if rank == 0:
-        filename = os.path.join(ts.analysis_folder,
-                                "energy_in_time.dat")
-        np.savetxt(filename, data, header="Step\tTime\t"+"\t".join(F_keys))
+        with open(os.path.join(ts.analysis_folder,
+                               "energy_in_time.dat"),
+                  "w") as outfile:
+            np.savetxt(outfile, data, header="Step\tTime\t"+"\t".join(F_keys))

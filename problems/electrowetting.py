@@ -4,6 +4,7 @@ import numpy as np
 from . import *
 from common.io import mpi_is_root
 from common.bcs import Fixed, NoSlip, FreeSlip, Slip, ContactAngle
+from common.functions import max_value
 __author__ = "Gaute Linga and Asger Bolet"
 
 
@@ -25,6 +26,7 @@ the parameter C one should consider to be  0.5 and 2 so one are in two regions o
 
 and then the b should be 0.005.  
 '''
+
 
 class Bottom(df.SubDomain):
     def inside(self, x, on_boundary):
@@ -127,14 +129,14 @@ def mesh(Lx=1, Ly=5, grid_spacing=1./16, rad_init=0.75, **namespace):
             k_m = 0.4+0.2*k
             rad_x = 0.75*rad_init
             rad_y = 1.25*rad_init
-            
-            if (bool(p.distance(origin) < k_p*rad_init and
-                     p.distance(origin) > k_m*rad_init)
-                or bool((x/rad_x)**2 + (y/rad_y)**2 < k_p**2 and
-                        (x/rad_x)**2 + (y/rad_y)**2 > k_m**2)
-                or bool((x/rad_y)**2 + (y/rad_x)**2 < k_p**2 and
-                        (x/rad_y)**2 + (y/rad_x)**2 > k_m**2)
-                or p.y() < 0.5 - k*0.2):
+
+            if bool(bool(p.distance(origin) < k_p*rad_init and
+                         p.distance(origin) > k_m*rad_init)
+                    or bool((x/rad_x)**2 + (y/rad_y)**2 < k_p**2 and
+                            (x/rad_x)**2 + (y/rad_y)**2 > k_m**2)
+                    or bool((x/rad_y)**2 + (y/rad_x)**2 < k_p**2 and
+                            (x/rad_y)**2 + (y/rad_x)**2 > k_m**2)
+                    or p.y() < 0.5 - k*0.2):
                 cell_markers[cell] = True
             else:
                 cell_markers[cell] = False
@@ -155,11 +157,12 @@ def initialize(Lx, Ly, rad_init,
     """ Create the initial state. """
     if not contact_angle_init:
         contact_angle_init = contact_angle
-        
-    rad0 = rad_init*np.sqrt(np.pi/(2*contact_angle_init - np.sin(2*contact_angle_init)))
+
+    rad0 = rad_init*np.sqrt(
+        np.pi/(2*contact_angle_init - np.sin(2*contact_angle_init)))
     x0 = 0.
     y0 = -rad0*np.cos(contact_angle_init)
-    
+
     w_init_field = dict()
     if not restart_folder:
         # Phase field
@@ -173,14 +176,16 @@ def initialize(Lx, Ly, rad_init,
             for solute in solutes[:2]:
                 c_init = initial_pf(x0, y0, rad0, interface_thickness,
                                     field_to_subspace[solute[0]].collapse())
-                c_init.vector()[:] = ((0.5*(1+(c_init.vector().get_local())))**10
-                                      *concentration_init_s)
+                c_init.vector().set_local(
+                    (0.5*(1+(c_init.vector().get_local())))**10
+                    * concentration_init_s)
                 w_init_field[solute[0]] = c_init
             for solute in solutes[2:]:
                 c_init = initial_pf(x0, y0, rad0, interface_thickness,
                                     field_to_subspace[solute[0]].collapse())
-                c_init.vector()[:] = ((0.5*(1-(c_init.vector().get_local())))**10
-                                      *concentration_init_d)
+                c_init.vector().set_local(
+                    (0.5*(1-(c_init.vector().get_local())))**10
+                    * concentration_init_d)
                 w_init_field[solute[0]] = c_init
             V_init_expr = df.Expression("0.", degree=1)
             w_init_field["V"] = df.interpolate(
@@ -200,7 +205,7 @@ def create_bcs(field_to_subspace, Lx, Ly,
 
     boundaries = dict(
         top=[Top(Ly)],
-        bottom=[Bottom(Ly)], 
+        bottom=[Bottom(Ly)],
         left=[Left()],
         right=[Right(Lx)]
     )
@@ -214,18 +219,19 @@ def create_bcs(field_to_subspace, Lx, Ly,
     bcs_pointwise = dict()
 
     bcs["top"] = dict()
-    bcs["bottom"] = dict()   
+    bcs["bottom"] = dict()
     bcs["left"] = dict()
     bcs["right"] = dict()
 
     if enable_NS:
         bcs["top"]["u"] = slip_x
-        bcs["bottom"]["u"] = noslip        
+        bcs["bottom"]["u"] = noslip
         bcs["left"]["u"] = freeslip_y
         bcs["right"]["u"] = freeslip_y
         bcs_pointwise["p"] = (
             0.,
-            "x[0] > {Lx}- DOLFIN_EPS && x[1] > {Ly} - DOLFIN_EPS".format(Lx=Lx, Ly=Ly))
+            ("x[0] > {Lx}- DOLFIN_EPS && "
+             "x[1] > {Ly} - DOLFIN_EPS").format(Lx=Lx, Ly=Ly))
 
     if enable_EC:
         for solute in solutes[:2]:
@@ -259,7 +265,7 @@ def pf_mobility(phi, gamma):
     """ Phase field mobility function. """
     # return gamma * (phi**2-1.)**2
     func = 1.-phi**2
-    return 0.75 * gamma * 0.5 * (1. + df.sign(func)) * func
+    return 0.75 * gamma * max_value(0., func)
     #return gamma
 
 

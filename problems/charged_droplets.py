@@ -3,6 +3,7 @@ import os
 from . import *
 from common.io import mpi_is_root
 from common.bcs import Fixed
+from common.functions import max_value
 
 __author__ = "Gaute Linga"
 
@@ -157,28 +158,12 @@ def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
                field_to_subproblem, subproblems, w_, **namespace):
     info_blue("Timestep = {}".format(tstep))
 
-    if False and stats_intv and tstep % stats_intv == 0:
-        # GL: Seems like a rather awkward way of doing this, but any
-        # other way seems to fuck up the simulation.  Anyhow, a better
-        # idea could be to move some of this to a post-processing
-        # stage.
-        subproblem_name, subproblem_i = field_to_subproblem["phi"]
-        Q = w_[subproblem_name].split(deepcopy=True)[subproblem_i]
-        bubble = df.interpolate(Q, field_to_subspace["phi"].collapse())
-        bubble = 0.5*(1.-df.sign(bubble))
-        mass = df.assemble(bubble*df.dx)
-        massy = df.assemble(
-            bubble*df.Expression("x[1]", degree=1)*df.dx)
-        if mpi_is_root():
-            with file(statsfile, "a") as outfile:
-                outfile.write("{} {} {} \n".format(t, mass, massy))
-
 
 def pf_mobility(phi, gamma):
     """ Phase field mobility function. """
     # return gamma * (phi**2-1.)**2
     func = 1.-phi**2
-    return 0.75 * gamma * 0.5 * (1. + df.sign(func)) * func
+    return 0.75 * gamma * max_value(0., func)
 
 
 def start_hook(newfolder, **namespace):

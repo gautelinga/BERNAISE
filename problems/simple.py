@@ -3,8 +3,9 @@ import os
 from . import *
 from common.io import mpi_is_root
 from common.bcs import Fixed
-from common.functions import sign, max_value
+from common.functions import max_value, sign
 __author__ = "Gaute Linga"
+
 
 info_cyan("Welcome to the simple problem!")
 

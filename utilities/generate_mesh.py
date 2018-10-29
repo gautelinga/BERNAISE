@@ -1,4 +1,5 @@
-__author__ = "Asger J. S Bolet <asgerbolet@gmail.com>, Gaute Linga <gaute.linga@gmail.com>"
+from __future__ import print_function
+__author__ = "Asger Bolet <asgerbolet@gmail.com>, Gaute Linga <gaute.linga@gmail.com>"
 __date__ = "2017-04-28"
 __copyright__ = "Copyright (C) 2017 " + __author__
 __license__ = "MIT"
@@ -22,7 +23,7 @@ from common import parse_command_line, info, info_on_red, \
     remove_safe
 from mpi4py.MPI import COMM_WORLD
 import meshpy.triangle as tri
-from plot import plot_edges, plot_faces
+from .plot import plot_edges, plot_faces
 import h5py
 from utilities import get_methods, get_help
 
@@ -86,10 +87,10 @@ def rad_points(x_c, rad, dx, theta_start=0., theta_stop=2*np.pi):
 def line_points(x_left, x_right, dx):
     N = int(np.ceil(np.sqrt((x_right[0]-x_left[0])**2 +
                             (x_right[1]-x_left[1])**2)/dx))
-    return zip(np.linspace(x_left[0], x_right[0], N+1,
-                           endpoint=True).flatten(),
-               np.linspace(x_left[1], x_right[1], N+1,
-                           endpoint=True).flatten())
+    return list(zip(np.linspace(x_left[0], x_right[0], N+1,
+                                endpoint=True).flatten(),
+                    np.linspace(x_left[1], x_right[1], N+1,
+                                endpoint=True).flatten()))
 
 
 def make_polygon(corner_pts, dx, start=0):

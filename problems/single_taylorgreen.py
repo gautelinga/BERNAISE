@@ -219,7 +219,7 @@ def reference(t, viscosity, density,
 
     code_strings = reference_code(solutes)
     expr = dict()
-    for key, code_string in code_strings.iteritems():
+    for key, code_string in code_strings.items():
         if bool((enable_NS and key in ["u", "p"]) or
                 (enable_EC and key in ["V"]
                  + [solute[0] for solute in solutes])):

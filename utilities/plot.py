@@ -6,15 +6,28 @@ import matplotlib.tri as mtri
 from matplotlib.tri import tricontour
 from matplotlib.tri import TriContourSet
 from mpi4py.MPI import COMM_WORLD as comm
-from common.io import remove_safe
+import os
+import sys
+# Find path to the BERNAISE root folder
+bernaise_path = "/" + os.path.join(*os.path.realpath(__file__).split("/")[:-2])
+# ...and append it to sys.path to get functionality from BERNAISE
+sys.path.append(bernaise_path)
+from common import remove_safe, info
 from skimage import measure
 from scipy.interpolate import griddata
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-ENABLE_TEX = True
+"""
+Not intended for standalone use. 
+
+GL 2018-10-28: Consider moving to common.
+
+"""
+
+ENABLE_TEX = False
 if ENABLE_TEX:  # Hacked for pretty output
     from matplotlib import rc
-    rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
+    # rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
     rc('text', usetex=True)
 
 rank = comm.Get_rank()
@@ -72,14 +85,16 @@ class Figure:
         """ This is called upon the last reference to this object. """
         if self.colorbar and self.colorbar_ax is not None:
             self.fig.colorbar(self.colorbar_ax, label=self.clabel)
-        elif self.colorbar:
-            plt.colorbar(label=self.clabel)
+        # elif self.colorbar:
+        #     plt.colorbar(label=self.clabel)
 
         if self.tight_layout:
-            plt.tight_layout()
+            # plt.tight_layout()
+            pass
 
         if self.save is not None:
-            plt.savefig(self.save, bbox_inches="tight", pad_inches=0.)
+            # plt.savefig(self.save, bbox_inches="tight", pad_inches=0.)
+            plt.savefig(self.save, pad_inches=0.)
 
         if self.show:
             plt.show()
@@ -115,8 +130,8 @@ def plot_faces(coords, faces, face_values=None, title=None,
         colors = face_values
     fig = Figure(title=title, clabel=clabel, colorbar=colorbar,
                  save=save, show=show)
-    plt.tripcolor(coords[:, 0], coords[:, 1], faces,
-                  facecolors=colors, edgecolors='k')
+    fig.colorbar_ax = plt.tripcolor(coords[:, 0], coords[:, 1], faces,
+                                    facecolors=colors, edgecolors='k')
     return fig
 
 
@@ -125,7 +140,7 @@ def plot_contour(nodes, elems, vals,
                  save=None, show=True):
     """ Contour plot; values given at nodes. """
     fig = Figure(title=title, clabel=clabel, save=save, show=show)
-    plt.tricontourf(nodes[:, 0], nodes[:, 1], elems, vals)
+    fig.colorbar_ax = plt.tricontourf(nodes[:, 0], nodes[:, 1], elems, vals)
     return fig
 
 
@@ -225,10 +240,11 @@ def plot_fancy(nodes, elems, phi=None, charge=None, u=None, charge_max=None,
     cmap._init()
     cmap._lut[:, :] = 0.
     length = len(cmap._lut[:, -1])
+
     # cmap._lut[:, -1] = np.linspace(0., 1.0, length)
-    cmap._lut[:length/2, -1] = 0.
-    cmap._lut[length/2:, -1] = 1.
-    
+    cmap._lut[:length//2, -1] = 0.
+    cmap._lut[length//2:, -1] = 1.
+
     phi[phi > 1.] = 1.
     phi[phi < -1.] = -1.
 
@@ -367,12 +383,12 @@ def zero_level_set(nodes, elems, vals, show=False, save_file=False, num_intp=32)
             ax.set_ylim(nodes[:, 1].min(), nodes[:, 1].max())
             ax.set_zlim(nodes[:, 2].min(), nodes[:, 2].max())
 
-            plt.tight_layout()
+            # plt.tight_layout()
             plt.show()
 
     if rank == 0 and save_file:
         remove_safe(save_file)
-        with open(save_file, "ab+") as f:
+        with open(save_file, "a") as f:
             if dim == 2:
                 for path in paths:
                     np.savetxt(f, path.vertices)
@@ -387,3 +403,7 @@ def zero_level_set(nodes, elems, vals, show=False, save_file=False, num_intp=32)
         return paths_out
     elif dim == 3:
         return verts[faces]
+
+
+if __name__ == "__main__":
+    info("Not intended for standalone use.")

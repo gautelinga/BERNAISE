@@ -3,6 +3,7 @@ import os
 from . import *
 from common.io import mpi_is_root
 from common.bcs import Fixed
+from common.functions import max_value
 __author__ = "Gaute Linga"
 
 
@@ -153,7 +154,7 @@ def pf_mobility(phi, gamma):
     """ Phase field mobility function. """
     # return gamma * (phi**2-1.)**2
     func = 1.-phi**2
-    return 0.75 * gamma * 0.5 * (1. + df.sign(func)) * func
+    return 0.75 * gamma * max_value(0., func)
     # return gamma
 
 

@@ -56,8 +56,8 @@ def method(ts, ref=None, time=1., show=False, save_fig=False, **kwargs):
         f_int = df.interpolate(
             f[field], err[field].function_space())
 
-        err[field].vector()[:] = (f_int.vector().array() -
-                                  f_ref[field].vector().array())
+        err[field].vector().set_local(
+            f_int.vector().get_local() - f_ref[field].vector().get_local())
 
         if show or save_fig:
             err_arr = ts_ref.nodal_values(err[field])
