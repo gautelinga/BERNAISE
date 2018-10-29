@@ -4,7 +4,7 @@ import os
 from . import *
 from common.io import mpi_is_root, load_mesh
 from common.bcs import Fixed, Charged
-from porous import Obstacles
+from .porous import Obstacles
 from mpi4py import MPI
 __author__ = "Gaute Linga"
 
@@ -182,7 +182,8 @@ def start_hook(w_, x_,
     info("Rescale factor:       {}".format(rescale_factor))
     
     subproblem = field_to_subproblem[solutes[0][0]][0]
-    w_[subproblem].vector()[:] = rescale_factor*w_[subproblem].vector().array()
+    w_[subproblem].vector().set_local(
+        rescale_factor*w_[subproblem].vector().get_local())
 
     total_bulk_charge_after = integrate_bulk_charge(x_, solutes, dx)
     info("Final bulk charge:    {}".format(total_bulk_charge_after))

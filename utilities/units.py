@@ -44,39 +44,37 @@ class LoadSettings:
         self.parameters = dict()
         self._get_model_parameters()
 
-    
     def _get_model_parameters(self):
-           
             for params_file in glob.glob(
                 self.params_prefix + "*" + self.params_suffix):
                 parameters = dict()
                 load_parameters(parameters, params_file)
             self.parameters = parameters
-            
+
             # The active parts of the solvers
             self.enable_NS = self.parameters[enable_NS]
             self.enable_PF = self.parameters[enable_PF]
             self.enable_EC = self.parameters[enable_EC]
-            # estrackting importen Parmetors        
-            
+
+            # Extracting important parameters
             self.Lx = self.parameters["Lx"]
             self.Ly = self.parameters["Ly"]
-            
+
             self.temperatur = 1
             self.k_b = 1
             self.varcum_permittivity = 1
             self.q_e = 1
 
-
             if self.enable_PF:
                 self.interface_thickness = self.parameters["interface_thickness"]
                 self.pf_mobility_coeff = self.parameters["pf_mobility_coeff"]
                 self.surface_tension = self.parameters["surface_tension"]    
-            
+
             if self.enable_EC:
                 self.permittivity = self.parameters["permittivity"]
                 self.solutes = self.parameters["solutes"]
-            if self.enable_NS
+
+            if self.enable_NS:
                 self.density = self.parameters["density"]
                 self.viscosity = self.parameters["viscosity"]
 
@@ -98,11 +96,12 @@ class LoadSettings:
             model_Vacuum permittivity = 1
             model_electron_charge = 1
             '''
-    
     #SimulationParameters
+
 
 def main():
     info_yellow("BERNAISE: Unit-conversion tool")
+    info_warning("Work in progress!")
     cmd_kwargs = parse_command_line()
 
     # Get help if it was called for.
@@ -111,7 +110,8 @@ def main():
 
     folder = cmd_kwargs.get("folder", False)
 
-    LoadSettings(folder)
+    if folder:
+        LoadSettings(folder)
 
     # Call the specified method
     #if method in __methods__:

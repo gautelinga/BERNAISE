@@ -49,7 +49,7 @@ def method(ts, dt=0, extra_boundaries="", **kwargs):
         for field in x_:
             ts.update(x_[field], field, step)
 
-        for boundary_name, (mark, k) in boundary_to_mark.iteritems():
+        for boundary_name, (mark, k) in boundary_to_mark.items():
             for field, f in fields.items():
                 data[boundary_name][field][i] = df.assemble(
                     f*ds[k](mark))
@@ -60,12 +60,14 @@ def method(ts, dt=0, extra_boundaries="", **kwargs):
     field_keys = sorted(fields.keys())
     for boundary_name in boundary_to_mark:
         savedata[boundary_name] = np.array(
-            zip(steps, t, *[data[boundary_name][field]
-                            for field in field_keys]))
+            list(zip(steps, t, *[data[boundary_name][field]
+                                 for field in field_keys])))
 
     if rank == 0:
         header = "Step\tTime\t"+"\t".join(field_keys)
         for boundary_name in boundary_to_mark:
-            filename = os.path.join(ts.analysis_folder,
-                                    "value_in_time_{}.dat".format(boundary_name))
-            np.savetxt(filename, savedata[boundary_name], header=header)
+            with open(os.path.join(
+                    ts.analysis_folder,
+                    "value_in_time_{}.dat".format(boundary_name)),
+                      "w") as outfile:
+                np.savetxt(outfile, savedata[boundary_name], header=header)

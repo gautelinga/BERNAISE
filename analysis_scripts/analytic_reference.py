@@ -1,9 +1,10 @@
 """ analytic_reference script """
-from common import info, info_split, info_cyan
+from common import info, info_split, info_cyan, info_error
 from postprocess import get_step_and_info, rank, compute_norms
 import dolfin as df
 import os
 from utilities.plot import plot_any_field
+import importlib
 
 
 def description(ts, **kwargs):
@@ -20,7 +21,11 @@ def method(ts, time=None, step=0, show=False,
     step, time = get_step_and_info(ts, time, step)
     parameters = ts.get_parameters(time=time)
     problem = parameters.get("problem", "intrusion_bulk")
-    exec("from problems.{} import reference".format(problem))
+    try:
+        module = importlib.import_module("problems.{}".format(problem))
+        reference = module.reference
+    except:
+        info_error("No analytic reference available.")
     ref_exprs = reference(t=time, **parameters)
 
     info("Comparing to analytic solution.")
@@ -43,7 +48,7 @@ def method(ts, time=None, step=0, show=False,
         f_int[field] = df.Function(W)
         f_ref[field] = df.Function(W)
 
-    for field, ref_expr in ref_exprs.iteritems():
+    for field, ref_expr in ref_exprs.items():
         ref_expr.t = time
         # Update numerical solution f
         ts.update(f[field], field, step)

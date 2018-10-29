@@ -114,9 +114,9 @@ def constrained_domain(**namespace):
 
 
 def mesh(Lx, Ly, grid_spacing, **namespace):
-    mesh = load_mesh("meshes/flipper2_dx" + str(grid_spacing) + ".h5")
-    #mesh = load_mesh("meshes/flipper_dx" + str(grid_spacing) + ".h5")
-    #mesh = df.Mesh("meshes/dolfin_fine.xml.gz")
+    # You have to run generate_mesh.py mesh=extended_polygon ... first
+    mesh = load_mesh("meshes/flipper_dx{}_Lx{}_Ly{}.h5".format(
+        grid_spacing, Lx, Ly))
     return mesh
 
 
@@ -140,8 +140,9 @@ def initialize(Lx, Ly, R,
                     Lx*3./10., Ly/2., R, interface_thickness,
                     field_to_subspace["phi"])
                 # Only have ions in phase 2 (phi=-1)
-                c_init.vector()[:] = concentration_init*0.5*(
-                    1.-c_init.vector().array())
+                c_init.vector().set_local(
+                    concentration_init*0.5*(
+                        1.-c_init.vector().get_local()))
                 w_init_field[solute[0]] = c_init
 
     return w_init_field

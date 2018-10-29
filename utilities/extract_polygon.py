@@ -19,9 +19,10 @@ def main():
     cmd_kwargs = parse_command_line()
 
     image_path = cmd_kwargs.get("image", False)
+    show = cmd_kwargs.get("show", False)
 
     name = os.path.splitext(os.path.basename(image_path))[0]
-    print name
+    info("Image name: {}".format(name))
 
     if not image_path or not os.path.exists(image_path):
         info_on_red("Image does not exist.")
@@ -48,7 +49,8 @@ def main():
     np.savetxt(savefile_prefix + ".nodes", nodes)
     np.savetxt(savefile_prefix + ".edges", edges, fmt='%i')
 
-    plot_edges(nodes, edges)
+    if show:
+        plot_edges(nodes, edges)
 
 
 if __name__ == "__main__":

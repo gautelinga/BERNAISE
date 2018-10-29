@@ -8,6 +8,7 @@ __author__ = "Gaute Linga"
 
 info_cyan("Welcome to the square bubble problem!")
 
+
 # Define solutes
 # Format: name, valency, diffusivity in phase 1, diffusivity in phase
 #         2, beta in phase 1, beta in phase 2

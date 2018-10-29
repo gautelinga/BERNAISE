@@ -38,7 +38,7 @@ def method(ts, dx=0.1, line="[0.,0.]--[1.,1.]", time=None, dt=None,
     f = ts.functions()
     probes = dict()
     from fenicstools import Probes
-    for field, func in f.iteritems():
+    for field, func in f.items():
         probes[field] = Probes(x.flatten(), func.function_space())
 
     steps = get_steps(ts, dt, time)
@@ -46,18 +46,18 @@ def method(ts, dx=0.1, line="[0.,0.]--[1.,1.]", time=None, dt=None,
     for step in steps:
         info("Step " + str(step) + " of " + str(len(ts)))
         ts.update_all(f, step)
-        for field, probe in probes.iteritems():
+        for field, probe in probes.items():
             probe(f[field])
 
     probe_arr = dict()
-    for field, probe in probes.iteritems():
+    for field, probe in probes.items():
         probe_arr[field] = probe.array()
 
     if rank == 0:
         for i, step in enumerate(steps):
             chunks = [x]
             header_list = [index2letter(d) for d in range(ts.dim)]
-            for field, chunk in probe_arr.iteritems():
+            for field, chunk in probe_arr.items():
                 if chunk.ndim == 1:
                     header_list.append(field)
                     chunk = chunk[:].reshape(-1, 1)

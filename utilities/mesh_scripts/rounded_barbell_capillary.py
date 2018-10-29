@@ -5,17 +5,18 @@ from generate_mesh import MESHES_DIR, store_mesh_HDF5, \
     add_vertical_boundary_vertices
 import mshr
 import os
+import matplotlib.pyplot as plt
 
 
 def description(**kwargs):
     info("")
 
 
-def method(L=6., H=2., R=0.3, n_segments=40, res=120, **kwargs):
+def method(L=6., H=2., R=0.3, n_segments=40, res=120, show=False, **kwargs):
     """
-    Generates barbell capilar with rounded edges.
+    Generates barbell capillary with rounded edges.
     """
-    info("Generating mesh of rounded barbell capilar")
+    info("Generating mesh of rounded barbell capillary")
     
     pt_1 = df.Point(0., 0.)
     pt_1star = df.Point(1., 0.)
@@ -80,7 +81,9 @@ def method(L=6., H=2., R=0.3, n_segments=40, res=120, **kwargs):
     mesh = mshr.generate_mesh(domain, res)
 
     mesh_path = os.path.join(MESHES_DIR,
-                             "roundet_barbell_res" + str(res))
+                             "rounded_barbell_res" + str(res))
     store_mesh_HDF5(mesh, mesh_path)
-    df.plot(mesh)
-    df.interactive()
+
+    if show:
+        df.plot(mesh)
+        plt.show()

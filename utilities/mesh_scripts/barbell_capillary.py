@@ -4,15 +4,16 @@ import dolfin as df
 import mshr
 import os
 from generate_mesh import MESHES_DIR, store_mesh_HDF5
+import matplotlib.pyplot as plt
 
 
 def description(**kwargs):
-    info("")
+    info("Generates mesh for a barbell capillary.")
 
 
-def method(res=50, diameter=1., length=5., **kwargs):
+def method(res=50, diameter=1., length=5., show=False, **kwargs):
     '''
-    Function That Generates a mesh for a barbell capilar,
+    Function That Generates a mesh for a barbell capillary,
     Meshing method is mshr.
 
     Note: The generarted mesh is stored in "BERNAISE/meshes/".
@@ -41,3 +42,7 @@ def method(res=50, diameter=1., length=5., **kwargs):
                             "BarbellCapilarDolfin_d" + str(diameter) + "_l" +
                             str(length) + "_res" + str(res))
     store_mesh_HDF5(mesh, meshpath)
+
+    if show:
+        df.plot(mesh)
+        plt.show()

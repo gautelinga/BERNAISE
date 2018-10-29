@@ -8,6 +8,7 @@ from common.functions import max_value, alpha, alpha_c, alpha_cc, \
     alpha_reg, alpha_c_reg, absolute
 from . import *
 from . import __all__
+from common.io import mpi_barrier
 import numpy as np
 
 
@@ -248,7 +249,7 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
         solver = df.LinearVariationalSolver(problem)
 
     else:
-        solver = df.LUSolver("mumps")
+        solver = df.LUSolver()
         # solver.set_operator(A)
         return solver, a, L, dirichlet_bcs_NS
 
@@ -385,7 +386,7 @@ def solve(w_, t, dt, q_rhs, solvers, enable_EC, enable_NS,
     for subproblem, enable in zip(["EC", "NS"], [enable_EC, enable_NS]):
         if enable:
             timer_inner = df.Timer("Solve subproblem " + subproblem)
-            df.mpi_comm_world().barrier()
+            mpi_barrier()
             if subproblem == "NS" and use_iterative_solvers:
                 solver, a, L, bcs = solvers[subproblem]
                 A = df.assemble(a)

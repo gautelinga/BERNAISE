@@ -1,6 +1,6 @@
 import dolfin as df
 from common import *
-from common.cmd import info_cyan, info_blue, info_red, info_green
+from common.cmd import info_cyan, info_blue, info_red, info_green, info_error
 
 """
 This module contains general functions that can or should be overloaded by
@@ -58,7 +58,8 @@ parameters = dict(
     enable_NS=True,
     save_intv=5,
     checkpoint_intv=50,
-    stat_intv=5
+    stat_intv=5,
+    solve_initial=False
 )
 
 

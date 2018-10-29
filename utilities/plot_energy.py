@@ -11,9 +11,10 @@ def parse_args():
     parser.add_argument("--plot", "-p", action="store_true", help="Plot")
     parser.add_argument("--logx", action="store_true", help="Log on x-axis")
     parser.add_argument("--logy", action="store_true", help="Log on y-axis")
-    parser.add_argument("--latex", action="store_true", help="Use latex to plot.")
+    parser.add_argument("--latex", action="store_true",
+                        help="Use LaTeX for plotting.")
     parser.add_argument("--nokey", action="store_true", help="No keys.")
-    parser.add_argument("--keys", type=str, help="Keys to plot in latex.")
+    parser.add_argument("--keys", type=str, help="Keys to plot in LaTeX.")
     args = parser.parse_args()
     return args
 
@@ -43,11 +44,11 @@ def main():
 
     if args.latex:
         from matplotlib import rc
-        rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+        # rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
         ## for Palatino and other serif fonts use:
         #rc('font',**{'family':'serif','serif':['Palatino']})
         rc('text', usetex=True)
-    
+
     lc_cycle = ['r', 'g', 'b', 'y', 'c', 'm', 'y', 'k']
     ls_cycle = ["-", "--", "-.", ":"]
 
@@ -120,8 +121,14 @@ def main():
         if args.latex:
             plt.gca().add_artist(legend1)
 
-    plt.xlabel("$\\textrm{Time} \\ t$")
-    plt.ylabel("$\\textrm{Energy}$")
+    if args.latex:
+        labels = ["$\\textrm{Time} \\ t$",
+                  "$\\textrm{Energy}$"]
+    else:
+        labels = ["Time t", "Energy"]
+
+    plt.xlabel(labels[0])
+    plt.ylabel(labels[1])
     plt.show()
 
 

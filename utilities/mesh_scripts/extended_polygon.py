@@ -7,14 +7,15 @@ from meshpy import triangle as tri
 from utilities.plot import plot_edges, plot_faces
 import dolfin as df
 from common import info
+import matplotlib.pyplot as plt
 
 
 def description(**kwargs):
     info("")
 
 
-def method(Lx=1., Ly=1., scale=0.75, dx=0.02, do_plot=True,
-           polygon="dolphin", center=(0.5, 0.5), **kwargs):
+def method(Lx=1., Ly=1., scale=0.75, dx=0.02, show=False,
+           polygon="flipper", center=(0.5, 0.5), **kwargs):
     edges = np.loadtxt(os.path.join(MESHES_DIR, polygon + ".edges"),
                        dtype=int).tolist()
     nodes = np.loadtxt(os.path.join(MESHES_DIR, polygon + ".nodes"))
@@ -39,7 +40,8 @@ def method(Lx=1., Ly=1., scale=0.75, dx=0.02, do_plot=True,
     nodes.extend(outer_nodes)
     edges.extend(outer_edges)
 
-    plot_edges(nodes, edges)
+    if show:
+        plot_edges(nodes, edges)
 
     mi = tri.MeshInfo()
     mi.set_points(nodes)
@@ -54,15 +56,16 @@ def method(Lx=1., Ly=1., scale=0.75, dx=0.02, do_plot=True,
     coords = np.array(mesh.points)
     faces = np.array(mesh.elements)
 
-    if do_plot:
+    if show:
         plot_faces(coords, faces)
 
     mesh = numpy_to_dolfin(coords, faces)
 
-    if do_plot:
+    if show:
         df.plot(mesh)
-        df.interactive()
+        plt.show()
 
     mesh_path = os.path.join(MESHES_DIR,
-                             polygon + "_dx" + str(dx))
+                             "{}_dx{}_Lx{}_Ly{}".format(
+                                 polygon, dx, Lx, Ly))
     store_mesh_HDF5(mesh, mesh_path)

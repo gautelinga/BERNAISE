@@ -1,5 +1,5 @@
 import dolfin as df
-from common import info, makedirs_safe, info_cyan
+from common import info, makedirs_safe, info_cyan, info_warning
 import os
 import numpy as np
 from utilities.plot import zero_level_set
@@ -16,7 +16,7 @@ def method(ts, dt=0, **kwargs):
     info_cyan("Analyzing the evolution of the geometry through time.")
 
     if not ts.get_parameter("enable_PF"):
-        print "Phase field not enabled."
+        info_warning("Phase field not enabled.")
         return False
 
     f_mask = df.Function(ts.function_space)
@@ -62,9 +62,12 @@ def method(ts, dt=0, **kwargs):
         u[:, d] /= area
 
     if rank == 0:
+        data = np.array(list(zip(np.arange(len(ts)), ts.times, length, area,
+                                 com[:, 0], com[:, 1], u[:, 0], u[:, 1])))
         np.savetxt(os.path.join(ts.analysis_folder,
                                 "time_data.dat"),
-                   np.array(zip(np.arange(len(ts)), ts.times, length, area,
-                                com[:, 0], com[:, 1], u[:, 0], u[:, 1])),
+                   data,
                    header=("Timestep\tTime\tLength\tArea\t"
                            "CoM_x\tCoM_y\tU_x\tU_y"))
+
+        info("Stored.")

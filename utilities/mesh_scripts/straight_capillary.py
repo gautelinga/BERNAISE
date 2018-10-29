@@ -4,6 +4,7 @@ import dolfin as df
 import os
 from generate_mesh import MESHES_DIR, store_mesh_HDF5
 import mshr
+import matplotlib.pyplot as plt
 
 
 def description(**kwargs):
@@ -16,7 +17,7 @@ def description(**kwargs):
     """)
 
 
-def method(res=10, height=1, length=5, use_mshr=False, **kwargs):
+def method(res=10, height=1, length=5, use_mshr=False, show=False, **kwargs):
     '''
     Function that generates a mesh for a straight capilar, default
     meshing method is dolfin's "RectangleMesh" but has an option for
@@ -54,3 +55,7 @@ def method(res=10, height=1, length=5, use_mshr=False, **kwargs):
                                 str(height) + "_l" +
                                 str(length) + "_res" + str(res))
     store_mesh_HDF5(mesh, meshpath)
+
+    if show:
+        df.plot(mesh)
+        plt.show()

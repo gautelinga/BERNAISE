@@ -2,14 +2,18 @@ import dolfin as df
 import os
 from . import *
 from common.io import mpi_is_root
-from common.bcs import Fixed, Charged  
+from common.bcs import Fixed, Charged
+from common.functions import max_value
 __author__ = "Asger Bolet"
 
-info_cyan("Charge wall for at test of debye layers")
+
+info_cyan("Charged wall for a test of Debye layers.")
+
 
 class Left(df.SubDomain):
     def inside(self, x, on_boundary):
-        return bool(df.near(x[0],0.0) and on_boundary)
+        return bool(df.near(x[0], 0.) and on_boundary)
+
 
 class Right(df.SubDomain):
     def __init__(self, Lx):
@@ -17,11 +21,13 @@ class Right(df.SubDomain):
         df.SubDomain.__init__(self)
 
     def inside(self, x, on_boundary):
-        return bool(df.near(x[0], self.Lx) and on_boundary )
+        return bool(df.near(x[0], self.Lx) and on_boundary)
+
 
 class Bottom(df.SubDomain):
     def inside(self, x, on_boundary):
-        return bool(df.near(x[1],0.0) and on_boundary)
+        return bool(df.near(x[1], 0.0) and on_boundary)
+
 
 class Top(df.SubDomain):
     def __init__(self, Ly):
@@ -29,11 +35,11 @@ class Top(df.SubDomain):
         df.SubDomain.__init__(self)
 
     def inside(self, x, on_boundary):
-        return bool(df.near(x[1], self.Ly) and on_boundary )
+        return bool(df.near(x[1], self.Ly) and on_boundary)
 
 
 def problem():
-     # Format: name, valency, diffusivity in phase 1, diffusivity in phase
+    # Format: name, valency, diffusivity in phase 1, diffusivity in phase
     #         2, beta in phase 1, beta in phase 2
     solutes = [["c_p",  1, 1e-1, 1.e-1, 1., 1.],
                ["c_m", -1, 1e-1, 1.e-1, 1., 1.]]
@@ -48,8 +54,8 @@ def problem():
 
     factor = 1./2
 
-    #surfacecharge = 1.9e-6 # [C]/[m]^2
-    #debeylengt = sqrt(epsilon/2*c0) 
+    # SurfaceCharge = 1.9e-6 # [C]/[m]^2
+    # DebyeLength = sqrt(epsilon/2*c0)
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
         solver="basic",
@@ -89,14 +95,17 @@ def problem():
     )
     return parameters
 
+
 def mesh(Lx=1, Ly=5, grid_spacing=1./16, **namespace):
     return df.RectangleMesh(df.Point(0., 0.), df.Point(Lx, Ly),
                             int(Lx/grid_spacing), int(Ly/grid_spacing))
 
+
 def initialize(Lx, Ly, rad_init,
                interface_thickness, solutes, restart_folder,
                field_to_subspace,
-               enable_NS, enable_PF, enable_EC, initial_interface, **namespace):
+               enable_NS, enable_PF, enable_EC, initial_interface,
+               **namespace):
     """ Create the initial state.
     The initial states are specified in a dict indexed by field. The format
     should be
@@ -129,8 +138,8 @@ def initialize(Lx, Ly, rad_init,
     return w_init_field
 
 
-def create_bcs(Lx, Ly, solutes, surface_charge,  
-    enable_NS, enable_PF, enable_EC, **namespace):
+def create_bcs(Lx, Ly, solutes, surface_charge,
+               enable_NS, enable_PF, enable_EC, **namespace):
     """ The boundaries and boundary conditions are defined here. """
     boundaries = dict(
         right=[Right(Lx)],
@@ -183,36 +192,23 @@ def initial_phasefield(x0, y0, rad, eps, function_space, shape="circle"):
     phi_init = df.interpolate(phi_init_expr, function_space)
     return phi_init
 
+
 def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
                field_to_subproblem, subproblems, w_, **namespace):
     info_blue("Timestep = {}".format(tstep))
-    if False and stats_intv and tstep % stats_intv == 0:
-        # GL: Seems like a rather awkward way of doing this,
-        # but any other way seems to fuck up the simulation.
-        # Anyhow, a better idea could be to move some of this to a post-processing stage.
-        # GL: Move into common/utilities at a certain point.
-        subproblem_name, subproblem_i = field_to_subproblem["phi"]
-        Q = w_[subproblem_name].split(deepcopy=True)[subproblem_i]
-        bubble = df.interpolate(Q, field_to_subspace["phi"].collapse())
-        bubble = 0.5*(1.-df.sign(bubble))
-        mass = df.assemble(bubble*df.dx)
-        massy = df.assemble(
-            bubble*df.Expression("x[1]", degree=1)*df.dx)
-        if mpi_is_root():
-            with file(statsfile, "a") as outfile:
-                outfile.write("{} {} {} \n".format(t, mass, massy))
 
 
 def pf_mobility(phi, gamma):
     """ Phase field mobility function. """
     # return gamma * (phi**2-1.)**2
     func = 1.-phi**2
-    return 0.75 * gamma * 0.5 * (1. + df.sign(func)) * func
+    return 0.75 * gamma * max_value(0., func)
 
 
 def start_hook(newfolder, **namespace):
     statsfile = os.path.join(newfolder, "Statistics/stats.dat")
     return dict(statsfile=statsfile)
+
 
 def initial_c(c_init, function_space):
     # expr_str = ("{c_init}*0.5*(1.-tanh(sqrt(2)*(sqrt(pow(x[0]-{x}, 2)"

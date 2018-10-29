@@ -4,7 +4,7 @@ import os
 from . import *
 from common.io import mpi_is_root, load_mesh
 from common.bcs import Fixed, Charged, Pressure, Open
-from porous import Obstacles
+from .porous import Obstacles
 from mpi4py import MPI
 __author__ = "Gaute Linga"
 

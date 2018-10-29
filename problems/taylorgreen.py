@@ -4,7 +4,7 @@ import os
 from . import *
 from common.io import mpi_is_root
 from common.bcs import Fixed, Charged
-import cPickle
+import pickle
 __author__ = "Gaute Linga"
 
 
@@ -151,8 +151,8 @@ def rhs_source(t, solutes,
                enable_PF, enable_NS, enable_EC,
                **namespace):
     """ Source term on the right hand side of the conservation equations. """
-    with open("data/taylorgreen_rhs.dat", "r") as infile:
-        code = cPickle.load(infile)
+    with open("data/taylorgreen_rhs.dat", "rb") as infile:
+        code = pickle.load(infile)
     
     replace_vals = replace_dict(concentration_init, concentration_init_dev,
                                 surface_tension, interface_thickness,
@@ -187,8 +187,8 @@ def reference(t,
               enable_NS, enable_PF, enable_EC,
               **namespace):
     """ This contains the analytical reference for convergence analysis. """
-    with open("data/taylorgreen_reference.dat", "r") as infile:
-        code = cPickle.load(infile)
+    with open("data/taylorgreen_reference.dat", "rb") as infile:
+        code = pickle.load(infile)
 
     replace_vals = replace_dict(concentration_init, concentration_init_dev,
                                 surface_tension, interface_thickness,
@@ -209,7 +209,7 @@ def reference(t,
         code_strings["V"] = code["V"]
 
     expr = dict()
-    for key, code_string in code_strings.iteritems():
+    for key, code_string in code_strings.items():
         expr[key] = df.Expression(code_string, t=t, degree=5,
                                   **replace_vals)
     return expr

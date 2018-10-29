@@ -15,7 +15,7 @@ def description(**kwargs):
 
 
 def method(Lx=6., Ly=4., Lx_inner=4., num_obstacles=32,
-           rad=0.2, R=0.3, dx=0.05, seed=121, do_plot=True, **kwargs):
+           rad=0.2, R=0.3, dx=0.05, seed=121, show=False, **kwargs):
     N = int(np.ceil(Lx/dx))
 
     x_min, x_max = -Lx/2, Lx/2
@@ -145,7 +145,7 @@ def method(Lx=6., Ly=4., Lx_inner=4., num_obstacles=32,
         pts.extend(pts_obstacle)
         edges.extend(edges_obstacle)
 
-    if do_plot:
+    if show:
         plot_edges(pts, edges)
 
     mi = tri.MeshInfo()
@@ -165,7 +165,7 @@ def method(Lx=6., Ly=4., Lx_inner=4., num_obstacles=32,
     # print "Number of points:", len(pp)
     # print "Number unique points:", len(set(pp))
 
-    if do_plot:
+    if show:
         plot_faces(coords, faces)
 
     msh = numpy_to_dolfin(coords, faces)
@@ -192,6 +192,6 @@ def method(Lx=6., Ly=4., Lx_inner=4., num_obstacles=32,
                np.hstack((all_obstacles,
                           np.ones((len(all_obstacles), 1))*rad)))
 
-    if do_plot:
+    if show:
         df.plot(msh)
         plt.show()

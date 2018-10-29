@@ -6,9 +6,11 @@ from common.bcs import Fixed, Charged
 import numpy as np
 __author__ = "Asger Bolet"
 
+
 class Left(df.SubDomain):
     def inside(self, x, on_boundary):
-        return bool(df.near(x[0],0.0) and on_boundary)
+        return bool(df.near(x[0], 0.0) and on_boundary)
+
 
 class Right(df.SubDomain):
     def __init__(self, Lx):
@@ -16,7 +18,7 @@ class Right(df.SubDomain):
         df.SubDomain.__init__(self)
 
     def inside(self, x, on_boundary):
-        return bool(df.near(x[0], self.Lx) and on_boundary )
+        return bool(df.near(x[0], self.Lx) and on_boundary)
 
 
 class PeriodicBoundary(df.SubDomain):
@@ -40,7 +42,11 @@ class Outer_Narrowing(df.SubDomain):
         df.SubDomain.__init__(self)
 
     def inside(self, x, on_boundary):
-        return bool( ((x[0] < (self.R + 1.) and x[0] >  df.DOLFIN_EPS ) or (x[0] > (self.Lx- self.R - 1.) and x[0] < self.Lx-df.DOLFIN_EPS )) and  on_boundary)
+        return bool(((x[0] < self.R + 1. and
+                      x[0] > df.DOLFIN_EPS) or
+                     (x[0] > self.Lx - self.R - 1. and
+                      x[0] < self.Lx-df.DOLFIN_EPS)) and
+                    on_boundary)
 
 
 class Inner_Narrowing(df.SubDomain):
@@ -50,11 +56,12 @@ class Inner_Narrowing(df.SubDomain):
         df.SubDomain.__init__(self)
 
     def inside(self, x, on_boundary):
-        return bool((x[0] > (self.R + 1.) and x[0] < (self.Lx- self.R - 1.)) and  on_boundary)
+        return bool((x[0] > self.R + 1. and
+                     x[0] < self.Lx - self.R - 1.) and on_boundary)
 
 
 def problem():
-    info_cyan("Electrostatice intrusion in barbell capilar.")
+    info_cyan("Electrostatic intrusion in barbell capillary.")
 
     # Format: name, valency, diffusivity in phase 1, diffusivity in phase
     #         2, beta in phase 1, beta in phase 2
@@ -70,7 +77,7 @@ def problem():
                          V=["Lagrange", 1, False])
 
     factor = 1./4
-    sigma_e =  -10.
+    sigma_e = -10.
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
@@ -109,12 +116,12 @@ def problem():
     return parameters
 
 
-#def constrained_domain(Lx, **namespace):
-    #return PeriodicBoundary(Lx)
+# def constrained_domain(Lx, **namespace):
+#     return PeriodicBoundary(Lx)
 
 
 def mesh(Lx, Ly, res, **namespace):
-    mesh = load_mesh("meshes/roundet_barbell_res" + str(res) + ".h5")
+    mesh = load_mesh("meshes/rounded_barbell_res" + str(res) + ".h5")
     # Check:
     # coords = mesh.coordinates()[:]
     # assert(np.max(coords[:, 0]) == Lx)
@@ -143,7 +150,7 @@ def initialize(Lx, Ly, R,
                     field_to_subspace["phi"])
                 # Only have ions in phase 2 (phi=-1)
                 c_init.vector()[:] = concentration_init*0.5*(
-                    1.-c_init.vector().array())
+                    1.-c_init.vector().get_local())
                 w_init_field[solute[0]] = c_init
 
     return w_init_field
@@ -170,13 +177,15 @@ def create_bcs(Lx, Ly, R,
     bcs_pointwise = dict()
     ground = Fixed(0.)
     noslip = Fixed((0., 0.))
-    phi_inlet = Fixed(-1.0) 
-    phi_outlet = Fixed(1.0) 
+    phi_inlet = Fixed(-1.0)
+    phi_outlet = Fixed(1.0)
 
     if enable_NS:
         bcs["inner_narrowing"]["u"] = noslip
         bcs["outer_narrowing"]["u"] = noslip
-        bcs_pointwise["p"] = (0., "x[0] < DOLFIN_EPS && x[1] > {Ly}-DOLFIN_EPS".format(Ly=Ly))
+        bcs_pointwise["p"] = (
+            0.,
+            "x[0] < DOLFIN_EPS && x[1] > {Ly}-DOLFIN_EPS".format(Ly=Ly))
 
     if enable_EC:
         for solute in solutes:
@@ -184,15 +193,17 @@ def create_bcs(Lx, Ly, R,
         bcs["left"]["V"] = ground
         bcs["outer_narrowing"]["V"] = Charged(0.0)
         bcs["inner_narrowing"]["V"] = Charged(surface_charge)
-    
-    if enable_PF:  
+
+    if enable_PF:
         bcs["left"]["phi"] = phi_inlet
         bcs["right"]["phi"] = phi_outlet
+
     return boundaries, bcs, bcs_pointwise
 
 
 def initial_phasefield(Lx, R, eps, function_space):
-    #expr_str = "2.*((-tanh((x[0]-(1+2*R))/(sqrt(2)*eps))+tanh((x[0]-(Lx-2*R-1))/(sqrt(2)*eps))) +0.5) "
+    # expr_str = ("2.*((-tanh((x[0]-(1+2*R))/(sqrt(2)*eps))"
+    #             "+tanh((x[0]-(Lx-2*R-1))/(sqrt(2)*eps))) +0.5)")
     expr_str = "+tanh((x[0]-(1+2*R))/(sqrt(2)*eps))"
     phi_init_expr = df.Expression(expr_str, Lx=Lx, R=R, eps=eps, degree=2)
     phi_init = df.interpolate(phi_init_expr, function_space.collapse())
@@ -210,22 +221,6 @@ def pf_mobility(phi, gamma):
 def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
                field_to_subproblem, subproblems, w_, **namespace):
     info_blue("Timestep = {}".format(tstep))
-
-    if False and stats_intv and tstep % stats_intv == 0:
-        # GL: Seems like a rather awkward way of doing this,
-        # but any other way seems to fuck up the simulation.
-        # Anyhow, a better idea could be to move some of this to a post-processing stage.
-        # GL: Move into common/utilities at a certain point.
-        subproblem_name, subproblem_i = field_to_subproblem["phi"]
-        Q = w_[subproblem_name].split(deepcopy=True)[subproblem_i]
-        bubble = df.interpolate(Q, field_to_subspace["phi"].collapse())
-        bubble = 0.5*(1.-df.sign(bubble))
-        mass = df.assemble(bubble*df.dx)
-        massy = df.assemble(
-            bubble*df.Expression("x[1]", degree=1)*df.dx)
-        if mpi_is_root():
-            with file(statsfile, "a") as outfile:
-                outfile.write("{} {} {} \n".format(t, mass, massy))
 
 
 def start_hook(newfolder, **namespace):

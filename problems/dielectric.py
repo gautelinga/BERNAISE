@@ -120,8 +120,8 @@ def initialize(Lx, Ly,
                     Ly/2, undulation_amplitude, undulation_periods,
                     interface_thickness, field_to_subspace["phi"])
                 # Only have ions in phase 2 (phi=-1)
-                c_init.vector()[:] = concentration_init*0.5*(
-                    1.-c_init.vector().array())
+                c_init.vector().set_local(
+                    concentration_init*0.5*(1.-c_init.vector().get_local()))
                 # w_init_field[solute[0]] = initial_c(
                 #     Lx/2, 0., Ly/6, concentration_init,
                 #     field_to_subspace[solute[0]].collapse())

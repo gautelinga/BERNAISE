@@ -8,9 +8,9 @@ import glob
 bernaise_path = "/" + os.path.join(*os.path.realpath(__file__).split("/")[:-2])
 # ...and append it to sys.path to get functionality from BERNAISE
 sys.path.append(bernaise_path)
-from generate_mesh import numpy_to_dolfin
+from .generate_mesh import numpy_to_dolfin
 from common import makedirs_safe, info_warning, info_split, info_on_red, \
-    load_parameters, parse_xdmf
+    load_parameters, parse_xdmf, info
 import dolfin as df
 
 
@@ -166,9 +166,9 @@ class TimeSeries:
         x = self.function_space.tabulate_dof_coordinates().reshape(
             (-1, self.dim))
         unowned = dofmap.local_to_global_unowned()
-        dofs = filter(lambda dof: dofmap.local_to_global_index(dof)
-                      not in unowned,
-                      xrange(my_last-my_first))
+        dofs = list(filter(lambda dof: dofmap.local_to_global_index(dof)
+                           not in unowned,
+                           range(my_last-my_first)))
         x = x[dofs]
         return x
 
@@ -340,3 +340,7 @@ class TimeSeries:
         comm.Allreduce(arr_loc, arr, op=MPI.SUM)
 
         return arr
+
+
+if __name__ == "__main__":
+    info("Not intended for standalone use.")
