@@ -76,27 +76,19 @@ def ramp_geometric(phi, A):
 
 # Filters
 def dfabs(a):
-    # return df.sqrt(a*a)
-    return ufl.abs(a)
+    return abs(a)
 
 
 def sign(a):
     return ufl.sign(a)
 
 
-
 def max_value(a, b):
-    # return 0.5*(a+b+dfabs(a-b))
     return ufl.max_value(a, b)
 
 
 def min_value(a, b):
-    # return 0.5*(a+b-dfabs(a-b))
     return ufl.min_value(a, b)
-
-
-def sign(phi):
-    return phi/dfabs(phi)
 
 
 def unit_interval_filter(phi):
