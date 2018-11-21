@@ -23,7 +23,7 @@ from common import parse_command_line, info, info_on_red, \
     remove_safe
 from mpi4py.MPI import COMM_WORLD
 import meshpy.triangle as tri
-from .plot import plot_edges, plot_faces
+from utilities.plot import plot_edges, plot_faces
 import h5py
 from utilities import get_methods, get_help
 
@@ -192,7 +192,7 @@ def call_method(method, methods, scripts_folder, cmd_kwargs):
 def main():
     cmd_kwargs = parse_command_line()
 
-    method = cmd_kwargs.get("mesh", "straight_capilar")
+    method = cmd_kwargs.get("mesh", "straight_capillary")
 
     scripts_folder = "mesh_scripts"
 

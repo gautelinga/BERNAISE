@@ -1,7 +1,7 @@
 import dolfin as df
 import os
 from . import *
-from common.io import mpi_is_root, load_mesh
+from common.io import mpi_is_root, load_mesh, mpi_comm, mpi_is_root
 from common.bcs import Fixed, Charged
 import numpy as np
 __author__ = "Gaute Linga"
@@ -96,11 +96,19 @@ def constrained_domain(Lx, **namespace):
 
 
 def mesh(Lx, Ly, res, **namespace):
-    mesh = load_mesh("meshes/snoevsen_res" + str(res) + ".h5")
+    mesh = load_mesh("meshes/snoevsen_res{}.h5".format(res))
     # Check:
-    # coords = mesh.coordinates()[:]
-    # assert(np.max(coords[:, 0]) == Lx)
-    # assert(np.max(coords[:, 1]) == Ly)
+    coords = mesh.coordinates()[:]
+    import mpi4py.MPI as mpi
+    comm = mpi.COMM_WORLD
+    rank = comm.Get_rank()
+    max_x_loc = coords[:, 0].max()
+    max_y_loc = coords[:, 1].max()
+    max_x = comm.reduce(max_x_loc, op=mpi.MAX, root=0)
+    max_y = comm.reduce(max_y_loc, op=mpi.MAX, root=0)
+    if rank == 0:
+        assert(max_x == Lx)
+        assert(max_y == Ly)
     return mesh
 
 
