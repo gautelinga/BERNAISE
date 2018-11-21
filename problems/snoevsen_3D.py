@@ -79,11 +79,11 @@ def problem():
         stats_intv=5,
         checkpoint_intv=50,
         tstep=0,
-        dt=factor*0.08,
+        dt=factor*0.1,
         t_0=0.,
         T=20.,
         res=48,
-        interface_thickness=factor*0.150,
+        interface_thickness=factor*0.250,
         solutes=solutes,
         base_elements=base_elements,
         Lx=6.,
@@ -93,18 +93,18 @@ def problem():
         r=0.5,
         surface_charge=sigma_e,
         concentration_init=2.,
-        velocity_top=.4,
+        velocity_top=1.0,
         #
         surface_tension=2.45,
         grav_const=0.0,
         grav_dir=[0, 0, 1.],
         #
-        pf_mobility_coeff=factor*0.000010,
-        density=[10., 10.],
+        pf_mobility_coeff=factor*0.000020,
+        density=[1., 1.],
         viscosity=[1., 1.],
         permittivity=[1., 1.],
         use_iterative_solvers=True,
-        solve_initial=False
+        solve_initial=True
     )
     return parameters
 

@@ -39,8 +39,8 @@ def problem():
     info_cyan("Desnotting Snoevsen.")
 
     #         2, beta in phase 1, beta in phase 2
-    solutes = [["c_p",  2, 1e-4, 1e-2, 4., 1.],
-               ["c_m", -2, 1e-4, 1e-2, 4., 1.]]
+    solutes = [["c_p",  1, 1e-4, 1e-2, 4., 1.],
+               ["c_m", -1, 1e-4, 1e-2, 4., 1.]]
 
     # Format: name : (family, degree, is_vector)
     base_elements = dict(u=["Lagrange", 2, True],
@@ -75,7 +75,7 @@ def problem():
         Lx=3.,
         Ly=1.,
         R=0.3,
-        surfacepotential=False,
+        surface_potential=False,
         surface_charge=sigma_e,
         concentration_init=2.,
         velocity_top=.2,
@@ -87,6 +87,7 @@ def problem():
         density=[10., 10.],
         viscosity=[1., 1.],
         permittivity=[1., 1.],
+        use_iterative_solvers=True
     )
     return parameters
 
@@ -142,7 +143,7 @@ def initialize(Lx, Ly, R,
 
 def create_bcs(Lx, Ly,
                velocity_top, solutes,
-               concentration_init, surface_charge,surfacepotential,
+               concentration_init, surface_charge, surface_potential,
                enable_NS, enable_PF, enable_EC,
                **namespace):
     """ The boundaries and boundary conditions are defined here. """
@@ -170,7 +171,7 @@ def create_bcs(Lx, Ly,
         for solute in solutes:
             bcs["top"][solute[0]] = Fixed(concentration_init/abs(solute[1]))
         bcs["top"]["V"] = Fixed(0.)
-        if surfacepotential:
+        if surface_potential:
             bcs["bottom"]["V"] = Fixed(surface_charge)
         else: 
             bcs["bottom"]["V"] = Charged(surface_charge)

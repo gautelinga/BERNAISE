@@ -220,7 +220,7 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
         + 2*mu_*df.inner(df.sym(df.nabla_grad(u)),
                          df.sym(df.nabla_grad(v))) * dx
         - p * df.div(v) * dx
-        - q * df.div(u) * dx
+        + q * df.div(u) * dx
         + df.inner(df.nabla_grad(u), df.outer(mom_1, v)) * dx
         + 0.5 * (per_tau * (rho_ - rho_1) * df.dot(u, v)
                  - df.dot(mom_1, df.nabla_grad(df.dot(u, v)))) * dx
@@ -258,7 +258,8 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
 
     if use_iterative_solvers and use_pressure_stabilization:
         solver.parameters["linear_solver"] = "gmres"
-        # solver.parameters["preconditioner"] = "ilu"
+        #solver.parameters["preconditioner"] = "jacobi"
+        #solver.parameters["preconditioner"] = "ilu"
 
     return solver
 
