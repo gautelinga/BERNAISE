@@ -62,8 +62,8 @@ def problem():
     info_cyan("Desnotting Snoevsen (extruded).")
 
     #         2, beta in phase 1, beta in phase 2
-    solutes = [["c_p",  1, 1e-4, 1e-1, 4., 1.],
-               ["c_m", -1, 1e-4, 1e-1, 4., 1.]]
+    solutes = [["c_p",  1, 1e-4, 1e-2, 4., 1.],
+               ["c_m", -1, 1e-4, 1e-2, 4., 1.]]
 
     # Format: name : (family, degree, is_vector)
     base_elements = dict(u=["Lagrange", 1, True],
@@ -74,7 +74,7 @@ def problem():
                          V=["Lagrange", 1, False])
 
     factor = 1./4
-    sigma_e = -5.0  # 0.
+    sigma_e = -10.0  # 0.
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
@@ -88,11 +88,11 @@ def problem():
         stats_intv=5,
         checkpoint_intv=50,
         tstep=0,
-        dt=factor*0.2,
+        dt=factor*0.05,
         t_0=0.,
         T=100.,
         res=60,
-        interface_thickness=factor*0.080,
+        interface_thickness=factor*0.1,
         solutes=solutes,
         base_elements=base_elements,
         Lx=3.,
@@ -104,14 +104,15 @@ def problem():
         concentration_init=2.,
         velocity_top=0.5,
         #
-        surface_tension=0.5,
+        surface_tension=1.45,
         grav_const=0.0,
         grav_dir=[1., 0., 0.],
         #
         pf_mobility_coeff=factor*0.000010,
         density=[10., 10.],
         viscosity=[1., 1.],
-        permittivity=[1., 2.],
+        permittivity=[1., 1.],
+        #
         use_iterative_solvers=True
     )
     return parameters
@@ -193,7 +194,9 @@ def create_bcs(Lx, Ly, Lz,
         if surface_potential:
             bcs["bottom"]["V"] = Fixed(surface_charge)
         else:
-            bcs["bottom"]["V"] = Charged(surface_charge)
+            charge = df.Expression("q*(1.0+x[1]/Ly)",
+                                   q=surface_charge, Ly=Ly, degree=1)
+            bcs["bottom"]["V"] = Charged(charge)
 
     return boundaries, bcs, bcs_pointwise
 
