@@ -62,8 +62,8 @@ def problem():
     info_cyan("Desnotting Snoevsen (extruded).")
 
     #         2, beta in phase 1, beta in phase 2
-    solutes = [["c_p",  1, 1e-4, 1e-2, 4., 1.],
-               ["c_m", -1, 1e-4, 1e-2, 4., 1.]]
+    solutes = [["c_p",  1, 1e-3, 1e-1, 4., 1.],
+               ["c_m", -1, 1e-3, 1e-1, 4., 1.]]
 
     # Format: name : (family, degree, is_vector)
     base_elements = dict(u=["Lagrange", 1, True],
@@ -97,14 +97,14 @@ def problem():
         base_elements=base_elements,
         Lx=3.,
         Ly=1.,
-        Lz=0.5,
+        Lz=2.5,
         R=0.3,
         surface_potential=False,
         surface_charge=sigma_e,
         concentration_init=2.,
         velocity_top=0.5,
         #
-        surface_tension=1.45,
+        surface_tension=1.0,
         grav_const=0.0,
         grav_dir=[1., 0., 0.],
         #
@@ -127,7 +127,7 @@ def mesh(Lx, Ly, res, **namespace):
     return mesh
 
 
-def initialize(Lx, Ly, R,
+def initialize(Lx, Ly, Lz, R,
                interface_thickness, solutes, restart_folder,
                field_to_subspace,
                concentration_init,
@@ -139,13 +139,13 @@ def initialize(Lx, Ly, R,
         # Phase field
         if enable_PF:
             w_init_field["phi"] = initial_phasefield(
-                Lx/2, 0., R, interface_thickness,
+                Lx/2, 0., Lz/2, 2*R, interface_thickness,
                 field_to_subspace["phi"])
         if enable_EC:
             for solute in solutes:
                 concentration_init_loc = concentration_init/abs(solute[1])
                 c_init = initial_phasefield(
-                    Lx/2, 0., R, interface_thickness,
+                    Lx/2, 0., Lz/2, 2*R, interface_thickness,
                     field_to_subspace["phi"])
                 # Only have ions in phase 2 (phi=-1)
                 c_init.vector()[:] = concentration_init_loc*0.5*(
@@ -201,9 +201,12 @@ def create_bcs(Lx, Ly, Lz,
     return boundaries, bcs, bcs_pointwise
 
 
-def initial_phasefield(x0, y0, R, eps, function_space):
-    expr_str = "-tanh(max(x[1]-y0, sqrt(pow(x[0]-x0, 2))-2*R)/(sqrt(2)*eps))"
-    phi_init_expr = df.Expression(expr_str, x0=x0, y0=y0, R=R,
+def initial_phasefield(x0, y0, z0, R, eps, function_space):
+    expr_str = ("-tanh(max("
+                "sqrt(pow(x[1]-y0+R, 2) + pow(x[2]-z0, 2)) - R, "
+                "sqrt(pow(x[0]-x0, 2))-R)"
+                "/(sqrt(2)*eps))")
+    phi_init_expr = df.Expression(expr_str, x0=x0, y0=y0, z0=z0, R=R,
                                   eps=eps, degree=2)
     phi_init = df.interpolate(phi_init_expr, function_space.collapse())
     return phi_init
