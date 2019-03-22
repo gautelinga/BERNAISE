@@ -1,6 +1,7 @@
 # BERNAISE
  _BERNAISE_ (Binary ElectRohydrodyNAmIc SolvEr) is a flexible high-level solver of electrohydrodynamic flows in complex geometries.
 It is written in Python and built on the FEniCS project, which in turn effectively interfaces to optimized linear algebra backends such as PETSc.
+The solver is described and documented in [our recent paper](https://doi.org/10.3389/fphy.2019.00021).
 
 <p align="center">
     <img src="http://www.nbi.dk/~linga/bernaise/droplet.gif" width=122 height=254 alt="Buoyancy-driven droplet"/>
