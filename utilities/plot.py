@@ -24,11 +24,11 @@ GL 2018-10-28: Consider moving to common.
 
 """
 
-ENABLE_TEX = False
-if ENABLE_TEX:  # Hacked for pretty output
-    from matplotlib import rc
+#ENABLE_TEX = True
+#def ENABLE_TEX():  # Hacked for pretty output
+#    
     # rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
-    rc('text', usetex=True)
+#    rc('text', usetex=True)
 
 rank = comm.Get_rank()
 size = comm.Get_size()
@@ -42,7 +42,7 @@ class Figure:
     def __init__(self, title=None, show=True, aspect_equal=True,
                  save=None, base_fig=None, xlabel="x", ylabel="y",
                  colorbar=True, clabel=None, subplots=False,
-                 tight_layout=False, ticks=True):
+                 tight_layout=False, ticks=True, latex=False):
         self.title = title
         self.show = show
         self.aspect_equal = aspect_equal
@@ -55,6 +55,12 @@ class Figure:
         self.ylabel = tex_escape(ylabel)
         self.tight_layout = tight_layout
         self.ticks = ticks
+        self.latex = latex
+
+        if self.latex and self.base_fig is None:
+            # Must be invoked before base_fig is created
+            from matplotlib import rc
+            rc('text', usetex=True)
 
         if self.base_fig is not None:
             self.fig = self.base_fig
@@ -74,7 +80,7 @@ class Figure:
             plt.ylabel(self.ylabel)
 
         if isinstance(clabel, str):
-            self.clabel = tex_escape(clabel)
+            self.clabel = tex_escape(clabel, self.latex)
         else:
             self.clabel = ""
 
@@ -89,8 +95,8 @@ class Figure:
         #     plt.colorbar(label=self.clabel)
 
         if self.tight_layout:
-            # plt.tight_layout()
-            pass
+            plt.tight_layout()
+            # pass
 
         if self.save is not None:
             # plt.savefig(self.save, bbox_inches="tight", pad_inches=0.)
@@ -102,17 +108,23 @@ class Figure:
             plt.close()
 
 
-def tex_escape(string):
-    return "${}$".format(string)
+def tex_escape(string, latex=False):
+    if " " not in string:
+        return "${}$".format(string)
+    elif latex:
+        return "$\\textrm{" + string + "}$"
+    else:
+        return string
 
 
 def plot_edges(pts, edges, title=None, clabel=None,
-               save=None, show=True):
+               save=None, show=True, latex=False):
     nppts = np.array(pts)
     npedges = np.array(edges)
     lc = LineCollection(nppts[npedges])
 
-    fig = Figure(title=title, clabel=clabel, save=save, show=show)
+    fig = Figure(title=title, clabel=clabel, save=save, show=show,
+                 latex=latex)
     fig.ax.add_collection(lc)
     plt.xlim(nppts[:, 0].min(), nppts[:, 0].max())
     plt.ylim(nppts[:, 1].min(), nppts[:, 1].max())
@@ -121,7 +133,8 @@ def plot_edges(pts, edges, title=None, clabel=None,
 
 
 def plot_faces(coords, faces, face_values=None, title=None,
-               clabel=None, colorbar=True, save=None, show=True):
+               clabel=None, colorbar=True, save=None, show=True,
+               latex=False):
     """ Plot a mesh with values given at faces. """
     if face_values is None:
         colors = np.arange(len(faces))
@@ -129,17 +142,20 @@ def plot_faces(coords, faces, face_values=None, title=None,
     else:
         colors = face_values
     fig = Figure(title=title, clabel=clabel, colorbar=colorbar,
-                 save=save, show=show)
+                 save=save, show=show, latex=latex)
     fig.colorbar_ax = plt.tripcolor(coords[:, 0], coords[:, 1], faces,
                                     facecolors=colors, edgecolors='k')
+    ax = plt.gca()
+    ax.set_xlim([coords[:, 0].min(), coords[:, 0].max()])
+    ax.set_ylim([coords[:, 1].min(), coords[:, 1].max()])
     return fig
 
 
 def plot_contour(nodes, elems, vals,
                  title=None, clabel=None,
-                 save=None, show=True):
+                 save=None, show=True, latex=False):
     """ Contour plot; values given at nodes. """
-    fig = Figure(title=title, clabel=clabel, save=save, show=show)
+    fig = Figure(title=title, clabel=clabel, save=save, show=show, latex=latex)
     fig.colorbar_ax = plt.tricontourf(nodes[:, 0], nodes[:, 1], elems, vals)
     return fig
 
@@ -154,11 +170,11 @@ def plot_probes(nodes, elems, probes, title=None, clabel=None,
 
 
 def plot_quiver(nodes, elems, vals, title=None, clabel=None,
-                save=None, show=True):
+                save=None, show=True, latex=False):
     """ Plots quivers with contour in the background.
     Values given at nodes. """
     fig = Figure(title=title, subplots=True, clabel=clabel,
-                 save=save, show=show)
+                 save=save, show=show, latex=latex)
 
     vals_norm = np.sqrt(vals[:, 0]**2 + vals[:, 1]**2) + 1e-10
     # vals_norm_max = np.max(vals_norm)
@@ -169,11 +185,11 @@ def plot_quiver(nodes, elems, vals, title=None, clabel=None,
 
 
 def plot_streamlines(nodes, elems, vals, title=None, clabel=None,
-                     save=None, show=True, num_intp=200, density=0.8):
+                     save=None, show=True, num_intp=200, density=0.8, latex=False):
     """ Plots streamlines with contour in the background.
     Values given at nodes. """
     fig = Figure(title=title, subplots=True, clabel=clabel,
-                 save=save, show=show)
+                 save=save, show=show, latex=latex)
 
     vals_norm = np.sqrt(vals[:, 0]**2 + vals[:, 1]**2) + 1e-10
     # vals_norm_max = np.max(vals_norm)
@@ -217,15 +233,15 @@ def plot_streamlines(nodes, elems, vals, title=None, clabel=None,
 
 def plot_fancy(nodes, elems, phi=None, charge=None, u=None, charge_max=None,
                show=False, save=None, num_intp=100, title=None, clabel=None,
-               animation_mode=True):
+               animation_mode=True, latex=False):
     """ Plots fancily. """
     if animation_mode:
         fig = Figure(colorbar=False, tight_layout=True, show=show,
-                     xlabel="", ylabel="", save=save, ticks=False)
+                     xlabel="", ylabel="", save=save, ticks=False, latex=latex)
     else:
         fig = Figure(colorbar=True, tight_layout=False, show=show,
                      xlabel=tex_escape("x"), ylabel=tex_escape("y"),
-                     save=save, ticks=True)
+                     save=save, ticks=True, latex=latex)
 
     if phi is None:
         phi = -np.ones(len(nodes))
@@ -306,18 +322,19 @@ def plot_fancy(nodes, elems, phi=None, charge=None, u=None, charge_max=None,
     return fig
 
 
-def plot_any_field(nodes, elems, values, save=None, show=True, label=None):
+def plot_any_field(nodes, elems, values, save=None, show=True, label=None,
+                   latex=False):
     """ Plot using quiver plot or contour plot depending on field. """
     if label is None:
         label = ""
     if values.shape[1] >= 2:
         plot_streamlines(nodes, elems, values[:, :2],
                          title=label, clabel=label, save=save,
-                         show=show)
+                         show=show, latex=latex)
     else:
         plot_contour(nodes, elems, values[:, 0],
                      title=label, clabel=label, save=save,
-                     show=show)
+                     show=show, latex=latex)
 
 
 def zero_level_set(nodes, elems, vals, show=False, save_file=False, num_intp=32):

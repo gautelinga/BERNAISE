@@ -24,16 +24,12 @@ class ChannelSubDomain(df.SubDomain):
 
 class Left(ChannelSubDomain):
     def inside(self, x, on_boundary):
-        return bool(df.near(x[0], 0.0) and
-                    not self.on_wall(x, on_boundary) and
-                    on_boundary)
+        return bool(df.near(x[0], 0.0) and on_boundary)
 
 
 class Right(ChannelSubDomain):
     def inside(self, x, on_boundary):
-        return bool(df.near(x[0], self.Lx) and
-                    not self.on_wall(x, on_boundary) and
-                    on_boundary)
+        return bool(df.near(x[0], self.Lx) and on_boundary)
 
 
 class OuterWall(ChannelSubDomain):
@@ -203,9 +199,12 @@ def start_hook(w_, w_1, test_functions,
                dx, ds, normal,
                dirichlet_bcs, neumann_bcs, boundary_to_mark,
                use_iterative_solvers,
-               V_lagrange, **namespace):
-    from solvers.stable_single import equilibrium_EC
-    info_blue("Equilibrating with a non-linear solver.")
-    equilibrium_EC(**vars())
-    w_1["EC"].assign(w_["EC"])
+               V_lagrange,
+               enable_EC,
+               **namespace):
+    if enable_EC:
+        from solvers.stable_single import equilibrium_EC
+        info_blue("Equilibrating with a non-linear solver.")
+        equilibrium_EC(**vars())
+        w_1["EC"].assign(w_["EC"])
     return dict()

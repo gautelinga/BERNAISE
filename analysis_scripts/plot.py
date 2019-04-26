@@ -9,7 +9,7 @@ def description(ts, **kwargs):
     info("Plot at any given timestep or time using Matplotlib.")
 
 
-def method(ts, time=None, step=0, show=True, save=False, **kwargs):
+def method(ts, time=None, step=0, show=True, save=False, latex=False, **kwargs):
     """ Plot at given timestep using matplotlib. """
     info_cyan("Plotting at given time/step using Matplotlib.")
     if time is not None:
@@ -23,4 +23,5 @@ def method(ts, time=None, step=0, show=True, save=False, **kwargs):
                 save_fig_file = None
 
             plot_any_field(ts.nodes, ts.elems, ts[field, step],
-                           save=save_fig_file, show=show, label=field)
+                           save=save_fig_file, show=show, label=field,
+                           latex=latex)

@@ -2,8 +2,8 @@ import dolfin as df
 import os
 from . import *
 from common.io import mpi_is_root
-from common.bcs import Fixed
-from ufl import sign
+from common.bcs import Fixed, Pressure
+# from ufl import max_value
 __author__ = "Asger Bolet"
 
 
@@ -38,8 +38,8 @@ class Right(df.SubDomain):
 def problem():
     info_cyan("Bulk intrusion of a front of one fluid into another.")
     #         2, beta in phase 1, beta in phase 2
-    solutes = [["c_p",  1, 1., 1., 1., 1.],
-               ["c_m", -1, 1., 1., 1., 1.]]
+    solutes = [["c_p",  1, 1e-4, 1e-2, 4., 1.],
+               ["c_m", -1, 1e-4, 1e-2, 4., 1.]]
 
     # Format: name : (family, degree, is_vector)
     base_elements = dict(u=["Lagrange", 2, True],
@@ -58,7 +58,7 @@ def problem():
         restart_folder=False,
         enable_NS=True,
         enable_PF=True,
-        enable_EC=False,
+        enable_EC=True,
         save_intv=5,
         stats_intv=5,
         checkpoint_intv=50,
@@ -67,29 +67,31 @@ def problem():
         t_0=0.,
         T=20.,
         grid_spacing=factor*1./16,
-        interface_thickness=factor*0.060,
+        interface_thickness=factor*0.030,
         solutes=solutes,
         base_elements=base_elements,
         Lx=5.,
-        Ly=1.,
+        Ly=2.,
         rad_init=0.25,
-        front_position_init=1.,
+        front_position_init=2.4,
+        concentration_left=1.,
         #
-        V_top=1.,
-        V_btm=0.,
         surface_tension=2.45,  # 24.5,
         grav_const=0.0,
-        inlet_velocity=0.1,
+        inlet_velocity=0.0,
+        comoving_velocity=[0.1, 0.0],
+        V_0=10.,
+        friction_coeff=100.,
         #
         pf_mobility_coeff=factor*0.000040,
-        density=[1000., 1000.],
-        viscosity=[1000., 1.],
-        permittivity=[1., 5.],
+        density=[1., 1.],
+        viscosity=[1000., .1],
+        permittivity=[1., 10.],
         #
-        initial_interface="sine",
+        initial_interface="random",
         #
-        use_iterative_solvers=False,
-        use_pressure_stabilization=False
+        use_iterative_solvers=True,
+        use_pressure_stabilization=False,
     )
     return parameters
 
@@ -103,7 +105,7 @@ def mesh(Lx=1, Ly=5, grid_spacing=1./16, **namespace):
 def initialize(Lx, Ly, rad_init,
                interface_thickness, solutes, restart_folder,
                field_to_subspace,
-               inlet_velocity, front_position_init,
+               inlet_velocity, front_position_init, concentration_left,
                enable_NS, enable_PF, enable_EC, initial_interface, **namespace):
     """ Create the initial state.
     The initial states are specified in a dict indexed by field. The format
@@ -129,11 +131,23 @@ def initialize(Lx, Ly, rad_init,
                 front_position_init, Lx/2, rad_init, interface_thickness,
                 field_to_subspace["phi"].collapse(), shape=initial_interface)
 
+        if enable_EC:
+            for solute in solutes:
+                w_init_field[solute[0]] = initial_phasefield(
+                    front_position_init, Lx/2, rad_init, interface_thickness,
+                    field_to_subspace[solute[0]].collapse(),
+                    shape=initial_interface)
+                w_init_field[solute[0]].vector()[:] = \
+                    concentration_left*(
+                        - w_init_field[solute[0]].vector()[:]
+                        + 1.0)/2.0
+
     return w_init_field
 
 
-def create_bcs(Lx, Ly,inlet_velocity,
-         enable_NS, enable_PF, enable_EC, **namespace):
+def create_bcs(Lx, Ly, inlet_velocity, V_0, solutes,
+               concentration_left,
+               enable_NS, enable_PF, enable_EC, **namespace):
     """ The boundaries and boundary conditions are defined here. """
     boundaries = dict(
         right=[Right(Lx)],
@@ -146,19 +160,28 @@ def create_bcs(Lx, Ly,inlet_velocity,
     bcs["left"] = dict()
     bcs["right"] = dict()
 
-    inletvelocity = Fixed((inlet_velocity, 0.))
-    pressurein_out = Fixed(0.0)
+    inlet_velocity = Fixed((inlet_velocity, 0.))
+    #pressurein_out = Pressure(0.0)
     phi_inlet = Fixed(-1.0) 
     phi_outlet = Fixed(1.0) 
+    V_left = Fixed(V_0)
+    V_right = Fixed(0.)
 
-    if enable_NS: 
-        bcs["left"]["u"] = inletvelocity
-        bcs["right"]["p"] = pressurein_out
-        bcs["left"]["p"] = pressurein_out
+    if enable_NS:
+        bcs["left"]["u"] = inlet_velocity
+        bcs["right"]["u"] = inlet_velocity
+        # bcs["left"]["p"] = pressurein_out
+        bcs_pointwise["p"] = (0., "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS")
 
-    if enable_PF:  
+    if enable_PF:
         bcs["left"]["phi"] = phi_inlet
         bcs["right"]["phi"] = phi_outlet
+
+    if enable_EC:
+        bcs["left"]["V"] = V_left
+        bcs["right"]["V"] = V_right
+        for solute in solutes:
+            bcs["left"][solute[0]] = Fixed(concentration_left)
 
     return boundaries, bcs, bcs_pointwise
 
@@ -167,7 +190,24 @@ def initial_phasefield(x0, y0, rad, eps, function_space, shape="flat"):
     if shape == "flat":
         expr_str = "tanh((x[0]-x0)/(sqrt(2)*eps))"
     elif shape == "sine":
-        expr_str = "tanh((x[0]-x0-eps*sin(2*x[1]*pi))/(sqrt(2)*eps))"
+        expr_str = "tanh((x[0]-x0-eps*sin(4*x[1]*pi))/(sqrt(2)*eps))"
+    elif shape == "random":
+        expr_str = ("tanh((x[0]-x0-"
+                    "0.01*sin(1*x[1]*pi+12)+"
+                    "0.01*sin(2*x[1]*pi+1235)+"
+                    "0.01*sin(3*x[1]*pi+1233)+"
+                    "0.01*sin(4*x[1]*pi+623)+"
+                    "0.01*sin(5*x[1]*pi+234)+"
+                    "0.01*sin(6*x[1]*pi+23445)+"
+                    "0.01*sin(7*x[1]*pi+4234)+"
+                    "0.01*sin(8*x[1]*pi+2346)+"
+                    "0.01*sin(9*x[1]*pi+6544)+"
+                    "0.01*sin(10*x[1]*pi+67)+"
+                    "0.01*sin(11*x[1]*pi+234)+"
+                    "0.01*sin(12*x[1]*pi+4525)+"
+                    "0.01*sin(13*x[1]*pi+756)+"
+                    "0.01*sin(14*x[1]*pi+24)"
+                    ")/(sqrt(2)*eps))")
     elif shape == "circle":
         expr_str = ("tanh(sqrt(2)*(sqrt(pow(x[0]-x0,2)" +
                     "+pow(x[1]-y0,2))-rad)/eps)")
@@ -189,28 +229,12 @@ def initial_velocity(inlet_velocity, function_space):
 def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
                field_to_subproblem, subproblems, w_, **namespace):
     info_blue("Timestep = {}".format(tstep))
-    if stats_intv and tstep % stats_intv == 0:
-        # GL: Seems like a rather awkward way of doing this,
-        # but any other way seems to fuck up the simulation.
-        # Anyhow, a better idea could be to move some of this
-        # to a post-processing stage.
-        # GL: Move into common/utilities at a certain point.
-        subproblem_name, subproblem_i = field_to_subproblem["phi"]
-        phi = w_[subproblem_name].split(deepcopy=True)[subproblem_i]
-        bubble = 0.5*(1.-sign(phi))
-        mass = df.assemble(bubble*df.dx)
-        massy = df.assemble(
-            bubble*df.Expression("x[1]", degree=1)*df.dx)
-        if mpi_is_root():
-            with open(statsfile, "a") as outfile:
-                outfile.write("{} {} {} \n".format(t, mass, massy))
-
 
 def pf_mobility(phi, gamma):
     """ Phase field mobility function. """
     # return gamma * (phi**2-1.)**2
     # func = 1.-phi**2
-    # return 0.75 * gamma * 0.5 * (1. + df.sign(func)) * func
+    # return 0.75 * gamma * max_value(func, 0.)
     return gamma
 
 

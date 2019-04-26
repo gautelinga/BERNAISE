@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 
 def description(**kwargs):
-    info("")
+    info("Snoevsen mesh.")
 
 
 def method(L=3., H=1., R=0.3, n_segments=40, res=60, show=False, **kwargs):

@@ -22,7 +22,8 @@ import dolfin as df
 import math
 from common.functions import ramp, dramp, diff_pf_potential_linearised, \
     unit_interval_filter, diff_pf_contact_linearised, pf_potential, alpha
-from common.io import mpi_barrier
+from common.io import mpi_barrier, info_red
+import numpy as np
 from . import *
 from . import __all__
 
@@ -48,7 +49,7 @@ def get_subproblems(base_elements, solutes,
     return subproblems
 
 
-def setup(test_functions, trial_functions,
+def setup(mesh, test_functions, trial_functions,
           w_, w_1,
           ds, dx, normal,
           dirichlet_bcs, neumann_bcs, boundary_to_mark,
@@ -58,20 +59,25 @@ def setup(test_functions, trial_functions,
           surface_tension, dt, interface_thickness,
           grav_const,
           grav_dir,
+          friction_coeff,
           pf_mobility,
           pf_mobility_coeff,
           use_iterative_solvers, use_pressure_stabilization,
+          comoving_velocity,
           p_lagrange,
           q_rhs,
           **namespace):
     """ Set up problem. """
     # Constant
+    dim = mesh.geometry().dim()
     sigma_bar = surface_tension*3./(2*math.sqrt(2))
     per_tau = df.Constant(1./dt)
-    grav = df.Constant(tuple([grav_const*e for e in grav_dir]))
+    grav = df.Constant(tuple(grav_const*np.array(grav_dir[:dim])))
     gamma = pf_mobility_coeff
     eps = interface_thickness
-
+    fric = df.Constant(friction_coeff)
+    u_comoving = df.Constant(tuple(comoving_velocity[:dim]))
+    
     # Navier-Stokes
     u_ = p_ = None
     u_1 = p_1 = None
@@ -151,7 +157,7 @@ def setup(test_functions, trial_functions,
     solvers = dict()
     if enable_PF:
         solvers["PF"] = setup_PF(w_["PF"], phi, g, psi, h,
-                                 dx, ds,
+                                 dx, ds, normal,
                                  dirichlet_bcs["PF"], neumann_bcs,
                                  boundary_to_mark,
                                  phi_1, u_1, M_1, c_1, V_1,
@@ -161,7 +167,7 @@ def setup(test_functions, trial_functions,
 
     if enable_EC:
         solvers["EC"] = setup_EC(w_["EC"], c, V, b, U, rho_e,
-                                 dx, ds,
+                                 dx, ds, normal,
                                  dirichlet_bcs["EC"], neumann_bcs,
                                  boundary_to_mark,
                                  c_1, u_1, K_, veps_, phi_flt_,
@@ -181,7 +187,9 @@ def setup(test_functions, trial_functions,
                                  c_, V_,
                                  c_1, V_1,
                                  dbeta, solutes,
-                                 per_tau, drho, sigma_bar, eps, dveps, grav,
+                                 per_tau, drho, sigma_bar, eps, dveps,
+                                 grav, fric,
+                                 u_comoving,
                                  enable_PF, enable_EC,
                                  use_iterative_solvers,
                                  use_pressure_stabilization,
@@ -197,7 +205,8 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
              c_, V_,
              c_1, V_1,
              dbeta, solutes,
-             per_tau, drho, sigma_bar, eps, dveps, grav,
+             per_tau, drho, sigma_bar, eps, dveps, grav, fric,
+             u_comoving,
              enable_PF, enable_EC,
              use_iterative_solvers, use_pressure_stabilization,
              p_lagrange,
@@ -211,12 +220,13 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
     #     + df.div(u)*q*dx
     #     - df.dot(rho_*grav, v)*dx
     # )
-    mom_1 = rho_1*u_1
+    mom_1 = rho_1*(u_1 + u_comoving)
     if enable_PF:
         mom_1 += -M_*drho * df.nabla_grad(g_)
 
     F = (
         per_tau * rho_1 * df.dot(u - u_1, v) * dx
+        + fric*mu_*df.dot(u + u_comoving, v) * dx
         + 2*mu_*df.inner(df.sym(df.nabla_grad(u)),
                          df.sym(df.nabla_grad(v))) * dx
         - p * df.div(v) * dx
@@ -225,14 +235,16 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
         + 0.5 * (per_tau * (rho_ - rho_1) * df.dot(u, v)
                  - df.dot(mom_1, df.nabla_grad(df.dot(u, v)))) * dx
         - rho_*df.dot(grav, v) * dx
+        - mu_ * df.dot(df.nabla_grad(u)*normal, v) * df.ds
     )
     for boundary_name, slip_length in neumann_bcs["u"].items():
         F += 1./slip_length * \
              df.dot(u, v) * ds(boundary_to_mark[boundary_name])
 
     for boundary_name, pressure in neumann_bcs["p"].items():
-        F += pressure * df.inner(
-            normal, v) * ds(boundary_to_mark[boundary_name])
+        F += pressure * df.dot(normal, v) * ds(boundary_to_mark[boundary_name])
+    #          - 2*mu_*df.dot(df.dot(df.sym(df.nabla_grad(u)), v),
+    #                         normal)) * ds(boundary_to_mark[boundary_name])
 
     if enable_PF:
         F += phi_*df.dot(df.nabla_grad(g_), v)*dx
@@ -265,7 +277,7 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
 
 
 def setup_PF(w_PF, phi, g, psi, h,
-             dx, ds,
+             dx, ds, normal,
              dirichlet_bcs, neumann_bcs, boundary_to_mark,
              phi_1, u_1, M_1, c_1, V_1,
              per_tau, sigma_bar, eps,
@@ -278,7 +290,8 @@ def setup_PF(w_PF, phi, g, psi, h,
     F_phi = (per_tau*(phi-unit_interval_filter(phi_1))*psi*dx +
              M_1*df.dot(df.grad(g), df.grad(psi))*dx)
     if enable_NS:
-        F_phi += -phi*df.dot(u_1, df.grad(psi))*dx
+        F_phi += - phi*df.dot(u_1, df.grad(psi))*dx \
+                 + phi*psi*df.dot(u_1, normal)*df.ds
         # F_phi += df.div(phi*u_1)*psi*dx
     F_g = (g*h*dx
            - sigma_bar*eps*df.dot(df.nabla_grad(phi), df.nabla_grad(h))*dx
@@ -313,7 +326,7 @@ def setup_PF(w_PF, phi, g, psi, h,
 
 
 def setup_EC(w_EC, c, V, b, U, rho_e,
-             dx, ds,
+             dx, ds, normal,
              dirichlet_bcs, neumann_bcs, boundary_to_mark,
              c_1, u_1, K_, veps_, phi_,
              solutes,
@@ -323,18 +336,21 @@ def setup_EC(w_EC, c, V, b, U, rho_e,
              q_rhs):
     """ Set up electrochemistry subproblem. """
     F_c = []
-    for ci, ci_1, bi, Ki_, zi, dbetai, solute in zip(c, c_1, b, K_, z, dbeta, solutes):
+    for ci, ci_1, bi, Ki_, zi, dbetai, solute in zip(
+            c, c_1, b, K_, z, dbeta, solutes):
         F_ci = (per_tau*(ci-ci_1)*bi*dx +
                 Ki_*df.dot(df.nabla_grad(ci), df.nabla_grad(bi))*dx)
         if zi != 0:
             F_ci += Ki_*zi*ci_1*df.dot(df.nabla_grad(V), df.nabla_grad(bi))*dx
 
         if enable_PF:
-            F_ci += Ki_*ci*dbetai*df.dot(df.nabla_grad(phi_), df.nabla_grad(bi))*dx
+            F_ci += Ki_*ci*dbetai*df.dot(df.nabla_grad(phi_),
+                                         df.nabla_grad(bi))*dx
 
         if enable_NS:
             # F_ci += df.div(ci*u_1)*bi*dx
-            F_ci += - ci*df.dot(u_1, df.grad(bi))*dx
+            F_ci += - ci*df.dot(u_1, df.grad(bi))*dx \
+                    + ci*bi*df.dot(u_1, normal)*df.ds
 
         if solute[0] in q_rhs:
             F_ci += - q_rhs[solute[0]]*bi*dx

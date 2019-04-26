@@ -14,7 +14,8 @@ __license__ = "MIT"
 __all__ = ["mpi_is_root", "makedirs_safe", "load_parameters",
            "dump_parameters", "create_initial_folders",
            "save_solution", "save_checkpoint", "load_checkpoint",
-           "load_mesh", "remove_safe", "parse_xdmf"]
+           "load_mesh", "remove_safe", "parse_xdmf",
+           "get_mesh_max", "get_mesh_min"]
 
 
 def mpi_is_root():
@@ -28,7 +29,8 @@ def mpi_barrier():
 
 
 def mpi_comm():
-    if df.__version__ == "2018.1.0":
+    if int(df.__version__.split(".")[0]) >= 2018:
+        # Consider removing support for earlier versions.
         return MPI.comm_world
     return df.mpi_comm_world()
 
@@ -253,3 +255,21 @@ def parse_xdmf(xml_file, get_mesh_address=False):
     if get_mesh_address and topology_found and geometry_found:
         return (dsets, topology_address, geometry_address)
     return dsets
+
+
+def get_mesh_max(mesh, dim):
+    coords = mesh.coordinates()[:]
+    comm = mpi4py.MPI.COMM_WORLD
+    max_x_loc = coords[:, dim].max()
+    max_x = comm.reduce(max_x_loc, op=mpi4py.MPI.MAX, root=0)
+    max_x_loc = comm.bcast(max_x, root=0)
+    return max_x_loc
+
+
+def get_mesh_min(mesh, dim):
+    coords = mesh.coordinates()[:]
+    comm = mpi4py.MPI.COMM_WORLD
+    min_x_loc = coords[:, dim].min()
+    min_x = comm.reduce(min_x_loc, op=mpi4py.MPI.MIN, root=0)
+    min_x_loc = comm.bcast(min_x, root=0)
+    return min_x_loc

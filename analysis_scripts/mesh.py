@@ -2,15 +2,16 @@
 from common import info, info_cyan
 import dolfin as df
 from postprocess import rank
-from utilities.plot import plot_faces
+from utilities.plot import plot_faces, plot_any_field
 import os
+import numpy as np
 
 
 def description(ts, **kwargs):
     info("Mesh info and plot.")
 
 
-def method(ts, show=True, save_fig=False, **kwargs):
+def method(ts, show=True, save_fig=False, latex=False, **kwargs):
     """ Mesh info and plot. """
     info_cyan("Mesh info and plot.")
     f = df.Function(ts.function_space)
@@ -29,4 +30,4 @@ def method(ts, show=True, save_fig=False, **kwargs):
                                          "mesh.png")
 
         plot_faces(ts.nodes, ts.elems, title="Mesh",
-                   save=save_fig_file, show=show)
+                   save=save_fig_file, show=show, latex=latex)
