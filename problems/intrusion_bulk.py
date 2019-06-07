@@ -4,7 +4,7 @@ from . import *
 from common.io import mpi_is_root
 from common.bcs import Fixed, Pressure
 # from ufl import max_value
-__author__ = "Asger Bolet"
+__author__ = "Asger Bolet; Gaute Linga"
 
 
 class PeriodicBoundary(df.SubDomain):
@@ -49,7 +49,7 @@ def problem():
                          c=["Lagrange", 1, False],
                          V=["Lagrange", 1, False])
 
-    factor = 1./2.
+    factor = 1.
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
@@ -78,8 +78,8 @@ def problem():
         #
         surface_tension=2.45,  # 24.5,
         grav_const=0.0,
-        inlet_velocity=0.0,
-        comoving_velocity=[0.1, 0.0],
+        inlet_velocity=0.1,
+        comoving_velocity=[0.0, 0.0],
         V_0=10.,
         friction_coeff=100.,
         #
