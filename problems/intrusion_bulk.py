@@ -81,7 +81,7 @@ def problem():
         inlet_velocity=0.1,
         comoving_velocity=[0.0, 0.0],
         V_0=10.,
-        friction_coeff=100.,
+        friction_coeff=0*100.,
         #
         pf_mobility_coeff=factor*0.000040,
         density=[1., 1.],
@@ -162,8 +162,8 @@ def create_bcs(Lx, Ly, inlet_velocity, V_0, solutes,
 
     inlet_velocity = Fixed((inlet_velocity, 0.))
     #pressurein_out = Pressure(0.0)
-    phi_inlet = Fixed(-1.0) 
-    phi_outlet = Fixed(1.0) 
+    phi_inlet = Fixed(-1.0)
+    phi_outlet = Fixed(1.0)
     V_left = Fixed(V_0)
     V_right = Fixed(0.)
 

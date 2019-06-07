@@ -315,7 +315,7 @@ def setup_PF(w_PF, phi, g, psi, h,
     F = F_phi + F_g
     a, L = df.lhs(F), df.rhs(F)
 
-    problem = df.LinearVariationalProblem(a, L, w_PF)
+    problem = df.LinearVariationalProblem(a, L, w_PF, dirichlet_bcs)
     solver = df.LinearVariationalSolver(problem)
 
     if use_iterative_solvers:
