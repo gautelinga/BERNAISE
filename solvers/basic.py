@@ -377,11 +377,14 @@ def setup_EC(w_EC, c, V, b, U, rho_e,
     return solver
 
 
-def solve(w_, solvers, enable_PF, enable_EC, enable_NS, **namespace):
+def solve(w_, solvers, enable_PF, enable_EC, enable_NS,
+          freeze_NSPF, **namespace):
     """ Solve equations. """
     timer_outer = df.Timer("Solve system")
     for subproblem, enable in zip(["PF", "EC", "NS"],
-                                  [enable_PF, enable_EC, enable_NS]):
+                                  [enable_PF and not freeze_NSPF,
+                                   enable_EC,
+                                   enable_NS and not freeze_NSPF]):
         if enable:
             timer_inner = df.Timer("Solve subproblem " + subproblem)
             mpi_barrier()
@@ -392,7 +395,8 @@ def solve(w_, solvers, enable_PF, enable_EC, enable_NS, **namespace):
 
 
 def update(t, dt, w_, w_1, bcs, bcs_pointwise,
-           enable_PF, enable_EC, enable_NS, q_rhs, **namespace):
+           enable_PF, enable_EC, enable_NS, q_rhs,
+           freeze_NSPF, **namespace):
     """ Update work variables at end of timestep. """
     # Update the time-dependent source terms
     for qi in q_rhs.values():
@@ -405,7 +409,9 @@ def update(t, dt, w_, w_1, bcs, bcs_pointwise,
 
     # Update fields
     for subproblem, enable in zip(["PF", "EC", "NS"],
-                                  [enable_PF, enable_EC, enable_NS]):
+                                  [enable_PF and not freeze_NSPF,
+                                   enable_EC,
+                                   enable_NS and not freeze_NSPF]):
         if enable:
             w_1[subproblem].assign(w_[subproblem])
 

@@ -59,7 +59,7 @@ def problem():
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
         solver="basic",
-        folder="results_charge_wall",
+        folder="results_charged_wall",
         restart_folder=False,
         enable_NS=True,
         enable_PF=False,

@@ -61,7 +61,8 @@ parameters = dict(
     save_intv=5,
     checkpoint_intv=50,
     stat_intv=5,
-    solve_initial=False
+    solve_initial=False,
+    freeze_NSPF=False
 )
 
 
