@@ -149,6 +149,7 @@ for i, (boundary_name, markers) in enumerate(boundaries.items()):
     boundary_to_mark[boundary_name] = i+1
     mark_to_boundary[i] = boundary_name
 
+# Subdomains check
 if dump_subdomains:
     subdomains_xdmf = df.XDMFFile("subdomains_dump.xdmf")
     subdomains_xdmf.write(subdomains)

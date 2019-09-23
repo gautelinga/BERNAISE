@@ -7,9 +7,6 @@ from common.functions import max_value, sign
 __author__ = "Gaute Linga"
 
 
-info_cyan("Welcome to the simple problem!")
-
-
 class PeriodicBoundary(df.SubDomain):
     # Left boundary is target domain
     def __init__(self, Lx):
@@ -39,6 +36,8 @@ class Bottom(df.SubDomain):
 
 
 def problem():
+    info_cyan("Welcome to the simple problem!")
+    
     # Define solutes
     # Format: name, valency, diffusivity in phase 1, diffusivity in phase
     #         2, beta in phase 1, beta in phase 2
@@ -46,14 +45,14 @@ def problem():
                ["c_m", -1, 1., 1., 1., 1.]]
 
     # Format: name : (family, degree, is_vector)
-    base_elements = dict(u=["Lagrange", 1, True],
+    base_elements = dict(u=["Lagrange", 2, True],
                          p=["Lagrange", 1, False],
                          phi=["Lagrange", 1, False],
                          g=["Lagrange", 1, False],
                          c=["Lagrange", 1, False],
                          V=["Lagrange", 1, False])
 
-    factor = 1./2.
+    factor = 1./4. # 1./2.
 
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(

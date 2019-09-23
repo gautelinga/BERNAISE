@@ -3,7 +3,8 @@ import os
 from . import *
 from common.io import mpi_is_root, load_mesh
 from common.bcs import Fixed, Pressure, NoSlip
-# from ufl import max_value
+#
+from ufl import max_value
 __author__ = "Gaute Linga"
 
 
@@ -57,8 +58,9 @@ class Cylinder(df.SubDomain):
 def problem():
     info_cyan("Flow around cylinder benchmark.")
     #         2, beta in phase 1, beta in phase 2
-    solutes = [["c_p",  1, 1e-4, 1e-2, 4., 1.],
-               ["c_m", -1, 1e-4, 1e-2, 4., 1.]]
+    #solutes = [["c_p",  1, 1e-4, 1e-2, 4., 1.],
+    #           ["c_m", -1, 1e-4, 1e-2, 4., 1.]]
+    solutes = [["c_p",  0, 1e-3, 1e-2, 4., 1.]]
 
     # Format: name : (family, degree, is_vector)
     base_elements = dict(u=["Lagrange", 2, True],
@@ -68,23 +70,25 @@ def problem():
                          c=["Lagrange", 1, False],
                          V=["Lagrange", 1, False])
 
+    factor = 2
+    
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
         solver="basic",
         folder="results_flow_around_cylinder",
         restart_folder=False,
         enable_NS=True,
-        enable_PF=False,
+        enable_PF=True,
         enable_EC=False,
         save_intv=5,
         stats_intv=5,
         checkpoint_intv=50,
         tstep=0,
-        dt=0.02,
+        dt=0.015/factor,
         t_0=0.,
         T=8.,
-        res=96,
-        interface_thickness=0.030,
+        res=factor*96,
+        interface_thickness=0.015/factor,
         solutes=solutes,
         base_elements=base_elements,
         L=2.2,
@@ -94,12 +98,12 @@ def problem():
         R=0.05,
         concentration_left=1.,
         #
-        surface_tension=2.45,  # 24.5,
+        surface_tension=.04,  # 24.5,
         grav_const=0.0,
         inlet_velocity=1.5,
-        V_0=1.,
+        V_0=0.,
         #
-        pf_mobility_coeff=0.000040,
+        pf_mobility_coeff=0.0020,
         density=[1., 1.],
         viscosity=[1e-3, 1e-3],
         permittivity=[1., 1.],
@@ -141,11 +145,11 @@ def initialize(L, H, R,
                 subspace = field_to_subspace["u"]
             u_init = velocity_init(L, H, inlet_velocity)
             w_init_field["u"] = df.interpolate(u_init, subspace)
-    #     # Phase field
-    #     if enable_PF:
-    #         w_init_field["phi"] = initial_phasefield(
-    #             front_position_init, Lx/2, rad_init, interface_thickness,
-    #             field_to_subspace["phi"].collapse(), shape=initial_interface)
+        # Phase field
+        if enable_PF:
+            w_init_field["phi"] = df.interpolate(
+                df.Constant(1.),
+                field_to_subspace["phi"].collapse())
 
     #     if enable_EC:
     #         for solute in solutes:
@@ -164,6 +168,7 @@ def initialize(L, H, R,
 def create_bcs(L, H, inlet_velocity,
                V_0, solutes,
                concentration_left,
+               interface_thickness,
                enable_NS, enable_PF, enable_EC, **namespace):
     """ The boundaries and boundary conditions are defined here. """
     boundaries = dict(
@@ -181,32 +186,34 @@ def create_bcs(L, H, inlet_velocity,
 
     velocity_expr = velocity_init(L, H, inlet_velocity)
     velocity_in = Fixed(velocity_expr)
-    pressure_in = Pressure(0.0)
+    pressure_out = Pressure(0.0)
     noslip = NoSlip()
-    
-    phi_inlet = Fixed(-1.0)
-    phi_outlet = Fixed(1.0)
+
     V_left = Fixed(V_0)
     V_right = Fixed(0.)
 
     if enable_NS:
         bcs["left"]["u"] = velocity_in
-        bcs["right"]["u"] = velocity_in
-        #bcs["left"]["p"] = pressure_in
+        bcs["right"]["p"] = pressure_out
         bcs["wall"]["u"] = noslip
         bcs["cylinder"]["u"] = noslip
-        bcs_pointwise["p"] = (
-            0., "x[0] < 100*DOLFIN_EPS && x[1] < 100*DOLFIN_EPS")
 
     if enable_PF:
+        phi_expr = df.Expression(
+            "tanh((abs(x[1]-H/2)-H/16)/(sqrt(2)*eps))",
+            H=H, eps=interface_thickness,
+            degree=2)
+        phi_inlet = Fixed(phi_expr)
         bcs["left"]["phi"] = phi_inlet
-        bcs["right"]["phi"] = phi_outlet
+        # bcs["right"]["phi"] = Fixed(df.Constant(1.))
 
     if enable_EC:
         bcs["left"]["V"] = V_left
         bcs["right"]["V"] = V_right
         for solute in solutes:
-            bcs["left"][solute[0]] = Fixed(concentration_left)
+            c_expr = df.Expression("c0*exp(-pow(x[1]-H/2, 2)/(2*0.01*0.01))",
+                                   H=H, c0=concentration_left, degree=2)
+            bcs["left"][solute[0]] = Fixed(c_expr)
 
     return boundaries, bcs, bcs_pointwise
 
@@ -233,7 +240,7 @@ def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,
 def pf_mobility(phi, gamma):
     """ Phase field mobility function. """
     # return gamma * (phi**2-1.)**2
-    # func = 1.-phi**2
+    # func = 1.-phi**2 + 0.0001
     # return 0.75 * gamma * max_value(func, 0.)
     return gamma
 

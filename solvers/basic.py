@@ -232,19 +232,22 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
         - p * df.div(v) * dx
         + q * df.div(u) * dx
         + df.inner(df.nabla_grad(u), df.outer(mom_1, v)) * dx
-        + 0.5 * (per_tau * (rho_ - rho_1) * df.dot(u, v)
-                 - df.dot(mom_1, df.nabla_grad(df.dot(u, v)))) * dx
+        + 0.5 * (per_tau * (rho_ - rho_1) * df.dot(u, v) * dx
+                 + df.dot(normal, mom_1)*df.dot(u, v) * df.ds
+                 - df.dot(mom_1, df.nabla_grad(df.dot(u, v))) * dx)
         - rho_*df.dot(grav, v) * dx
-        - mu_ * df.dot(df.nabla_grad(u)*normal, v) * df.ds
+        # - mu_ * df.dot(df.nabla_grad(u)*normal, v) * df.ds
     )
     for boundary_name, slip_length in neumann_bcs["u"].items():
         F += 1./slip_length * \
              df.dot(u, v) * ds(boundary_to_mark[boundary_name])
 
     for boundary_name, pressure in neumann_bcs["p"].items():
-        F += pressure * df.dot(normal, v) * ds(boundary_to_mark[boundary_name])
-    #          - 2*mu_*df.dot(df.dot(df.sym(df.nabla_grad(u)), v),
-    #                         normal)) * ds(boundary_to_mark[boundary_name])
+        F += pressure * df.dot(normal, v) * ds(
+            boundary_to_mark[boundary_name]) \
+            - 2*mu_*df.dot(
+                df.sym(df.nabla_grad(u))*normal,
+                v) * ds(boundary_to_mark[boundary_name])
 
     if enable_PF:
         F += phi_*df.dot(df.nabla_grad(g_), v)*dx
@@ -252,8 +255,9 @@ def setup_NS(w_NS, u, p, v, q, p0, q0,
     if enable_EC:
         for ci_, ci_1, dbetai, solute in zip(c_, c_1, dbeta, solutes):
             zi = solute[1]
-            F += df.dot(df.grad(ci_), v)*dx \
-                + zi*ci_1*df.dot(df.grad(V_), v)*dx
+            F += df.dot(df.grad(ci_), v)*dx
+            if zi != 0:
+                F += zi*ci_1*df.dot(df.grad(V_), v)*dx
             if enable_PF:
                 F += ci_*dbetai*df.dot(df.grad(phi_), v)*dx
 
@@ -291,7 +295,8 @@ def setup_PF(w_PF, phi, g, psi, h,
              M_1*df.dot(df.grad(g), df.grad(psi))*dx)
     if enable_NS:
         F_phi += - phi*df.dot(u_1, df.grad(psi))*dx \
-                 + phi*psi*df.dot(u_1, normal)*df.ds
+                 + phi*psi*df.dot(u_1, normal)*df.ds \
+                 - M_1*psi*df.dot(df.grad(phi), normal)*df.ds
         # F_phi += df.div(phi*u_1)*psi*dx
     F_g = (g*h*dx
            - sigma_bar*eps*df.dot(df.nabla_grad(phi), df.nabla_grad(h))*dx
@@ -302,16 +307,18 @@ def setup_PF(w_PF, phi, g, psi, h,
     if enable_EC:
         F_g += (-sum([dbeta_i*ci_1*h*dx
                       for dbeta_i, ci_1 in zip(dbeta, c_1)])
-                + 0.5*dveps*df.dot(df.nabla_grad(V_1), df.nabla_grad(V_1))*h*dx)
+                + 0.5*dveps*df.dot(df.nabla_grad(V_1),
+                                   df.nabla_grad(V_1))*h*dx)
 
     for boundary_name, costheta in neumann_bcs["phi"].items():
         fw_prime = diff_pf_contact_linearised(phi, unit_interval_filter(phi_1))
         # Should be just surface tension!
-        F_g += sigma_bar*costheta*fw_prime*h*ds(boundary_to_mark[boundary_name])
+        F_g += sigma_bar*costheta*fw_prime*h*ds(
+            boundary_to_mark[boundary_name])
 
-    if "phi" in q_rhs:        
+    if "phi" in q_rhs:       
         F_phi += -q_rhs["phi"]*psi*dx
-    
+
     F = F_phi + F_g
     a, L = df.lhs(F), df.rhs(F)
 

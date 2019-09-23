@@ -316,16 +316,17 @@ class TimeSeries:
 
     def compute_charge(self):
         """ Computing charge datasets by summing over all species. """
-        solutes = self.get_parameter("solutes")
-        charge_datasets = []
-        for step in range(len(self)):
-            charge_loc = np.zeros_like(self[solutes[0][0], step])
-            for solute in solutes:
-                field = solute[0]
-                z = solute[1]
-                charge_loc[:, :] += z*self[field, step]
-            charge_datasets.append(charge_loc)
-        self.add_field("charge", charge_datasets)
+        if self.get_parameter("enable_EC"):
+            solutes = self.get_parameter("solutes")
+            charge_datasets = []
+            for step in range(len(self)):
+                charge_loc = np.zeros_like(self[solutes[0][0], step])
+                for solute in solutes:
+                    field = solute[0]
+                    z = solute[1]
+                    charge_loc[:, :] += z*self[field, step]
+                charge_datasets.append(charge_loc)
+            self.add_field("charge", charge_datasets)
 
     def nodal_values(self, f):
         """ Convert dolfin function to nodal values. """
