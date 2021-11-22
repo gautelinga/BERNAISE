@@ -4,20 +4,20 @@ It is written in Python and built on the FEniCS project, which in turn effective
 The solver is described and documented in [our recent paper](https://doi.org/10.3389/fphy.2019.00021).
 
 <p align="center">
-    <img src="http://www.nbi.dk/~linga/bernaise/droplet.gif" width=122 height=254 alt="Buoyancy-driven droplet"/>
+    <img src="https://www.gautelinga.com/bernaise/droplet.gif" width=122 height=254 alt="Buoyancy-driven droplet"/>
     <br /><b>Buoyancy-driven droplet.</b>
 </p>
 <p align="center">
-    <img src="http://www.nbi.dk/~linga/bernaise/charged_droplets.gif" width=264 height=87 alt="Colliding oppositely charged droplets"/><br />
+    <img src="https://www.gautelinga.com/bernaise/charged_droplets.gif" width=264 height=87 alt="Colliding oppositely charged droplets"/><br />
     <b>Two colliding oppositely charged droplets.</b> Red: positive charge, blue: negative charge.
 </p>
 <p align="center">
-    <img src="http://www.nbi.dk/~linga/bernaise/dielectric_faster.gif" width=192 height=192 alt="Two-phase dielectricum."/><br />
+    <img src="https://www.gautelinga.com/bernaise/dielectric_faster.gif" width=192 height=192 alt="Two-phase dielectricum."/><br />
     <b>Two-phase dielectricum/capacitor.</b> Red: positive charge, blue: negative charge. Top: negative surface charge, bottom: positive surface charge.
 </p>
 <p align="center">
-    <img src="http://www.nbi.dk/~linga/bernaise/snoevsen.gif" width=250 height=140 alt="Snøvsen."/>
-    <img src="http://www.nbi.dk/~linga/bernaise/snoevsen_neutral.gif" width=250 height=140 alt="Snøvsen, neutral."/><br />
+    <img src="https://www.gautelinga.com/bernaise/snoevsen.gif" width=250 height=140 alt="Snøvsen."/>
+    <img src="https://www.gautelinga.com/snoevsen_neutral.gif" width=250 height=140 alt="Snøvsen, neutral."/><br />
     <b>Enhanced oil recovery</b> by application of a surface charge to the pore wall, and ions dissolved in the water phase.
     The color indicates the charge.
     The flow is driven by a constant velocity at the top (Couette flow).
@@ -27,14 +27,14 @@ The solver is described and documented in [our recent paper](https://doi.org/10.
 </p>
 
 <p align="center">
-    <img src="http://www.nbi.dk/~linga/bernaise/hourglass_pore/p0cm10.gif" width=262 height=87 alt="Hourglass with surface charge and zero bias pressure"/>
-    <img src="http://www.nbi.dk/~linga/bernaise/hourglass_pore/p5cm10.gif" width=262 height=87 alt="Hourglass with surface charge and small bias pressure"/>
-    <img src="http://www.nbi.dk/~linga/bernaise/hourglass_pore/p50cm10.gif" width=262 height=87 alt="Hourglass with surface charge and large bias pressure"/><br />
+    <img src="https://www.gautelinga.com/hourglass_pore/p0cm10.gif" width=262 height=87 alt="Hourglass with surface charge and zero bias pressure"/>
+    <img src="https://www.gautelinga.com/hourglass_pore/p5cm10.gif" width=262 height=87 alt="Hourglass with surface charge and small bias pressure"/>
+    <img src="https://www.gautelinga.com/hourglass_pore/p50cm10.gif" width=262 height=87 alt="Hourglass with surface charge and large bias pressure"/><br />
 </p>
 <p align="center">
-    <img src="http://www.nbi.dk/~linga/bernaise/hourglass_pore/p0c0.gif" width=262 height=87 alt="Hourglass without  surface charge and zero bias pressure"/>
-    <img src="http://www.nbi.dk/~linga/bernaise/hourglass_pore/p5c0.gif" width=262 height=87 alt="Hourglass without surface charge and small bias pressure"/>
-    <img src="http://www.nbi.dk/~linga/bernaise/hourglass_pore/p50c0.gif" width=262 height=87 alt="Hourglass without surface charge and large bias pressure"/><br />
+    <img src="https://www.gautelinga.com/bernaise/hourglass_pore/p0c0.gif" width=262 height=87 alt="Hourglass without  surface charge and zero bias pressure"/>
+    <img src="https://www.gautelinga.com/bernaise/hourglass_pore/p5c0.gif" width=262 height=87 alt="Hourglass without surface charge and small bias pressure"/>
+    <img src="https://www.gautelinga.com/bernaise/hourglass_pore/p50c0.gif" width=262 height=87 alt="Hourglass without surface charge and large bias pressure"/><br />
     <b>Enhanced oil recovery</b> in a pore throat by application of a surface charge to the pore wall, and ions dissolved in the water phase.
     The color indicates the charge (as above).
     In the four figures to the right, the flow is driven by a pressure difference; in the two to the left there is zero pressure difference between the two sides.
@@ -43,7 +43,7 @@ The solver is described and documented in [our recent paper](https://doi.org/10.
 </p>
 
 <p align="center">
-    <img src="http://www.nbi.dk/~linga/bernaise/flipper.gif" width=197 height=165 alt="A dolphin being cleaned from oil spill."/><br />
+    <img src="https://www.gautelinga.com/bernaise/flipper.gif" width=197 height=165 alt="A dolphin being cleaned from oil spill."/><br />
     <b>Animal decontamination:</b> A dolphin initially immersed in oil is fully cleaned by the application of surface charge to the dolphin's skin, and ions in the water.
     Red: positive charge, blue: negative charge.
 </p>
