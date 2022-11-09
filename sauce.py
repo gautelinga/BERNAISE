@@ -3,9 +3,10 @@ This is the main module for running the BERNAISE code.
 More specific info will follow in a later commit.
 """
 import dolfin as df
-from common.cmd import parse_command_line, help_menu
-from common.io import create_initial_folders, load_checkpoint, save_solution, \
-    load_parameters, load_mesh
+
+from common.cmd import help_menu, parse_command_line
+from common.io import (create_initial_folders, load_checkpoint, load_mesh,
+                       load_parameters, save_solution)
 
 __author__ = "Gaute Linga"
 
@@ -31,8 +32,7 @@ vars().update(import_problem_hook(**vars()))
 # again from command line arguments.
 if restart_folder:
     info_red("Loading parameters from checkpoint.")
-    load_parameters(parameters, os.path.join(
-        restart_folder, "parameters.dat"))
+    load_parameters(parameters, os.path.join(restart_folder, "parameters.dat"))
     internalize_cmd_kwargs(parameters, cmd_kwargs)
     vars().update(parameters)
 
@@ -59,14 +59,15 @@ spaces = dict()
 for name, subproblem in subproblems.items():
     if len(subproblem) > 1:
         spaces[name] = df.FunctionSpace(
-            mesh, df.MixedElement(
-                [elements[s["element"]] for s in subproblem]),
+            mesh,
+            df.MixedElement([elements[s["element"]] for s in subproblem]),
             constrained_domain=constrained_domain(**vars()))
     # If there is only one field in the subproblem, don't bother with
     # the MixedElement.
     elif len(subproblem) == 1:
         spaces[name] = df.FunctionSpace(
-            mesh, elements[subproblem[0]["element"]],
+            mesh,
+            elements[subproblem[0]["element"]],
             constrained_domain=constrained_domain(**vars()))
     else:
         info_on_red("Something went wrong here!")
@@ -90,10 +91,9 @@ for name, subproblem in subproblems.items():
         field_to_subspace[field] = spaces[name]
         field_to_subproblem[field] = (name, -1)
 
-
 # Create initial folders for storing results
-newfolder, tstepfiles = create_initial_folders(folder, restart_folder,
-                                               fields, tstep, parameters)
+newfolder, tstepfiles = create_initial_folders(folder, restart_folder, fields,
+                                               tstep, parameters)
 
 # Create overarching test and trial functions
 test_functions = dict()
@@ -108,10 +108,10 @@ for name, subproblem in subproblems.items():
 
 # Create work dictionaries for all subproblems
 w_ = dict((subproblem, df.Function(space, name=subproblem))
+          for subproblem, space in spaces.items())
+w_1 = dict((subproblem, df.Function(space, name=subproblem + "_1"))
            for subproblem, space in spaces.items())
-w_1 = dict((subproblem, df.Function(space, name=subproblem+"_1"))
-            for subproblem, space in spaces.items())
-w_tmp = dict((subproblem, df.Function(space, name=subproblem+"_tmp"))
+w_tmp = dict((subproblem, df.Function(space, name=subproblem + "_tmp"))
              for subproblem, space in spaces.items())
 
 # Shortcuts to the fields
@@ -139,14 +139,14 @@ else:
     exit()
 
 # Set up subdomains
-subdomains = df.MeshFunction("size_t", mesh, mesh.topology().dim()-1)
+subdomains = df.MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
 subdomains.set_all(0)
 boundary_to_mark = dict()
 mark_to_boundary = dict()
 for i, (boundary_name, markers) in enumerate(boundaries.items()):
     for marker in markers:
-        marker.mark(subdomains, i+1)
-    boundary_to_mark[boundary_name] = i+1
+        marker.mark(subdomains, i + 1)
+    boundary_to_mark[boundary_name] = i + 1
     mark_to_boundary[i] = boundary_name
 
 # Subdomains check
@@ -210,10 +210,11 @@ if w_init_fields:
                 else:
                     for j in range(num_subspaces):
                         w_init_vector.append(w_init_field.sub(j))
-            # assert len(w_init_vector) == w_[name].value_size()  
-            w_init = df.project(
-                df.as_vector(tuple(w_init_vector)), w_[name].function_space(),
-                solver_type="gmres", preconditioner_type="default")
+            # assert len(w_init_vector) == w_[name].value_size()
+            w_init = df.project(df.as_vector(tuple(w_init_vector)),
+                                w_[name].function_space(),
+                                solver_type="gmres",
+                                preconditioner_type="default")
         else:
             field = subproblem[0]["name"]
             if field in w_init_fields:
@@ -221,7 +222,8 @@ if w_init_fields:
             else:
                 # Take default value...
                 w_init_field = w_[name]
-            w_init = df.project(w_init_field, w_[name].function_space(),
+            w_init = df.project(w_init_field,
+                                w_[name].function_space(),
                                 solver_type="gmres",
                                 preconditioner_type="default")
         w_[name].interpolate(w_init)
@@ -266,7 +268,7 @@ while not stop:
     if tstep % info_intv == 0 or stop:
         info_green("Time = {0:f}, timestep = {1:d}".format(t, tstep))
         split_computing_time = timer.stop()
-        split_num_tsteps = tstep-tstep_0
+        split_num_tsteps = tstep - tstep_0
         timer.start()
         tstep_0 = tstep
         total_computing_time += split_computing_time
@@ -275,7 +277,7 @@ while not stop:
                   " timesteps: {1:f} seconds"
                   " ({2:f} seconds/timestep)".format(
                       split_num_tsteps, split_computing_time,
-                      split_computing_time/split_num_tsteps))
+                      split_computing_time / split_num_tsteps))
         df.list_timings(df.TimingClear.clear, [df.TimingType.wall])
 
 if total_num_tsteps > 0:
@@ -283,6 +285,6 @@ if total_num_tsteps > 0:
               " timesteps: {1:f} seconds"
               " ({2:f} seconds/timestep)".format(
                   total_num_tsteps, total_computing_time,
-                  total_computing_time/total_num_tsteps))
+                  total_computing_time / total_num_tsteps))
 
 end_hook(**vars())

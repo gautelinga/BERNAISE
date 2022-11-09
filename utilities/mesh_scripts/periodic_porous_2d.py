@@ -13,13 +13,16 @@ def description(**kwargs):
     info("")
 
 
-def place_obstacles(num_obstacles, Lx, Ly, R):
+def place_obstacles(num_obstacles, Lx, Ly, R, max_tries=10000):
     diam2 = 4*R**2
     pts = np.zeros((num_obstacles, 2))
     for i in range(num_obstacles):
-        while True:
+        found = False
+        tries = 0
+        while not found and tries < max_tries:
             pt = (np.random.rand(2)-0.5) * np.array([Lx, Ly])
             if i == 0:
+                found = True
                 break
             dist = pts[:i, :] - np.outer(np.ones(i), pt)
             for j in range(len(dist)):
@@ -29,8 +32,14 @@ def place_obstacles(num_obstacles, Lx, Ly, R):
                     dist[j, 0] = abs(dist[j, 0])-Lx
             dist2 = dist[:, 0]**2 + dist[:, 1]**2
             if all(dist2 > diam2):
-                break
-        pts[i, :] = pt
+                found = True
+            tries += 1
+        if found:
+            pts[i, :] = pt
+        else:
+            break
+    if not found:
+        pts = pts[:i, :]
     pts = pts[pts[:, 0].argsort(), :]
     obstacles = [tuple(row) for row in pts]
     return obstacles
@@ -315,12 +324,17 @@ def discretize_loop(pt_start, curve_start, curves, segments, dx):
 
 
 def method(Lx=4., Ly=4., num_obstacles=25,
-           rad=0.25, R=0.3, dx=0.05, seed=123, show=False, **kwargs):
+           rad=0.25, R=0.3, dx=0.05, seed=123,
+           show=False, **kwargs):
     x_min, x_max = -Lx/2, Lx/2
     y_min, y_max = -Ly/2, Ly/2
 
     np.random.seed(seed)
     obstacles = place_obstacles(num_obstacles, Lx, Ly, R)
+    if len(obstacles) < num_obstacles:
+        print("Could not fit {} obstacles. Could only fit {} obstacles.".format(num_obstacles, len(obstacles)))
+    num_obstacles = len(obstacles)
+
     obstacles = correct_obstacles(obstacles, rad, x_min, x_max, y_min, y_max)
 
     interior_obstacles, exterior_obstacles, obst = classify_obstacles(
@@ -401,14 +415,14 @@ def method(Lx=4., Ly=4., num_obstacles=25,
     msh = numpy_to_dolfin(coords, faces)
 
     mesh_path = os.path.join(MESHES_DIR,
-                             "periodic_porous_Lx{}_Ly{}_rad{}_N{}_dx{}".format(
-                                 Lx, Ly, rad, num_obstacles, dx))
+                             "periodic_porous_Lx{}_Ly{}_r{}_R{}_N{}_dx{}".format(
+                                 Lx, Ly, rad, R, num_obstacles, dx))
     store_mesh_HDF5(msh, mesh_path)
 
     obstacles_path = os.path.join(
         MESHES_DIR,
-        "periodic_porous_Lx{}_Ly{}_rad{}_N{}_dx{}.dat".format(
-            Lx, Ly, rad, num_obstacles, dx))
+        "periodic_porous_Lx{}_Ly{}_r{}_R{}_N{}_dx{}.dat".format(
+            Lx, Ly, rad, R, num_obstacles, dx))
 
     if len(obst) and len(interior_obstacles):
         all_obstacles = np.vstack((np.array(obst),

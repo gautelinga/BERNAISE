@@ -1,10 +1,13 @@
-import dolfin as df
 import os
-from . import *
-from common.io import mpi_is_root, load_mesh
-from common.bcs import Fixed, Pressure, NoSlip
+
+import dolfin as df
+from common.bcs import Fixed, NoSlip, Pressure
+from common.io import load_mesh, mpi_is_root
 #
 from ufl import max_value
+
+from . import *
+
 __author__ = "Gaute Linga"
 
 
@@ -12,11 +15,11 @@ class Left(df.SubDomain):
     def __init__(self, H):
         self.H = H
         df.SubDomain.__init__(self)
-    
+
     def inside(self, x, on_boundary):
-        return on_boundary and bool(df.near(x[0], 0.0) and
-                                    not df.near(x[1], 0.) and
-                                    not df.near(x[1], self.H))
+        return on_boundary and bool(
+            df.near(x[0], 0.0) and not df.near(x[1], 0.)
+            and not df.near(x[1], self.H))
 
 
 class Right(df.SubDomain):
@@ -26,9 +29,9 @@ class Right(df.SubDomain):
         df.SubDomain.__init__(self)
 
     def inside(self, x, on_boundary):
-        return on_boundary and bool(df.near(x[0], self.L) and
-                                    not df.near(x[1], 0.) and
-                                    not df.near(x[1], self.H))
+        return on_boundary and bool(
+            df.near(x[0], self.L) and not df.near(x[1], 0.)
+            and not df.near(x[1], self.H))
 
 
 class Wall(df.SubDomain):
@@ -38,8 +41,7 @@ class Wall(df.SubDomain):
         df.SubDomain.__init__(self)
 
     def inside(self, x, on_boundary):
-        return on_boundary and bool(df.near(x[1], 0.) or
-                                    df.near(x[1], self.H))
+        return on_boundary and bool(df.near(x[1], 0.) or df.near(x[1], self.H))
 
 
 class Cylinder(df.SubDomain):
@@ -49,10 +51,9 @@ class Cylinder(df.SubDomain):
         df.SubDomain.__init__(self)
 
     def inside(self, x, on_boundary):
-        return on_boundary and bool(not df.near(x[0], 0.) and
-                                    not df.near(x[0], self.L) and
-                                    not df.near(x[1], 0.) and
-                                    not df.near(x[1], self.H)) 
+        return on_boundary and bool(
+            not df.near(x[0], 0.) and not df.near(x[0], self.L)
+            and not df.near(x[1], 0.) and not df.near(x[1], self.H))
 
 
 def problem():
@@ -60,7 +61,7 @@ def problem():
     #         2, beta in phase 1, beta in phase 2
     #solutes = [["c_p",  1, 1e-4, 1e-2, 4., 1.],
     #           ["c_m", -1, 1e-4, 1e-2, 4., 1.]]
-    solutes = [["c_p",  0, 1e-3, 1e-2, 4., 1.]]
+    solutes = [["c_p", 0, 1e-3, 1e-2, 4., 1.]]
 
     # Format: name : (family, degree, is_vector)
     base_elements = dict(u=["Lagrange", 2, True],
@@ -71,7 +72,7 @@ def problem():
                          V=["Lagrange", 1, False])
 
     factor = 2
-    
+
     # Default parameters to be loaded unless starting from checkpoint.
     parameters = dict(
         solver="basic",
@@ -84,11 +85,11 @@ def problem():
         stats_intv=5,
         checkpoint_intv=50,
         tstep=0,
-        dt=0.015/factor,
+        dt=0.015 / factor,
         t_0=0.,
         T=8.,
-        res=factor*96,
-        interface_thickness=0.015/factor,
+        res=factor * 96,
+        interface_thickness=0.015 / factor,
         solutes=solutes,
         base_elements=base_elements,
         L=2.2,
@@ -121,12 +122,9 @@ def mesh(H=0.41, L=2.2, x0=0.2, y0=0.2, R=0.05, res=96, **namespace):
     return mesh
 
 
-def initialize(L, H, R,
-               interface_thickness, solutes, restart_folder,
-               field_to_subspace,
-               inlet_velocity, concentration_left,
-               enable_NS, enable_PF, enable_EC,
-               **namespace):
+def initialize(L, H, R, interface_thickness, solutes, restart_folder,
+               field_to_subspace, inlet_velocity, concentration_left,
+               enable_NS, enable_PF, enable_EC, **namespace):
     """ Create the initial state.
     The initial states are specified in a dict indexed by field. The format
     should be
@@ -148,8 +146,7 @@ def initialize(L, H, R,
         # Phase field
         if enable_PF:
             w_init_field["phi"] = df.interpolate(
-                df.Constant(1.),
-                field_to_subspace["phi"].collapse())
+                df.Constant(1.), field_to_subspace["phi"].collapse())
 
     #     if enable_EC:
     #         for solute in solutes:
@@ -165,18 +162,14 @@ def initialize(L, H, R,
     return w_init_field
 
 
-def create_bcs(L, H, inlet_velocity,
-               V_0, solutes,
-               concentration_left,
-               interface_thickness,
-               enable_NS, enable_PF, enable_EC, **namespace):
+def create_bcs(L, H, inlet_velocity, V_0, solutes, concentration_left,
+               interface_thickness, enable_NS, enable_PF, enable_EC,
+               **namespace):
     """ The boundaries and boundary conditions are defined here. """
-    boundaries = dict(
-        wall=[Wall(L, H)],
-        cylinder=[Cylinder(L, H)],
-        right=[Right(L, H)],
-        left=[Left(H)]
-    )
+    boundaries = dict(wall=[Wall(L, H)],
+                      cylinder=[Cylinder(L, H)],
+                      right=[Right(L, H)],
+                      left=[Left(H)])
 
     # Alocating the boundary dicts
     bcs = dict()
@@ -199,10 +192,10 @@ def create_bcs(L, H, inlet_velocity,
         bcs["cylinder"]["u"] = noslip
 
     if enable_PF:
-        phi_expr = df.Expression(
-            "tanh((abs(x[1]-H/2)-H/16)/(sqrt(2)*eps))",
-            H=H, eps=interface_thickness,
-            degree=2)
+        phi_expr = df.Expression("tanh((abs(x[1]-H/2)-H/16)/(sqrt(2)*eps))",
+                                 H=H,
+                                 eps=interface_thickness,
+                                 degree=2)
         phi_inlet = Fixed(phi_expr)
         bcs["left"]["phi"] = phi_inlet
         # bcs["right"]["phi"] = Fixed(df.Constant(1.))
@@ -212,7 +205,9 @@ def create_bcs(L, H, inlet_velocity,
         bcs["right"]["V"] = V_right
         for solute in solutes:
             c_expr = df.Expression("c0*exp(-pow(x[1]-H/2, 2)/(2*0.01*0.01))",
-                                   H=H, c0=concentration_left, degree=2)
+                                   H=H,
+                                   c0=concentration_left,
+                                   degree=2)
             bcs["left"][solute[0]] = Fixed(c_expr)
 
     return boundaries, bcs, bcs_pointwise
@@ -220,16 +215,22 @@ def create_bcs(L, H, inlet_velocity,
 
 def initial_phasefield(x0, y0, rad, eps, function_space):
     expr_str = "tanh((x[0]-x0)/(sqrt(2)*eps))"
-    phi_init_expr = df.Expression(expr_str, x0=x0, y0=y0, rad=rad,
-                                  eps=eps, degree=2)
+    phi_init_expr = df.Expression(expr_str,
+                                  x0=x0,
+                                  y0=y0,
+                                  rad=rad,
+                                  eps=eps,
+                                  degree=2)
     phi_init = df.interpolate(phi_init_expr, function_space)
     return phi_init
 
 
 def velocity_init(L, H, inlet_velocity, degree=2):
-    return df.Expression(
-        ("4*U*x[1]*(H-x[1])/pow(H, 2)", "0.0"),
-        L=L, H=H, U=inlet_velocity, degree=degree)
+    return df.Expression(("4*U*x[1]*(H-x[1])/pow(H, 2)", "0.0"),
+                         L=L,
+                         H=H,
+                         U=inlet_velocity,
+                         degree=degree)
 
 
 def tstep_hook(t, tstep, stats_intv, statsfile, field_to_subspace,

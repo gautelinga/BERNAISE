@@ -387,6 +387,10 @@ def method(Lx=1., Ly=np.sqrt(3),
 
     msh = numpy_to_dolfin(coords, faces)
 
+    total_area = Lx * Ly
+    fluid_area = df.assemble(df.Constant(1.) * df.dx(domain=msh))
+    print("porosity = {}".format(fluid_area/total_area))
+
     mesh_path = os.path.join(MESHES_DIR,
                              "cyl_arr_Lx{}_Ly{}_rad{}_dx{}".format(
                                  Lx, Ly, rad,  dx))
