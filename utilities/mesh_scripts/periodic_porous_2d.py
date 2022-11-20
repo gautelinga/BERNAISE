@@ -13,7 +13,11 @@ def description(**kwargs):
     info("")
 
 
-def place_obstacles(num_obstacles, Lx, Ly, R, max_tries=10000):
+def place_obstacles(num_obstacles, Lx, Ly, R, max_tries=10000, Lx_outer=None, Ly_outer=None):
+    if Lx_outer is None:
+        Lx_outer = Lx
+    if Ly_outer is None:
+        Ly_outer = Ly
     diam2 = 4*R**2
     pts = np.zeros((num_obstacles, 2))
     for i in range(num_obstacles):
@@ -26,10 +30,10 @@ def place_obstacles(num_obstacles, Lx, Ly, R, max_tries=10000):
                 break
             dist = pts[:i, :] - np.outer(np.ones(i), pt)
             for j in range(len(dist)):
-                if abs(dist[j, 1]) > Ly/2:
-                    dist[j, 1] = abs(dist[j, 1])-Ly
-                if abs(dist[j, 0]) > Lx/2:
-                    dist[j, 0] = abs(dist[j, 0])-Lx
+                if abs(dist[j, 1]) > Ly_outer/2:
+                    dist[j, 1] = abs(dist[j, 1])-Ly_outer
+                if abs(dist[j, 0]) > Lx_outer/2:
+                    dist[j, 0] = abs(dist[j, 0])-Lx_outer
             dist2 = dist[:, 0]**2 + dist[:, 1]**2
             if all(dist2 > diam2):
                 found = True
