@@ -82,8 +82,10 @@ def method(Lx=6., Lx_inner=4., Ly=4., Ly_inner=4., num_obstacles=25,
     for xx, yy in obstacles:
         r = np.sqrt(np.minimum(abs(XX-xx), Lx-abs(XX-xx))**2 + np.minimum(abs(YY-yy), Ly-abs(YY-yy))**2)
         dist[r < dist] = r[r < dist]
-    plt.pcolormesh(XX, YY, dist)
-    plt.show()
+
+    if show:
+        plt.pcolormesh(XX, YY, dist)
+        plt.show()
 
     #L = min(Lx, Ly)/2 #np.sqrt((Lx/2)**2+(Ly/2)**2)
     A_outer = 0.5*dx_outer**2
@@ -91,8 +93,9 @@ def method(Lx=6., Lx_inner=4., Ly=4., Ly_inner=4., num_obstacles=25,
     scalef = (dist - rad)/scale_outer
     scalef[scalef > 1.] = 1.
     scalef = -2*scalef**3 + 3*scalef**2
-    plt.pcolormesh(XX, YY, scalef)
-    plt.show()
+    if show:
+        plt.pcolormesh(XX, YY, scalef)
+        plt.show()
 
     max_area = A + (A_outer - A) * scalef
     ddx = Lx / Nx
@@ -118,8 +121,9 @@ def method(Lx=6., Lx_inner=4., Ly=4., Ly_inner=4., num_obstacles=25,
         edges = list(edges_out)
         pts = list(pts_out)
 
-    plot_edges(pts, edges)
-    plt.show()
+    if show:
+        plot_edges(pts, edges)
+        plt.show()
 
     for interior_obstacle in interior_obstacles:
         pts_obstacle = rad_points(interior_obstacle, rad, dx)[1:]
