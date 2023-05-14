@@ -399,6 +399,16 @@ def method(Lx=1., Ly=0.,
                                  Lx, rad,  dx))
     store_mesh_HDF5(msh, mesh_path)
 
+    all_obstacles = np.array([(-Lx/2, -Ly/2),
+                              (-Lx/2, Ly/2),
+                              (0., 0.),
+                              (Lx/2, -Ly/2),
+                              (Lx/2, Ly/2)])
+
+    np.savetxt(mesh_path + ".dat",
+               np.hstack((all_obstacles,
+                          np.ones((len(all_obstacles), 1))*rad)))
+
     # obstacles_path = os.path.join(
     #     MESHES_DIR,
     #     "periodic_porous_Lx{}_Ly{}_rad{}_N{}_dx{}.dat".format(
