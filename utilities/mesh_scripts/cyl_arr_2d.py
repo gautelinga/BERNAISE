@@ -301,8 +301,11 @@ def discretize_loop(pt_start, curve_start, curves, segments, dx):
     return pts
 
 
-def method(Lx=1., Ly=np.sqrt(3),
+def method(Lx=1., Ly=0.,
            rad=0.2, dx=0.05, seed=123, show=False, **kwargs):
+    if Ly == 0.:
+        Ly = Lx * np.sqrt(3)
+
     x_min, x_max = -Lx/2, Lx/2
     y_min, y_max = -Ly/2, Ly/2
 
@@ -392,8 +395,8 @@ def method(Lx=1., Ly=np.sqrt(3),
     print("porosity = {}".format(fluid_area/total_area))
 
     mesh_path = os.path.join(MESHES_DIR,
-                             "cyl_arr_Lx{}_Ly{}_rad{}_dx{}".format(
-                                 Lx, Ly, rad,  dx))
+                             "cyl_arr_Lx{}_rad{}_dx{}".format(
+                                 Lx, rad,  dx))
     store_mesh_HDF5(msh, mesh_path)
 
     # obstacles_path = os.path.join(
