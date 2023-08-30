@@ -131,8 +131,8 @@ def method(Lx=10., Ly=20., Nx=7, Ny=15, rad=0.5, dx=0.05, perturb=0.0, seed=123,
 
     obstacles_path = os.path.join(
         MESHES_DIR,
-        "periodic_porous_Lx{}_Ly{}_r{}_R{}_N{}_dx{}.dat".format(
-            Lx, Ly, rad, R, num_obstacles, dx))
+        "periodic_porous_Lx{}_Ly{}_r{}_dx{}.dat".format(
+            Lx, Ly, rad, dx))
 
     if len(obst) and len(interior_obstacles):
         all_obstacles = np.vstack((np.array(obst),
