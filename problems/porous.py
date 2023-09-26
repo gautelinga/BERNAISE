@@ -3,7 +3,7 @@ import os
 from . import *
 from common.io import mpi_is_root, load_mesh
 from common.bcs import Fixed, Pressure, Charged
-from ufl import sign
+from ufl_legacy import sign
 import numpy as np
 __author__ = "Gaute Linga"
 

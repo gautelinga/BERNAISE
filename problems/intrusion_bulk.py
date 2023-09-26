@@ -3,7 +3,7 @@ import os
 from . import *
 from common.io import mpi_is_root
 from common.bcs import Fixed, Pressure
-# from ufl import max_value
+# from ufl_legacy import max_value
 __author__ = "Asger Bolet; Gaute Linga"
 
 

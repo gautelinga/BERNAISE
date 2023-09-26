@@ -4,7 +4,7 @@ import dolfin as df
 from common.bcs import Fixed, NoSlip, Pressure
 from common.io import load_mesh, mpi_is_root
 #
-from ufl import max_value
+# from ufl_legacy import max_value
 
 from . import *
 

@@ -1,6 +1,6 @@
 """ Some useful functions in various parts of BERNAISE. """
 import dolfin as df
-import ufl
+import ufl_legacy as ufl
 __author__ = "Gaute Linga"
 
 
