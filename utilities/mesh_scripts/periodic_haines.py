@@ -34,13 +34,23 @@ def place_obstacles(Lx, Ly, Nx, Ny, perturb):
     return obstacles, R
 
 
-def method(Lx=10., Ly=20., Nx=7, Ny=15, rad=0.5, dx=0.05, perturb=0.0, seed=123, show=False, **kwargs):
+def method(Lx=10., Ly=20., Nx=7, Ny=15, rad=0.5, dx=0.05, perturb=0.0, seed=123, show=False, shrink_y=False, **kwargs):
     x_min, x_max = -Lx/2, Lx/2
     y_min, y_max = -Ly/2, Ly/2
 
     np.random.seed(seed)
     obstacles, R = place_obstacles(Lx, Ly, Nx, Ny, perturb)
     num_obstacles = len(obstacles)
+
+    obstacles = np.array(obstacles)
+
+    if shrink_y:
+        y_max = obstacles[:, 1].max()
+        y_min = obstacles[:, 1].min()
+
+        Ly = y_max - y_min
+
+        obstacles = obstacles[obstacles[:, 1] < y_max - 1e-8, :]
 
     xx = np.array(obstacles)
     plt.scatter(xx[:, 0], xx[:, 1])
