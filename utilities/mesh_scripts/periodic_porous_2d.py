@@ -7,7 +7,9 @@ from meshpy import triangle as tri
 from common import info
 import os
 import dolfin as df
+import cppimport
 
+cppcode = cppimport.imp("cpp.rsa")
 
 def description(**kwargs):
     info("")
@@ -37,6 +39,7 @@ def place_obstacles(num_obstacles, Lx, Ly, R, max_tries=10000, Lx_outer=None, Ly
             dist2 = dist[:, 0]**2 + dist[:, 1]**2
             if all(dist2 > diam2):
                 found = True
+                print(f"Found {i} after {tries} tries.")
             tries += 1
         if found:
             pts[i, :] = pt
@@ -327,16 +330,19 @@ def discretize_loop(pt_start, curve_start, curves, segments, dx):
     return pts
 
 
-def method(Lx=4., Ly=4., num_obstacles=25,
+def method(Lx=4., Ly=4., pad_x=0., pad_y=0., num_obstacles=25,
            rad=0.25, R=0.3, dx=0.05, seed=123,
            show=False, **kwargs):
     x_min, x_max = -Lx/2, Lx/2
     y_min, y_max = -Ly/2, Ly/2
 
-    np.random.seed(seed)
-    obstacles = place_obstacles(num_obstacles, Lx, Ly, R)
+    obstacles = cppcode.place_obstacles(num_obstacles, Lx, Ly, R, pad_x=pad_x, pad_y=pad_y, seed=seed)
+    # np.random.seed(seed)
+    # obstacles = place_obstacles(num_obstacles, Lx, Ly, R)
     if len(obstacles) < num_obstacles:
         print("Could not fit {} obstacles. Could only fit {} obstacles.".format(num_obstacles, len(obstacles)))
+        pacfrac = len(obstacles) * np.pi * R**2 / (Lx * Ly)
+        print(f"Packing fraction: {pacfrac}")
     num_obstacles = len(obstacles)
 
     obstacles = correct_obstacles(obstacles, rad, x_min, x_max, y_min, y_max)

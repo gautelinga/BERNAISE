@@ -16,12 +16,12 @@ def description(**kwargs):
 
 
 def method(Lx=4., Ly=4.,
-           rad=0.25, dx=0.05, dx_outer=0.5,
+           rad=0.25, dx=0.05, dx_outer=0.5, x_shift=0, y_shift=0,
            show=False, **kwargs):
     x_min, x_max = -Lx/2, Lx/2
     y_min, y_max = -Ly/2, Ly/2
 
-    obstacle = (0., 0.)
+    obstacle = (x_shift, y_shift)
 
     segments = [((x_min, y_min), (x_max, y_min)),
                 ((x_max, y_min), (x_max, y_max)),
