@@ -9,21 +9,22 @@ import os
 import dolfin as df
 import math
 from .periodic_porous_2d import place_obstacles, correct_obstacles, classify_obstacles, compute_intersections, draw_curves, \
-    get_curve_intersection_points, construct_segments, discretize_loop
+    get_curve_intersection_points, construct_segments, discretize_loop, cppcode
 
 
 def description(**kwargs):
     info("Periodic porous refined.")
 
 
-def method(Lx=6., Lx_inner=4., Ly=4., Ly_inner=4., num_obstacles=25,
+def method(Lx=6., Ly=4., pad_x=0., pad_y=0., num_obstacles=25,
            rad=0.25, R=0.3, dx=0.02, dx_outer=0.5, scale_outer=1., seed=123,
            show=False, Nx=1000, Ny=1000, **kwargs):
     x_min, x_max = -Lx/2, Lx/2
     y_min, y_max = -Ly/2, Ly/2
 
-    np.random.seed(seed)
-    obstacles = place_obstacles(num_obstacles, Lx_inner, Ly_inner, R, Ly_outer=Ly, Lx_outer=Lx)
+    obstacles = cppcode.place_obstacles(num_obstacles, Lx, Ly, R, pad_x=pad_x, pad_y=pad_y, seed=seed)
+    # np.random.seed(seed)
+    # obstacles = place_obstacles(num_obstacles, Lx_inner, Ly_inner, R, Ly_outer=Ly, Lx_outer=Lx)
     if len(obstacles) < num_obstacles:
         print("Could not fit {} obstacles. Could only fit {} obstacles.".format(num_obstacles, len(obstacles)))
     num_obstacles = len(obstacles)

@@ -1,4 +1,5 @@
 """ periodic_porous script. """
+from xml.parsers.expat import model
 import numpy as np
 from generate_mesh import MESHES_DIR, store_mesh_HDF5, line_points, \
     rad_points, round_trip_connect, numpy_to_dolfin, numpy_to_dolfin_old
@@ -8,6 +9,7 @@ from common import info
 import os
 import dolfin as df
 import cppimport
+import meshio
 
 cppcode = cppimport.imp("cpp.rsa")
 
@@ -332,20 +334,33 @@ def discretize_loop(pt_start, curve_start, curves, segments, dx):
 
 def method(Lx=4., Ly=4., pad_x=0., pad_y=0., num_obstacles=25,
            rad=0.25, R=0.3, dx=0.05, seed=123,
-           show=False, **kwargs):
+           show=False, mode="triangle", input=None, **kwargs):
     x_min, x_max = -Lx/2, Lx/2
     y_min, y_max = -Ly/2, Ly/2
 
-    obstacles = cppcode.place_obstacles(num_obstacles, Lx, Ly, R, pad_x=pad_x, pad_y=pad_y, seed=seed)
-    # np.random.seed(seed)
-    # obstacles = place_obstacles(num_obstacles, Lx, Ly, R)
-    if len(obstacles) < num_obstacles:
-        print("Could not fit {} obstacles. Could only fit {} obstacles.".format(num_obstacles, len(obstacles)))
-        pacfrac = len(obstacles) * np.pi * R**2 / (Lx * Ly)
-        print(f"Packing fraction: {pacfrac}")
-    num_obstacles = len(obstacles)
+    if input is None:
+        obstacles = cppcode.place_obstacles(num_obstacles, Lx, Ly, R, pad_x=pad_x, pad_y=pad_y, seed=seed)
+        # np.random.seed(seed)
+        # obstacles = place_obstacles(num_obstacles, Lx, Ly, R)
+        if len(obstacles) < num_obstacles:
+            print("Could not fit {} obstacles. Could only fit {} obstacles.".format(num_obstacles, len(obstacles)))
+            pacfrac = len(obstacles) * np.pi * R**2 / (Lx * Ly)
+            print(f"Packing fraction: {pacfrac}")
+        num_obstacles = len(obstacles)
 
-    obstacles = correct_obstacles(obstacles, rad, x_min, x_max, y_min, y_max)
+        obstacles = correct_obstacles(obstacles, rad, x_min, x_max, y_min, y_max)
+    else:
+        obstacles = np.loadtxt(input, usecols=(0, 1))
+        num_obstacles = len(obstacles)
+
+    mesh_path = os.path.join(MESHES_DIR,
+                             "periodic_porous_Lx{}_Ly{}_r{}_R{}_N{}_dx{}".format(
+                                 Lx, Ly, rad, R, num_obstacles, dx))
+
+    obstacles_path = os.path.join(
+        MESHES_DIR,
+        "periodic_porous_Lx{}_Ly{}_r{}_R{}_N{}_dx{}.dat".format(
+            Lx, Ly, rad, R, num_obstacles, dx))
 
     interior_obstacles, exterior_obstacles, obst = classify_obstacles(
         obstacles, rad, x_min, x_max, y_min, y_max)
@@ -387,7 +402,8 @@ def method(Lx=4., Ly=4., pad_x=0., pad_y=0., num_obstacles=25,
     pts = discretize_loop(pt_start, curve_start,
                           curves, segments, dx)[::-1]
 
-    plt.show()
+    if show:
+        plt.show()
 
     edges = round_trip_connect(0, len(pts)-1)
 
@@ -402,38 +418,6 @@ def method(Lx=4., Ly=4., pad_x=0., pad_y=0., num_obstacles=25,
     if show:
         plot_edges(pts, edges)
 
-    mi = tri.MeshInfo()
-    mi.set_points(pts)
-    mi.set_facets(edges)
-    mi.set_holes(interior_obstacles)
-
-    max_area = 0.5*dx**2
-
-    mesh = tri.build(mi, max_volume=max_area, min_angle=25,
-                     allow_boundary_steiner=False)
-
-    coords = np.array(mesh.points)
-    faces = np.array(mesh.elements)
-
-    pp = [tuple(point) for point in mesh.points]
-    info("Number of points:     {}".format(len(pp)))
-    info("Number unique points: {}".format(len(set(pp))))
-
-    if show:
-        plot_faces(coords, faces)
-
-    msh = numpy_to_dolfin(coords, faces)
-
-    mesh_path = os.path.join(MESHES_DIR,
-                             "periodic_porous_Lx{}_Ly{}_r{}_R{}_N{}_dx{}".format(
-                                 Lx, Ly, rad, R, num_obstacles, dx))
-    store_mesh_HDF5(msh, mesh_path)
-
-    obstacles_path = os.path.join(
-        MESHES_DIR,
-        "periodic_porous_Lx{}_Ly{}_r{}_R{}_N{}_dx{}.dat".format(
-            Lx, Ly, rad, R, num_obstacles, dx))
-
     if len(obst) and len(interior_obstacles):
         all_obstacles = np.vstack((np.array(obst),
                                    np.array(interior_obstacles)))
@@ -446,3 +430,103 @@ def method(Lx=4., Ly=4., pad_x=0., pad_y=0., num_obstacles=25,
         np.savetxt(obstacles_path,
                    np.hstack((all_obstacles,
                               np.ones((len(all_obstacles), 1))*rad)))
+
+    max_area = 0.5*dx**2
+    
+    if mode == "triangle":
+        mi = tri.MeshInfo()
+        mi.set_points(pts)
+        mi.set_facets(edges)
+        mi.set_holes(interior_obstacles)
+
+        mesh = tri.build(mi, max_volume=max_area, min_angle=25,
+                        allow_boundary_steiner=False)
+
+        coords = np.array(mesh.points)
+        faces = np.array(mesh.elements)
+    else:
+        import gmsh
+
+        gmsh.initialize()
+
+        p_ = []
+        for p in pts:
+            p_.append(gmsh.model.geo.add_point(p[0], p[1], 0.0, dx))
+        
+        e_ = []
+        for e in edges:
+            e_.append(gmsh.model.geo.add_line(p_[e[0]], p_[e[1]]))
+        face1 = gmsh.model.geo.add_curve_loop(e_)
+        surf1 = gmsh.model.geo.add_plane_surface([face1])
+
+        if mode == "hex":
+            h = dx/2
+            extruded_geometry = gmsh.model.geo.extrude([(2, surf1)], 0.0, 0.0, h, numElements=[1], recombine=True)
+
+            gmsh.model.geo.synchronize()
+            
+            gmsh.option.setNumber("Mesh.Algorithm", 1)  # 1: MeshAdapt, 2: Frontal-Delaunay, 5: Delaunay
+
+            gmsh.option.setNumber("Mesh.RecombinationAlgorithm", 2)
+            gmsh.option.setNumber("Mesh.RecombineAll", 2)
+            gmsh.option.setNumber("Mesh.CharacteristicLengthFactor", 1)
+
+            gmsh.model.mesh.generate(3)
+
+            volume_entities = []
+            for entity in extruded_geometry:
+                if entity[0] == 3:
+                    volume_entities.append(entity[1])
+            pg = gmsh.model.addPhysicalGroup(3, volume_entities)
+            gmsh.model.setPhysicalName(3, pg, "Mesh volume")
+
+            gmsh.write(mesh_path + ".msh")
+
+            mesh = meshio.read(mesh_path + ".msh")
+            mesh.write(mesh_path + ".msh", file_format="gmsh22", binary=False)
+            meshio.write(mesh_path + "_show.xdmf", mesh)
+
+        elif mode == "quad":
+            gmsh.model.geo.synchronize()
+
+            gmsh.model.mesh.setRecombine(2, surf1)
+            
+            gmsh.option.setNumber("Mesh.Algorithm", 1)  # 1: MeshAdapt, 2: Frontal-Delaunay, 5: Delaunay
+
+            gmsh.option.setNumber("Mesh.RecombinationAlgorithm", 2) # 2 or 3
+
+            #gmsh.option.setNumber("Mesh.MeshSizeExtendFromBoundary", 0)
+            #gmsh.option.setNumber("Mesh.MeshSizeFromPoints", 0)
+            #gmsh.option.setNumber("Mesh.MeshSizeFromCurvature", 0)
+
+            gmsh.model.mesh.generate(2)
+            pg = gmsh.model.addPhysicalGroup(2, [surf1])
+            gmsh.model.setPhysicalName(2, pg, "MySurface")
+
+            gmsh.write(mesh_path + ".msh")
+            mesh = meshio.read(mesh_path + ".msh")
+            #meshio.write(mesh_path + "_show.xdmf", mesh)
+        else:
+            gmsh.model.geo.synchronize()            
+            gmsh.model.mesh.generate(2)
+            pg = gmsh.model.addPhysicalGroup(2, [surf1])
+            gmsh.model.setPhysicalName(2, pg, "MySurface")
+
+            gmsh.write(mesh_path + ".msh")
+            mesh = meshio.read(mesh_path + ".msh")
+
+        gmsh.finalize()
+
+        coords = np.array([[p[0], p[1]] for p in mesh.points])
+        faces = np.array([cell.data for cell in mesh.cells if cell.type == "triangle"][0])
+
+    pp = [tuple(point) for point in coords]
+    info("Number of points:     {}".format(len(pp)))
+    info("Number unique points: {}".format(len(set(pp))))
+
+    if show:
+        plot_faces(coords, faces)
+
+    msh = numpy_to_dolfin(coords, faces)
+
+    store_mesh_HDF5(msh, mesh_path)
