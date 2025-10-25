@@ -338,6 +338,7 @@ def method(Lx=4., Ly=4., pad_x=0., pad_y=0., num_obstacles=25,
     x_min, x_max = -Lx/2, Lx/2
     y_min, y_max = -Ly/2, Ly/2
 
+    extra = ""
     if input is None:
         obstacles = cppcode.place_obstacles(num_obstacles, Lx, Ly, R, pad_x=pad_x, pad_y=pad_y, seed=seed)
         # np.random.seed(seed)
@@ -351,16 +352,18 @@ def method(Lx=4., Ly=4., pad_x=0., pad_y=0., num_obstacles=25,
         obstacles = correct_obstacles(obstacles, rad, x_min, x_max, y_min, y_max)
     else:
         obstacles = np.loadtxt(input, usecols=(0, 1))
+        obstacles = obstacles[np.logical_and.reduce([obstacles[:, 0] > x_min,
+                                                     obstacles[:, 0] < x_max, 
+                                                     obstacles[:, 1] > y_min, 
+                                                     obstacles[:, 1] < y_max]), :]
         num_obstacles = len(obstacles)
+        print(num_obstacles)
+        extra = "_fromfile"
 
     mesh_path = os.path.join(MESHES_DIR,
-                             "periodic_porous_Lx{}_Ly{}_r{}_R{}_N{}_dx{}".format(
-                                 Lx, Ly, rad, R, num_obstacles, dx))
+                             f"periodic_porous_Lx{Lx}_Ly{Ly}_r{rad}_R{R}_N{num_obstacles}_dx{dx}{extra}")
 
-    obstacles_path = os.path.join(
-        MESHES_DIR,
-        "periodic_porous_Lx{}_Ly{}_r{}_R{}_N{}_dx{}.dat".format(
-            Lx, Ly, rad, R, num_obstacles, dx))
+    obstacles_path = mesh_path + ".dat"
 
     interior_obstacles, exterior_obstacles, obst = classify_obstacles(
         obstacles, rad, x_min, x_max, y_min, y_max)
@@ -505,6 +508,8 @@ def method(Lx=4., Ly=4., pad_x=0., pad_y=0., num_obstacles=25,
 
             gmsh.write(mesh_path + ".msh")
             mesh = meshio.read(mesh_path + ".msh")
+
+            faces = np.array([cell.data for cell in mesh.cells if cell.type == "quad"][0])
             #meshio.write(mesh_path + "_show.xdmf", mesh)
         else:
             gmsh.model.geo.synchronize()            
@@ -514,11 +519,12 @@ def method(Lx=4., Ly=4., pad_x=0., pad_y=0., num_obstacles=25,
 
             gmsh.write(mesh_path + ".msh")
             mesh = meshio.read(mesh_path + ".msh")
+        
+            faces = np.array([cell.data for cell in mesh.cells if cell.type == "triangle"][0])
 
         gmsh.finalize()
 
         coords = np.array([[p[0], p[1]] for p in mesh.points])
-        faces = np.array([cell.data for cell in mesh.cells if cell.type == "triangle"][0])
 
     pp = [tuple(point) for point in coords]
     info("Number of points:     {}".format(len(pp)))
