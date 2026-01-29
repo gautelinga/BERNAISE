@@ -10,6 +10,7 @@ import os
 import dolfin as df
 import cppimport
 import meshio
+from scipy.optimize import minimize
 
 cppcode = cppimport.imp("cpp.rsa")
 
@@ -89,6 +90,67 @@ def correct_obstacles(obstacles, rad, x_min, x_max, y_min, y_max):
         x[:, 0] += shift[0]
         x[:, 1] += shift[1]
         obstacles = x.tolist()
+    return obstacles
+
+def optimize_obstacle_placement(obstacles, rad, x_min, x_max, y_min, y_max, show=True, Npts=10000):
+    x = np.array(obstacles)
+    Lx = x_max - x_min
+    Ly = y_max - y_min
+
+    inside = np.logical_and.reduce([x[:, 0] > x_min, x[:, 0] < x_max,
+                           x[:, 1] > y_min, x[:, 1] < y_max])
+    print(np.sum(inside), "obstacles inside the domain out of", len(obstacles))
+
+    cost_x = lambda d: -min(abs(np.mod(x[:, 0]-x_min+d-rad + Lx/2, Lx) - Lx/2).min(), abs(np.mod(x[:, 0]-x_min+d+rad + Lx/2, Lx) - Lx/2).min())
+    cost_y = lambda d: -min(abs(np.mod(x[:, 1]-y_min+d-rad + Ly/2, Ly) - Ly/2).min(), abs(np.mod(x[:, 1]-y_min+d+rad + Ly/2, Ly) - Ly/2).min())
+
+    #d_x_ = np.linspace(-Lx/2, Lx/2, Npts)
+    d_x_ = np.linspace(-rad, rad, Npts)
+    c_x_ = np.array([cost_x(di) for di in d_x_])
+    d_x0 = d_x_[c_x_.argmin()]
+    d_xd = d_x_[1]-d_x_[0]
+    print(f"Initial guess for x shift: {d_x0} with cost {cost_x(d_x0)}")
+    res_x = minimize(cost_x, x0=d_x0, bounds=[(d_x0-d_xd, d_x0+d_xd)], method='L-BFGS-B')
+    print(f"Shifting x by {res_x.x} to reduce cost {res_x.fun}: {res_x.success} {res_x.message}")
+    x[:, 0] += res_x.x
+
+
+    #d_y_ = np.linspace(-Ly/2, Ly/2, Npts)
+    d_y_ = np.linspace(-rad, rad, Npts)
+    c_y_ = np.array([cost_y(di) for di in d_y_])
+    d_y0 = d_y_[c_y_.argmin()]
+    d_yd = d_y_[1]-d_y_[0]
+    print(f"Initial guess for y shift: {d_y0} with cost {cost_y(d_y0)}")
+    res_y = minimize(cost_y, x0=d_y0, bounds=[(d_y0-d_yd, d_y0+d_yd)], method='L-BFGS-B')
+    print(f"Shifting y by {res_y.x} to reduce cost {res_y.fun}: {res_y.success} {res_y.message}")
+    x[:, 1] += res_y.x
+
+    x[:, 0] = np.mod(x[:, 0]-x_min + Lx, Lx) + x_min
+    x[:, 1] = np.mod(x[:, 1]-y_min + Ly, Ly) + y_min
+
+    inside = np.logical_and.reduce([x[:, 0] > x_min, x[:, 0] < x_max,
+                           x[:, 1] > y_min, x[:, 1] < y_max])
+    print(np.sum(inside), "obstacles inside the domain out of", len(obstacles))
+
+    if show:
+        fig, ax = plt.subplots(1, 2)
+        ax[0].plot(d_x_, c_x_)
+        ax[0].axvline(d_x0, color='k', linestyle='--', label='Initial guess')
+        ax[0].axvline(res_x.x, color='r', linestyle='--', label='Optimized')
+        ax[0].set_title("Cost function for x shift")
+        ax[0].set_xlabel("Shift in x")
+        ax[0].set_ylabel("Cost")
+        ax[0].legend()
+
+        ax[1].plot(d_y_, c_y_)
+        ax[1].axvline(d_y0, color='k', linestyle='--', label='Initial guess')
+        ax[1].axvline(res_y.x, color='r', linestyle='--', label='Optimized')
+        ax[1].set_title("Cost function for y shift")
+        ax[1].set_xlabel("Shift in y")
+        ax[1].set_ylabel("Cost")
+        plt.show()
+
+    obstacles = x.tolist()
     return obstacles
 
 
@@ -333,8 +395,8 @@ def discretize_loop(pt_start, curve_start, curves, segments, dx):
 
 
 def method(Lx=4., Ly=4., pad_x=0., pad_y=0., num_obstacles=25,
-           rad=0.25, R=0.3, dx=0.05, seed=123,
-           show=False, mode="triangle", input=None, **kwargs):
+           rad=0.25, R=0.3, dx=0.05, seed=123, shift_x=0., shift_y=0.,
+           show=False, mode="triangle", input=None, optimize_obstacles=False, **kwargs):
     x_min, x_max = -Lx/2, Lx/2
     y_min, y_max = -Ly/2, Ly/2
 
@@ -352,6 +414,8 @@ def method(Lx=4., Ly=4., pad_x=0., pad_y=0., num_obstacles=25,
         obstacles = correct_obstacles(obstacles, rad, x_min, x_max, y_min, y_max)
     else:
         obstacles = np.loadtxt(input, usecols=(0, 1))
+        obstacles[:, 0] += shift_x
+        obstacles[:, 1] += shift_y
         obstacles = obstacles[np.logical_and.reduce([obstacles[:, 0] > x_min,
                                                      obstacles[:, 0] < x_max, 
                                                      obstacles[:, 1] > y_min, 
@@ -359,6 +423,9 @@ def method(Lx=4., Ly=4., pad_x=0., pad_y=0., num_obstacles=25,
         num_obstacles = len(obstacles)
         print(num_obstacles)
         extra = "_fromfile"
+
+    if optimize_obstacles:
+        obstacles = optimize_obstacle_placement(obstacles, rad, x_min, x_max, y_min, y_max)
 
     mesh_path = os.path.join(MESHES_DIR,
                              f"periodic_porous_Lx{Lx}_Ly{Ly}_r{rad}_R{R}_N{num_obstacles}_dx{dx}{extra}")
@@ -401,6 +468,9 @@ def method(Lx=4., Ly=4., pad_x=0., pad_y=0., num_obstacles=25,
                        x[1:, 0]-x[:-1, 0],
                        x[1:, 1]-x[:-1, 1],
                        scale_units='xy', angles='xy', scale=1)
+
+    if show:
+        plt.show()
 
     pts = discretize_loop(pt_start, curve_start,
                           curves, segments, dx)[::-1]
